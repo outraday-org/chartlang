@@ -5,6 +5,7 @@ import type { Color, Price, Time } from "../types.js";
 import type {
     BoolDescriptor,
     ColorDescriptor,
+    CommonInputOpts,
     EnumDescriptor,
     ExternalSeriesDescriptor,
     FloatDescriptor,
@@ -19,6 +20,31 @@ import type {
     SymbolDescriptor,
     TimeDescriptor,
 } from "./inputDescriptor.js";
+
+type ExternalSeriesArgs<T> = Readonly<
+    {
+        name: string;
+        schema: Schema<T>;
+        title?: string;
+    } & CommonInputOpts
+>;
+
+type OptionalInputMetadata = Readonly<
+    {
+        title?: string;
+    } & CommonInputOpts
+>;
+
+function definedExternalSeriesMetadata<T>(args: ExternalSeriesArgs<T>): OptionalInputMetadata {
+    return {
+        ...(args.title === undefined ? {} : { title: args.title }),
+        ...(args.group === undefined ? {} : { group: args.group }),
+        ...(args.inline === undefined ? {} : { inline: args.inline }),
+        ...(args.tooltip === undefined ? {} : { tooltip: args.tooltip }),
+        ...(args.display === undefined ? {} : { display: args.display }),
+        ...(args.confirm === undefined ? {} : { confirm: args.confirm }),
+    };
+}
 
 /**
  * The `input.*` namespace. Every builder is a compile-time literal: the
@@ -49,7 +75,7 @@ export const input = Object.freeze({
             readonly max?: number;
             readonly step?: number;
             readonly title?: string;
-        },
+        } & CommonInputOpts,
     ): IntDescriptor {
         return Object.freeze({ kind: "int" as const, defaultValue, ...opts });
     },
@@ -70,7 +96,7 @@ export const input = Object.freeze({
             readonly max?: number;
             readonly step?: number;
             readonly title?: string;
-        },
+        } & CommonInputOpts,
     ): FloatDescriptor {
         return Object.freeze({ kind: "float" as const, defaultValue, ...opts });
     },
@@ -84,7 +110,10 @@ export const input = Object.freeze({
      *     const enabled = input.bool(true);
      *     void enabled;
      */
-    bool(defaultValue: boolean, opts?: { readonly title?: string }): BoolDescriptor {
+    bool(
+        defaultValue: boolean,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): BoolDescriptor {
         return Object.freeze({ kind: "bool" as const, defaultValue, ...opts });
     },
 
@@ -99,7 +128,7 @@ export const input = Object.freeze({
      */
     string(
         defaultValue: string,
-        opts?: { readonly title?: string; readonly multiline?: boolean },
+        opts?: { readonly title?: string; readonly multiline?: boolean } & CommonInputOpts,
     ): StringDescriptor {
         return Object.freeze({ kind: "string" as const, defaultValue, ...opts });
     },
@@ -120,7 +149,7 @@ export const input = Object.freeze({
     enum<T extends string | number>(
         defaultValue: T,
         options: ReadonlyArray<T>,
-        opts?: { readonly title?: string },
+        opts?: { readonly title?: string } & CommonInputOpts,
     ): EnumDescriptor<T> {
         return Object.freeze({
             kind: "enum" as const,
@@ -139,7 +168,10 @@ export const input = Object.freeze({
      *     const c = input.color("#26a69a");
      *     void c;
      */
-    color(defaultValue: Color, opts?: { readonly title?: string }): ColorDescriptor {
+    color(
+        defaultValue: Color,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): ColorDescriptor {
         return Object.freeze({ kind: "color" as const, defaultValue, ...opts });
     },
 
@@ -152,7 +184,10 @@ export const input = Object.freeze({
      *     const source = input.source("close");
      *     void source;
      */
-    source(defaultValue: SourceField, opts?: { readonly title?: string }): SourceDescriptor {
+    source(
+        defaultValue: SourceField,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): SourceDescriptor {
         return Object.freeze({ kind: "source" as const, defaultValue, ...opts });
     },
 
@@ -167,7 +202,7 @@ export const input = Object.freeze({
      */
     time(
         defaultValue: Time,
-        opts?: { readonly title?: string; readonly pickFromChart?: boolean },
+        opts?: { readonly title?: string; readonly pickFromChart?: boolean } & CommonInputOpts,
     ): TimeDescriptor {
         return Object.freeze({ kind: "time" as const, defaultValue, ...opts });
     },
@@ -181,7 +216,10 @@ export const input = Object.freeze({
      *     const level = input.price(101.25);
      *     void level;
      */
-    price(defaultValue: Price, opts?: { readonly title?: string }): PriceDescriptor {
+    price(
+        defaultValue: Price,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): PriceDescriptor {
         return Object.freeze({ kind: "price" as const, defaultValue, ...opts });
     },
 
@@ -194,7 +232,10 @@ export const input = Object.freeze({
      *     const ticker = input.symbol("AAPL");
      *     void ticker;
      */
-    symbol(defaultValue: string, opts?: { readonly title?: string }): SymbolDescriptor {
+    symbol(
+        defaultValue: string,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): SymbolDescriptor {
         return Object.freeze({ kind: "symbol" as const, defaultValue, ...opts });
     },
 
@@ -207,7 +248,10 @@ export const input = Object.freeze({
      *     const interval = input.interval("1D");
      *     void interval;
      */
-    interval(defaultValue: string, opts?: { readonly title?: string }): IntervalDescriptorInput {
+    interval(
+        defaultValue: string,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): IntervalDescriptorInput {
         return Object.freeze({ kind: "interval" as const, defaultValue, ...opts });
     },
 
@@ -222,7 +266,10 @@ export const input = Object.freeze({
      *     const sess = input.session("0930-1600", { title: "Session" });
      *     void sess;
      */
-    session(defaultValue: string, opts?: { readonly title?: string }): SessionDescriptor {
+    session(
+        defaultValue: string,
+        opts?: { readonly title?: string } & CommonInputOpts,
+    ): SessionDescriptor {
         return Object.freeze({ kind: "session" as const, defaultValue, ...opts });
     },
 
@@ -238,16 +285,12 @@ export const input = Object.freeze({
      *     });
      *     void earnings;
      */
-    externalSeries<T>(args: {
-        readonly name: string;
-        readonly schema: Schema<T>;
-        readonly title?: string;
-    }): ExternalSeriesDescriptor<T> {
+    externalSeries<T>(args: ExternalSeriesArgs<T>): ExternalSeriesDescriptor<T> {
         return Object.freeze({
             kind: "external-series" as const,
             name: args.name,
             schema: args.schema,
-            ...(args.title === undefined ? {} : { title: args.title }),
+            ...definedExternalSeriesMetadata(args),
         });
     },
 });

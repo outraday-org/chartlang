@@ -37,6 +37,15 @@ function plotStmt(): Statement {
     };
 }
 
+function enumStmt(): Statement {
+    return {
+        kind: "enum-declaration",
+        name: "Signal",
+        members: [{ name: "buy", value: null, span: SPAN }],
+        span: SPAN,
+    };
+}
+
 function forWithBody(body: readonly Statement[]): ForStatement {
     return {
         kind: "for-statement",
@@ -140,6 +149,11 @@ describe("emitFor — nested stateful detection", () => {
         const nonStateful: Statement = { kind: "break-statement", span: SPAN };
         // No stateful primitive (break is the `default` arm) → runtime for loop.
         const out = runFor([nonStateful]);
+        expect(out[0]).toContain("for (let i = 0;");
+    });
+
+    it("treats enum declarations as non-stateful", () => {
+        const out = runFor([enumStmt()]);
         expect(out[0]).toContain("for (let i = 0;");
     });
 });
@@ -259,6 +273,11 @@ describe("emitFor — loop direction + step (stateful unroll)", () => {
         const out = runForBounds([plotStmt()], intLit("6"), intLit("0"), intLit("2"));
         // i = 6, 4, 2, 0 → four iterations.
         expect(out).toHaveLength(4);
+    });
+
+    it("preserves enum declarations through stateful loop unrolling", () => {
+        const out = runForBounds([enumStmt(), plotStmt()], intLit("0"), intLit("0"), null);
+        expect(out).toEqual(["enum-declaration", "expression-statement"]);
     });
 });
 
@@ -687,6 +706,8 @@ describe("substituteParamsStatement", () => {
     it("returns a non-matched statement kind unchanged (the default arm)", () => {
         const brk: Statement = { kind: "break-statement", span: SPAN };
         expect(substituteParamsStatement(brk, bindings)).toBe(brk);
+        const enm = enumStmt();
+        expect(substituteParamsStatement(enm, bindings)).toBe(enm);
         // An if with a null else body covers the null-else arm.
         const ifNoElse: Statement = {
             kind: "if-statement",

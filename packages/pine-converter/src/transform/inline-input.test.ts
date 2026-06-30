@@ -110,8 +110,21 @@ describe("transformInputs — inline promotion", () => {
     });
 
     it("skips an unconvertible inline input but keeps converting siblings", () => {
-        const { inputs, codes } = runInputs("v = ta.ema(input.enum(Dir.up), input.int(9))");
+        const { inputs, codes } = runInputs('v = ta.ema(input.enum("up"), input.int(9))');
         expect(inputs.map((i) => i.code)).toEqual(["input.int(9)"]);
-        expect(codes).toContain("pine-converter/transform/input-enum-rejected");
+        expect(codes).toContain("pine-converter/transform/input-enum-default-not-member");
+    });
+
+    it("promotes a native enum input inline", () => {
+        const { inputs, codes } = runInputs(
+            [
+                'enum Signal\n    buy = "Buy Signal"\n    sell = "Sell Signal"',
+                "v = input.enum(Signal.buy) == Signal.sell",
+            ].join("\n"),
+        );
+        expect(inputs.map((i) => i.code)).toEqual([
+            'input.enum("Buy Signal", ["Buy Signal", "Sell Signal"])',
+        ]);
+        expect(codes).toContain("pine-converter/transform/inline-input-promoted");
     });
 });

@@ -7,6 +7,8 @@ import type {
     BlockStatement,
     DeclarationQualifier,
     ElseIfClause,
+    EnumDeclaration,
+    EnumMember,
     ExpressionNode,
     ExpressionStatement,
     ForStatement,
@@ -421,6 +423,91 @@ function parseFunctionDeclaration(ctx: ParserContext, start: Token): Statement |
     return declaration;
 }
 
+function recoverEnumMember(ctx: ParserContext): void {
+    recoverLine(ctx);
+}
+
+function parseEnumMember(ctx: ParserContext): EnumMember | null {
+    const nameToken = ctx.cursor.peek();
+    if (nameToken.kind !== "identifier") {
+        ctx.addDiagnostic(makeDiagnostic("unsupported-enum-member", nameToken.span));
+        recoverEnumMember(ctx);
+        return null;
+    }
+    ctx.cursor.next();
+    let value: string | null = null;
+    let endSpan = nameToken.span;
+    if (ctx.cursor.match("operator", "=") !== null) {
+        const valueToken = ctx.cursor.peek();
+        if (valueToken.kind !== "string") {
+            ctx.addDiagnostic(makeDiagnostic("unsupported-enum-member", valueToken.span));
+            recoverEnumMember(ctx);
+            return null;
+        }
+        ctx.cursor.next();
+        value = valueToken.text.slice(1, -1);
+        endSpan = valueToken.span;
+    }
+    ctx.cursor.match("newline");
+    return { name: nameToken.text, value, span: spanBetween(nameToken.span, endSpan) };
+}
+
+function parseEnumDeclaration(ctx: ParserContext, start: Token): Statement | null {
+    ctx.cursor.next();
+    const nameToken = ctx.cursor.expect("identifier");
+    if (nameToken === null) {
+        ctx.addDiagnostic(
+            makeDiagnostic("expected-token", ctx.cursor.peek().span, "Expected an enum name."),
+        );
+        recoverCompound(ctx);
+        return null;
+    }
+    if (ctx.cursor.match("newline") === null) {
+        ctx.addDiagnostic(
+            makeDiagnostic("expected-token", ctx.cursor.peek().span, "Expected an enum body."),
+        );
+        recoverCompound(ctx);
+        return null;
+    }
+    ctx.cursor.skipNewlines();
+    const open = ctx.cursor.expect("indent");
+    if (open === null) {
+        ctx.addDiagnostic(
+            makeDiagnostic("expected-token", ctx.cursor.peek().span, "Expected an enum body."),
+        );
+        recoverCompound(ctx);
+        return null;
+    }
+    const members: EnumMember[] = [];
+    let endSpan = open.span;
+    for (;;) {
+        ctx.cursor.skipNewlines();
+        if (ctx.cursor.atEnd() || ctx.cursor.peekKind() === "dedent") {
+            break;
+        }
+        const member = parseEnumMember(ctx);
+        if (member !== null) {
+            members.push(member);
+            endSpan = member.span;
+        }
+    }
+    const close = ctx.cursor.expect("dedent");
+    if (close !== null) {
+        endSpan = close.span;
+    }
+    if (members.length === 0) {
+        ctx.addDiagnostic(makeDiagnostic("expected-token", endSpan, "Expected an enum member."));
+        return null;
+    }
+    const declaration: EnumDeclaration = {
+        kind: "enum-declaration",
+        name: nameToken.text,
+        members,
+        span: spanBetween(start.span, endSpan),
+    };
+    return declaration;
+}
+
 function parseIfStatement(ctx: ParserContext, start: Token): IfStatement {
     ctx.cursor.next();
     const condition = parseExpression(ctx);
@@ -692,6 +779,8 @@ function parseKeywordStatement(ctx: ParserContext, start: Token): Statement | nu
             return parseForStatement(ctx, start);
         case "switch":
             return parseSwitchStatement(ctx, start);
+        case "enum":
+            return parseEnumDeclaration(ctx, start);
         case "break":
             return parseSimpleStatement(ctx, start, "break-statement");
         case "continue":

@@ -13,6 +13,8 @@ Start here:
   anything undeclared becomes a silent no-op, never an error.
 - [Writing an adapter](./writing-an-adapter.md) — the long-form tutorial
   with per-emission render code.
+- [Rendering inputs](./rendering-inputs.md) — turn `manifest.inputs` into
+  grouped settings-panel sections and inline rows.
 - [Plot overrides](./plot-overrides.md) — runtime restyling of plots.
 - [Conformance](./conformance.md) — the 240+ scenario suite, the report
   format, and how scenarios are gated by capability.

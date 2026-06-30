@@ -121,11 +121,11 @@ Each task depends only on lower-numbered tasks.
 
 | # | Title | Package | Dependencies | Est. Complexity |
 |---|-------|---------|--------------|-----------------|
-| 1 | [Core input metadata fields](./1-core-input-metadata.md) | core (+ compiler shim, skill) | None | Medium |
-| 2 | [Converter metadata passthrough](./2-converter-input-metadata-passthrough.md) | pine-converter | 1 | Medium |
-| 3 | [Converter native enum parse + semantic](./3-converter-enum-parse.md) | pine-converter | None (numbered after 2) | High |
-| 4 | [Converter input.enum lowering](./4-converter-enum-transform.md) | pine-converter | 1, 2, 3 | Medium |
-| 5 | [Adapter-kit groupInputs helper + docs](./5-adapter-input-grouping.md) | adapter-kit (+ docs) | 1 | Medium |
+| 1 | [Core input metadata fields](./X-1-core-input-metadata.md) | core (+ compiler shim, skill) | None | Medium |
+| 2 | [Converter metadata passthrough](./X-2-converter-input-metadata-passthrough.md) | pine-converter | 1 | Medium |
+| 3 | [Converter native enum parse + semantic](./X-3-converter-enum-parse.md) | pine-converter | None (numbered after 2) | High |
+| 4 | [Converter input.enum lowering](./X-4-converter-enum-transform.md) | pine-converter | 1, 2, 3 | Medium |
+| 5 | [Adapter-kit groupInputs helper + docs](./X-5-adapter-input-grouping.md) | adapter-kit (+ docs) | 1 | Medium |
 
 ## Code Reuse
 

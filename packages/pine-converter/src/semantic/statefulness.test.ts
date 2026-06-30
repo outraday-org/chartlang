@@ -66,6 +66,15 @@ function udfMap(...decls: FunctionDeclaration[]): Map<string, FunctionDeclaratio
     return new Map(decls.map((d) => [d.name, d]));
 }
 
+function enumStmt(): Statement {
+    return {
+        kind: "enum-declaration",
+        name: "Signal",
+        members: [{ name: "buy", value: null, span: SPAN }],
+        span: SPAN,
+    };
+}
+
 describe("callIsStatefulPrimitive", () => {
     it("recognises the bare stateful primitives", () => {
         expect(callIsStatefulPrimitive(call(ident("plot")))).toBe(true);
@@ -82,6 +91,15 @@ describe("callIsStatefulPrimitive", () => {
         expect(callIsStatefulPrimitive(call(ident("nz")))).toBe(false);
         expect(callIsStatefulPrimitive(call(member(["math", "abs"])))).toBe(false);
         expect(callIsStatefulPrimitive(call(member(["y"], ident("x"))))).toBe(false);
+    });
+});
+
+describe("collectUdfBodyFacts — enum declarations", () => {
+    it("ignores enum declarations in synthetic UDF bodies", () => {
+        expect(collectUdfBodyFacts(block([enumStmt()]))).toEqual({
+            seedStateful: false,
+            calls: new Set(),
+        });
     });
 });
 

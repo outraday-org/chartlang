@@ -23,6 +23,8 @@ pnpm add @invinite-org/chartlang-adapter-kit
 - `validateEmission(e) -> ValidationResult` — validates plot, alert, drawing,
   diagnostic, log, and alert-condition payloads.
 - `decodeDrawing(e) -> DrawingState | null`.
+- `groupInputs(manifest.inputs) -> GroupedInputSection[]` — ordered settings
+  panel sections and inline rows.
 - `bucketFor(kind)`, `KIND_BUCKET`, and drawing kind maps from core.
 - `mockCandleSource(bars, opts)` for tests, conformance scenarios,
   and demos. `opts.mode` selects `"history"` (default), `"stream"`,

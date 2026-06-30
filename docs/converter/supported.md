@@ -178,17 +178,25 @@ non-literal series-slot offset rejects with
 | `input.session` | `input.session` (an `"HH:MM-HH:MM"` spec, fed to `session.isOpen`) |
 | `input.timeframe` | `input.interval` |
 | bare `input(...)` | `input.source` (series default) or the typed `input.int/float/bool/string/color` (literal default) |
-| `input.enum` | **rejected** (`input-enum-rejected`) — Pine v6 enums are UDT-backed |
+| `input.enum` | `input.enum` when the default is a declared `EnumType.member` |
 
 Input defaults and option literals must be **compile-time literals** (a
 unary `+`/`-` on a numeric literal is allowed, e.g. `input.int(-1)`). A
-computed default rejects with `non-literal-input-default`. Unmapped named
-args (`tooltip`/`group`/`inline`/`confirm`) are dropped with an
-`input-arg-not-mapped` warning, but the input still emits. An inline input
-(`ta.ema(close, input.int(20))`) is promoted to a named top-level input
-(`inline-input-promoted`).
+computed default rejects with `non-literal-input-default`. Literal
+`group`/`inline`/`tooltip`, Pine input `display.*`
+(`all`/`status_line`/`data_window`/`none`), and boolean `confirm` args map
+onto chartlang input opts; non-literal values for those fields are dropped
+with `input-arg-not-mapped`. `active` and unknown named args are still
+dropped with `input-arg-not-mapped`, but the input still emits. An inline
+input (`ta.ema(close, input.int(20))`) is promoted to a named top-level
+input (`inline-input-promoted`).
 
 ### String dropdowns → `input.enum`
+
+`input.enum(EnumType.member, title?, ...)` converts to a string-backed
+chartlang enum whose default is the selected member's resolved value and whose
+options list contains every member value in declaration order. Comparisons
+against `EnumType.member` lower to the same string values.
 
 `input.string(default, title?, options=["A", "B"])` (a string-literal
 dropdown) converts to `input.enum(default, ["A", "B"], { title? })` — the title
@@ -197,8 +205,7 @@ comparisons against the value (`sel == "EMA"`) keep working (the enum value
 is the string). If the `default` is not one of the `options`, the enum is still
 emitted with a `input-string-options-default-mismatch` warning. A mixed or
 non-literal `options=` list cannot become an enum: it falls back to a plain
-`input.string` with `input-string-options-not-literal`. (Pine's UDT-backed
-`input.enum` stays rejected; see [rejects](./rejects.md).)
+`input.string` with `input-string-options-not-literal`.
 
 ### Numeric dropdowns → `input.enum<number>`
 

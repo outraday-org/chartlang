@@ -297,6 +297,25 @@ export const DISPLAY_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, Enu
 ]);
 
 /**
+ * Pine `input.*(..., display=display.*)` member → chartlang input-display
+ * literal. This is intentionally separate from the plot-only
+ * {@link DISPLAY_MAP}: inputs preserve status-line and data-window placement,
+ * while plots only have a show/hide analogue.
+ *
+ * @since 0.6
+ * @experimental
+ * @example
+ *     import { INPUT_DISPLAY_MAP } from "@invinite-org/chartlang-pine-converter";
+ *     INPUT_DISPLAY_MAP.get("status_line"); // "status-line"
+ */
+export const INPUT_DISPLAY_MAP: ReadonlyMap<string, string> = new Map([
+    ["all", "all"],
+    ["status_line", "status-line"],
+    ["data_window", "data-window"],
+    ["none", "none"],
+]);
+
+/**
  * Resolve a Pine `display.*` member against {@link DISPLAY_MAP}. Returns the
  * `display.all` / `display.none` entry (the only toggle-mappable members) and
  * `null` for every unsupported `display.*` target or unknown member.

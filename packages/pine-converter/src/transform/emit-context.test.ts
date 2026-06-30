@@ -646,6 +646,9 @@ describe("inputCastType", () => {
         expect(inputCastType('input.interval("D")')).toBe("string");
         expect(inputCastType('input.color("#FF9800")')).toBe("string");
         expect(inputCastType('input.enum("a", ["a", "b"])')).toBe("string");
+        expect(inputCastType('input.enum("Buy Signal", ["Buy Signal", "Sell Signal"])')).toBe(
+            "string",
+        );
     });
 
     it("leaves an unknown factory uncast", () => {

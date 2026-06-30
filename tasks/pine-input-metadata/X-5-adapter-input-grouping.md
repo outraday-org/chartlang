@@ -1,6 +1,6 @@
 # Task 5 — Adapter-kit: `groupInputs()` helper + rendering docs/example
 
-> **Status: TODO**
+> **Status: Complete + Ship**
 
 ## Goal
 

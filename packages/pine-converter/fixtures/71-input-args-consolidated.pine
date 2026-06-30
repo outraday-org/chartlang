@@ -1,6 +1,6 @@
 //@version=6
 indicator("Input args consolidated")
-fast = input.int(9, group="MA", inline="row", tooltip="fast length")
+fast = input.int(9, group="MA", inline="row", tooltip="fast length", active=true)
 slow = input.int(21, group="MA", inline="row", tooltip="slow length")
 src = input.source(close, group="MA", inline="row", tooltip="source")
 plot(ta.sma(src, fast))

@@ -433,6 +433,8 @@ function bodyStatementValue(stmt: Statement): ExpressionNode | null {
             return stmt.initializer;
         case "expression-statement":
             return stmt.expression;
+        case "enum-declaration":
+            return null;
         default:
             return null;
     }

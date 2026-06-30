@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ExpressionNode } from "../ast/index.js";
 import type { SourceSpan } from "../index.js";
-import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
+import type { AstNode, EnumTypeInfo, SemanticAnnotation } from "../semantic/index.js";
 import { emitExpr, forEachHistoryAccess } from "./exprEmit.js";
 
 const SPAN: SourceSpan = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 };
@@ -44,6 +44,46 @@ describe("emitExpr", () => {
                 noAnnotations,
             ),
         ).toBe('"#ff0000"');
+    });
+
+    it("lowers native enum member references to their resolved string values", () => {
+        const enumTypes: ReadonlyMap<string, EnumTypeInfo> = new Map([
+            [
+                "Signal",
+                {
+                    name: "Signal",
+                    defaultMember: "buy",
+                    members: [
+                        { name: "buy", value: "Buy Signal" },
+                        { name: "sell", value: "Sell Signal" },
+                    ],
+                },
+            ],
+        ]);
+        expect(
+            emitExpr(
+                {
+                    kind: "member-access-expression",
+                    head: null,
+                    chain: ["Signal", "buy"],
+                    span: SPAN,
+                },
+                noAnnotations,
+                enumTypes,
+            ),
+        ).toBe('"Buy Signal"');
+        expect(
+            emitExpr(
+                {
+                    kind: "member-access-expression",
+                    head: null,
+                    chain: ["Unknown", "buy"],
+                    span: SPAN,
+                },
+                noAnnotations,
+                enumTypes,
+            ),
+        ).toBe("Unknown.buy");
     });
 
     it("resolves na to Number.NaN by default and null in a handle context", () => {

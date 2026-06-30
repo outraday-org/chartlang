@@ -5,6 +5,8 @@ export { KIND_BUCKET, bucketFor, feedKey } from "@invinite-org/chartlang-core";
 export type { DrawingBucket, DrawingState } from "@invinite-org/chartlang-core";
 export { defineAdapter } from "./defineAdapter.js";
 export type { DefineAdapterOpts } from "./defineAdapter.js";
+export { groupInputs } from "./groupInputs.js";
+export type { GroupedInputEntry, GroupedInputRow, GroupedInputSection } from "./groupInputs.js";
 export { PHASE_5_PLOT_KINDS, capabilities } from "./capabilities/index.js";
 export { decodeDrawing, validateEmission } from "./validation/index.js";
 export type { ValidationFail, ValidationOk, ValidationResult } from "./validation/index.js";

@@ -278,6 +278,7 @@ export default defineConfig({
                         { text: "Contract", link: "/adapters/contract" },
                         { text: "Capabilities", link: "/adapters/capabilities" },
                         { text: "Writing an adapter", link: "/adapters/writing-an-adapter" },
+                        { text: "Rendering inputs", link: "/adapters/rendering-inputs" },
                         { text: "Plot overrides", link: "/adapters/plot-overrides" },
                         { text: "Conformance", link: "/adapters/conformance" },
                     ],

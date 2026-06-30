@@ -192,6 +192,12 @@ arrives at `compute` as a JSON value; the script narrows with `as
 number`/`as string`/`as boolean`. Only one `input.interval` per script
 (the user-pickable main timeframe).
 
+Every builder accepts optional presentation metadata in its opts:
+`group?: string`, `inline?: string`, `tooltip?: string`,
+`display?: "all" | "status-line" | "data-window" | "none"`, and
+`confirm?: boolean`. These fields are serialized into `manifest.inputs`
+for adapter settings panels and never change the resolved input value.
+
 ## 5. Indicator composition
 
 Bind a producer indicator to a `const`, then read its plot output as a

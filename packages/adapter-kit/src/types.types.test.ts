@@ -6,12 +6,18 @@ import type {
     Bar,
     DrawingKind as CoreDrawingKind,
     DrawingState,
+    InputDescriptor,
 } from "@invinite-org/chartlang-core";
 import { expectTypeOf } from "expect-type";
 import { describe, expect, it } from "vitest";
 
 import { bucketFor } from ".";
-import type { DrawingBucket } from ".";
+import type {
+    DrawingBucket,
+    GroupedInputEntry,
+    GroupedInputRow,
+    GroupedInputSection,
+} from ".";
 import type { defineAdapter } from "./defineAdapter.js";
 import type { mockCandleSource } from "./mocks/index.js";
 import type {
@@ -229,6 +235,20 @@ describe("type assertions", () => {
         expectTypeOf<DrawingBucket>().toEqualTypeOf<
             "lines" | "labels" | "boxes" | "polylines" | "other"
         >();
+    });
+
+    it("GroupedInputEntry carries a name and a core InputDescriptor", () => {
+        expectTypeOf<GroupedInputEntry["name"]>().toEqualTypeOf<string>();
+        expectTypeOf<GroupedInputEntry["descriptor"]>().toEqualTypeOf<InputDescriptor<unknown>>();
+    });
+
+    it("GroupedInputRow is a readonly array of entries", () => {
+        expectTypeOf<GroupedInputRow>().toEqualTypeOf<readonly GroupedInputEntry[]>();
+    });
+
+    it("GroupedInputSection has a nullable title and readonly rows", () => {
+        expectTypeOf<GroupedInputSection["title"]>().toEqualTypeOf<string | null>();
+        expectTypeOf<GroupedInputSection["rows"]>().toEqualTypeOf<readonly GroupedInputRow[]>();
     });
 
     it("bucketFor is re-exported as a runtime function from the barrel", () => {

@@ -195,10 +195,12 @@ export { input } from "./input/index.js";
 export type {
     BoolDescriptor,
     ColorDescriptor,
+    CommonInputOpts,
     EnumDescriptor,
     ExternalSeriesDescriptor,
     FloatDescriptor,
     InputDescriptor,
+    InputDisplay,
     InputKind,
     IntDescriptor,
     IntervalDescriptorInput,

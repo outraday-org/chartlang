@@ -5,10 +5,12 @@ export { input } from "./input.js";
 export type {
     BoolDescriptor,
     ColorDescriptor,
+    CommonInputOpts,
     EnumDescriptor,
     ExternalSeriesDescriptor,
     FloatDescriptor,
     InputDescriptor,
+    InputDisplay,
     InputKind,
     IntDescriptor,
     IntervalDescriptorInput,

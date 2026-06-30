@@ -107,6 +107,13 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultMessage: "`import` of a Pine library is not supported.",
         defaultSuggestion: "Inline the imported library's logic into this script.",
     },
+    "unsupported-enum-member": {
+        code: "pine-converter/parse/unsupported-enum-member",
+        severity: "error",
+        defaultMessage:
+            "Enum members must be bare identifiers with an optional string-literal value.",
+        defaultSuggestion: 'Use `member` or `member = "Display title"`.',
+    },
     "mixed-named-positional-args": {
         code: "pine-converter/parse/mixed-named-positional-args",
         severity: "error",
@@ -137,6 +144,12 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         severity: "error",
         defaultMessage: "Reference to an undeclared identifier.",
         defaultSuggestion: "Declare the variable, or check for a typo in a built-in name.",
+    },
+    "unknown-enum-member": {
+        code: "pine-converter/semantic/unknown-enum-member",
+        severity: "error",
+        defaultMessage: "Reference to an undeclared enum member.",
+        defaultSuggestion: "Use one of the members declared on the enum type.",
     },
     "dynamic-handle-collection": {
         code: "pine-converter/semantic/dynamic-handle-collection",
@@ -223,11 +236,11 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "A `max_*_count` value exceeds the chartlang bucket cap; clamped to the cap.",
         defaultSuggestion: "Lower the `max_*_count` value to within the chartlang bucket limit.",
     },
-    "input-enum-rejected": {
-        code: "pine-converter/transform/input-enum-rejected",
+    "input-enum-default-not-member": {
+        code: "pine-converter/transform/input-enum-default-not-member",
         severity: "error",
-        defaultMessage: "`input.enum(...)` is not supported; Pine enums are UDT-backed in v6.",
-        defaultSuggestion: "Replace the enum input with an `input.string(...)` of allowed values.",
+        defaultMessage: "`input.enum(...)` default must be an enum member reference.",
+        defaultSuggestion: "Pass a declared enum member such as `Signal.buy`.",
     },
     "unknown-input-primitive": {
         code: "pine-converter/transform/unknown-input-primitive",

@@ -1,0 +1,10 @@
+//@version=6
+indicator("Native Enum Input")
+
+enum Signal
+    buy = "Buy Signal"
+    sell = "Sell Signal"
+    flat
+
+sig = input.enum(Signal.sell, "Entry Signal", group="Trade", tooltip="Choose signal")
+plot(sig == Signal.buy ? close : open)

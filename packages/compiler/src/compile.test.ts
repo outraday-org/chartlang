@@ -58,6 +58,56 @@ export function defineIndicator(o){ const __m = "IN_MEMORY_CORE_MARKER"; return 
         expect(new Set(matches).size).toBe(4);
     });
 
+    it("type-checks input presentation metadata through the ambient shim", async () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const schema = { kind: "external-series-schema" } as const;
+export default defineIndicator({
+    name: "metadata",
+    apiVersion: 1,
+    inputs: {
+        length: input.int(20, {
+            title: "Length",
+            group: "MA",
+            inline: "1",
+            tooltip: "Moving average length",
+            display: "data-window",
+            confirm: true,
+        }),
+        earnings: input.externalSeries({
+            name: "earnings",
+            schema,
+            group: "Events",
+            inline: "2",
+            tooltip: "Adapter data",
+            display: "status-line",
+            confirm: false,
+        }),
+    },
+    compute: () => {},
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "input-metadata.chart.ts",
+        });
+
+        expect(result.manifest.inputs.length).toMatchObject({
+            group: "MA",
+            inline: "1",
+            tooltip: "Moving average length",
+            display: "data-window",
+            confirm: true,
+        });
+        expect(result.manifest.inputs.earnings).toMatchObject({
+            group: "Events",
+            inline: "2",
+            tooltip: "Adapter data",
+            display: "status-line",
+            confirm: false,
+        });
+    });
+
     it("type-checks the request.security expression overload through the ambient shim", async () => {
         // Regression for the ambient-shim overload-collapse bug: the shim's
         // `RequestNamespace` was a `Readonly<{ security(opts): SecurityBar;

@@ -55,6 +55,38 @@ export type Schema<T> = Readonly<{ kind: "external-series-schema"; __brand?: T }
 type NumericInputOpts = Readonly<{ min?: number; max?: number; step?: number }>;
 
 /**
+ * Where an input's value is surfaced outside the settings panel. Mirrors
+ * Pine's `display.*`; omitted means `"all"`. Presentation-only: the runtime
+ * ignores it.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const d: InputDisplay = "data-window";
+ *     void d;
+ */
+export type InputDisplay = "all" | "status-line" | "data-window" | "none";
+
+/**
+ * Presentation/help metadata shared by every `input.*` descriptor. All fields
+ * are optional and ignored by value resolution; adapters read them to lay out
+ * a settings panel.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const m: CommonInputOpts = { group: "Trend", inline: "row1", tooltip: "Help" };
+ *     void m;
+ */
+export type CommonInputOpts = Readonly<{
+    group?: string;
+    inline?: string;
+    tooltip?: string;
+    display?: InputDisplay;
+    confirm?: boolean;
+}>;
+
+/**
  * Typed input descriptor returned by every `input.*` builder. The `kind`
  * discriminator matches {@link InputKind}; remaining fields carry defaults
  * and UI hints.
@@ -88,7 +120,8 @@ type Common<K extends InputKind, T> = Readonly<{
     kind: K;
     defaultValue: T;
     title?: string;
-}>;
+}> &
+    CommonInputOpts;
 
 /**
  * Descriptor for `input.int(...)`.
@@ -256,4 +289,5 @@ export type ExternalSeriesDescriptor<T> = Readonly<{
     name: string;
     schema: Schema<T>;
     title?: string;
-}>;
+}> &
+    CommonInputOpts;

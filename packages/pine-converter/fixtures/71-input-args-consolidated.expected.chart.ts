@@ -14,9 +14,9 @@ export default defineIndicator({
             other: 0,
         },
         inputs: {
-            fast: input.int(9),
-            slow: input.int(21),
-            src: input.source("close"),
+            fast: input.int(9, { group: "MA", inline: "row", tooltip: "fast length" }),
+            slow: input.int(21, { group: "MA", inline: "row", tooltip: "slow length" }),
+            src: input.source("close", { group: "MA", inline: "row", tooltip: "source" }),
         },
         compute({ bar, ta, plot, inputs }) {
             plot(ta.sma((inputs.src as number), (inputs.fast as number)));

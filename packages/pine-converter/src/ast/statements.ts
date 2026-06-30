@@ -410,6 +410,51 @@ export type FunctionDeclaration = WithSpan &
     }>;
 
 /**
+ * One member of a native Pine `enum` declaration. `value` is the optional
+ * string title from `= "literal"`; when it is `null`, the semantic pass uses
+ * the member name as the enum value.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const m: EnumMember = {
+ *         name: "buy",
+ *         value: "Buy Signal",
+ *         span: { startLine: 2, startColumn: 5, endLine: 2, endColumn: 23 },
+ *     };
+ *     void m;
+ */
+export type EnumMember = WithSpan &
+    Readonly<{
+        name: string;
+        value: string | null;
+    }>;
+
+/**
+ * A native Pine enum type declaration — `enum Name` followed by an indented
+ * ordered list of members. Enum declarations are compile-time constants:
+ * transforms emit nothing at the declaration site, while semantic analysis
+ * registers an `enum-type` symbol for `Name.member` resolution.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const s: EnumDeclaration = {
+ *         kind: "enum-declaration",
+ *         name: "Signal",
+ *         members: [],
+ *         span: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 12 },
+ *     };
+ *     void s;
+ */
+export type EnumDeclaration = WithSpan &
+    Readonly<{
+        kind: "enum-declaration";
+        name: string;
+        members: readonly EnumMember[];
+    }>;
+
+/**
  * A bare expression used in statement position (e.g. a `plot(...)` call).
  *
  * @since 0.1
@@ -449,6 +494,7 @@ export type Statement =
     | Assignment
     | TupleDeclaration
     | FunctionDeclaration
+    | EnumDeclaration
     | IfStatement
     | ForStatement
     | SwitchStatement

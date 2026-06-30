@@ -1,0 +1,8 @@
+//@version=6
+indicator("Input Metadata Full")
+len = input.int(14, title="Length", group="General", inline="len", tooltip="Window length", display=display.data_window, confirm=true)
+use_filter = input.bool(true, title="Use filter", group="General", inline="filter", tooltip="Toggle filter", display=display.status_line, confirm=false)
+mode = input.string("Fast", "Mode", options=["Fast", "Slow"], group="Mode", inline="mode", tooltip="Preset", display=display.none, confirm=true)
+avg = ta.sma(close, len)
+plot(use_filter ? avg : close)
+plot(mode == "Fast" ? close : open)

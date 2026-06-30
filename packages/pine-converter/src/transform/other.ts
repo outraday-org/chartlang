@@ -657,6 +657,8 @@ function statementValueExpr(stmt: Statement): ExpressionNode | null {
             return stmt.initializer;
         case "expression-statement":
             return stmt.expression;
+        case "enum-declaration":
+            return null;
         default:
             return null;
     }
@@ -755,6 +757,7 @@ function walkHistoryAccesses(
             case "break-statement":
             case "continue-statement":
             case "return-statement":
+            case "enum-declaration":
                 break;
         }
     }
@@ -1620,6 +1623,7 @@ export function transformOther(
     }
     const ctx: EmitContext = {
         annotations: analysis.annotations,
+        enumTypes: analysis.enumTypes,
         inputNames,
         localNames: udfNames,
         stateSlots: slots,
@@ -1714,6 +1718,8 @@ function emitStatement(stmt: Statement, ctx: EmitContext, walk: Walk): readonly 
         case "block-statement":
             return [`{ ${emitBody(stmt.body, ctx).join(" ")} }`];
         case "return-statement":
+            return [];
+        case "enum-declaration":
             return [];
         // A user-defined function declaration contributes nothing at its source
         // position. A PURE UDF is hoisted to the front of the compute body by

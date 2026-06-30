@@ -1018,11 +1018,19 @@ declare module "@invinite-org/chartlang-core" {
         | "hlcc4";
     export type Schema<T> = Readonly<{ kind: "external-series-schema"; __brand?: T }>;
     type NumericInputOpts = Readonly<{ min?: number; max?: number; step?: number }>;
+    export type InputDisplay = "all" | "status-line" | "data-window" | "none";
+    export type CommonInputOpts = Readonly<{
+        group?: string;
+        inline?: string;
+        tooltip?: string;
+        display?: InputDisplay;
+        confirm?: boolean;
+    }>;
     type CommonInputDescriptor<K extends InputKind, T> = Readonly<{
         kind: K;
         defaultValue: T;
         title?: string;
-    }>;
+    }> & CommonInputOpts;
     export type IntDescriptor = CommonInputDescriptor<"int", number> & NumericInputOpts;
     export type FloatDescriptor = CommonInputDescriptor<"float", number> & NumericInputOpts;
     export type BoolDescriptor = CommonInputDescriptor<"bool", boolean>;
@@ -1040,7 +1048,7 @@ declare module "@invinite-org/chartlang-core" {
         name: string;
         schema: Schema<T>;
         title?: string;
-    }>;
+    }> & CommonInputOpts;
     export type InputDescriptor<T> =
         | IntDescriptor
         | FloatDescriptor
@@ -1056,23 +1064,23 @@ declare module "@invinite-org/chartlang-core" {
         | SessionDescriptor
         | ExternalSeriesDescriptor<T>;
     export const input: Readonly<{
-        int(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): IntDescriptor;
-        float(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }>): FloatDescriptor;
-        bool(defaultValue: boolean, opts?: Readonly<{ title?: string }>): BoolDescriptor;
-        string(defaultValue: string, opts?: Readonly<{ title?: string; multiline?: boolean }>): StringDescriptor;
+        int(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }> & CommonInputOpts): IntDescriptor;
+        float(defaultValue: number, opts?: NumericInputOpts & Readonly<{ title?: string }> & CommonInputOpts): FloatDescriptor;
+        bool(defaultValue: boolean, opts?: Readonly<{ title?: string }> & CommonInputOpts): BoolDescriptor;
+        string(defaultValue: string, opts?: Readonly<{ title?: string; multiline?: boolean }> & CommonInputOpts): StringDescriptor;
         enum<T extends string | number>(
             defaultValue: T,
             options: ReadonlyArray<T>,
-            opts?: Readonly<{ title?: string }>,
+            opts?: Readonly<{ title?: string }> & CommonInputOpts,
         ): EnumDescriptor<T>;
-        color(defaultValue: Color, opts?: Readonly<{ title?: string }>): ColorDescriptor;
-        source(defaultValue: SourceField, opts?: Readonly<{ title?: string }>): SourceDescriptor;
-        time(defaultValue: Time, opts?: Readonly<{ title?: string; pickFromChart?: boolean }>): TimeDescriptor;
-        price(defaultValue: Price, opts?: Readonly<{ title?: string }>): PriceDescriptor;
-        symbol(defaultValue: string, opts?: Readonly<{ title?: string }>): SymbolDescriptor;
-        interval(defaultValue: string, opts?: Readonly<{ title?: string }>): IntervalDescriptorInput;
-        session(defaultValue: string, opts?: Readonly<{ title?: string }>): SessionDescriptor;
-        externalSeries<T>(args: Readonly<{ name: string; schema: Schema<T>; title?: string }>): ExternalSeriesDescriptor<T>;
+        color(defaultValue: Color, opts?: Readonly<{ title?: string }> & CommonInputOpts): ColorDescriptor;
+        source(defaultValue: SourceField, opts?: Readonly<{ title?: string }> & CommonInputOpts): SourceDescriptor;
+        time(defaultValue: Time, opts?: Readonly<{ title?: string; pickFromChart?: boolean }> & CommonInputOpts): TimeDescriptor;
+        price(defaultValue: Price, opts?: Readonly<{ title?: string }> & CommonInputOpts): PriceDescriptor;
+        symbol(defaultValue: string, opts?: Readonly<{ title?: string }> & CommonInputOpts): SymbolDescriptor;
+        interval(defaultValue: string, opts?: Readonly<{ title?: string }> & CommonInputOpts): IntervalDescriptorInput;
+        session(defaultValue: string, opts?: Readonly<{ title?: string }> & CommonInputOpts): SessionDescriptor;
+        externalSeries<T>(args: Readonly<{ name: string; schema: Schema<T>; title?: string } & CommonInputOpts>): ExternalSeriesDescriptor<T>;
     }>;
     export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
     export type MutableSlot<T> = {

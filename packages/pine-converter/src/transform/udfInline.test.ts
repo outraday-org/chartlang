@@ -64,6 +64,8 @@ describe("transformOther — stateful UDF inline expansion", () => {
         // reads are `ma_1.value`, history reads index the bare slot.
         const { scaffold } = run(
             "cf_slope(ma, n) => ta.ema(((ma - ma[1]) / ma[1] * 100), n)\n" +
+                "enum Signal\n" +
+                "    buy\n" +
                 "ma_1 = ta.ema(close, 8)\n" +
                 "s1 = cf_slope(ma_1, 2)\n" +
                 "plot(s1)",
@@ -76,6 +78,21 @@ describe("transformOther — stateful UDF inline expansion", () => {
             "ma_1.value = ta.ema(bar.close, 8).current;",
             "let s1 = ta.ema((((ma_1.value - ma_1[1]) / ma_1[1]) * 100), 2).current;",
             "plot(s1);",
+        ]);
+    });
+
+    it("ignores enum declarations inside a stateful UDF body", () => {
+        const { scaffold } = run(
+            "cf(x) =>\n" +
+                "    enum Signal\n" +
+                "        buy\n" +
+                "    ta.ema(x, 2)\n" +
+                "v = cf(close)\n" +
+                "plot(v)",
+        );
+        expect(scaffold.computeBody.statements).toEqual([
+            "let v = ta.ema(bar.close, 2).current;",
+            "plot(v);",
         ]);
     });
 

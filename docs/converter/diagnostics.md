@@ -87,6 +87,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** Unexpected token.
 
+### unsupported-enum-member
+
+- **Code:** `pine-converter/parse/unsupported-enum-member`
+- **Severity:** error
+- **Message:** Enum members must be bare identifiers with an optional string-literal value.
+- **Suggested fix:** Use `member` or `member = "Display title"`.
+
 ### unsupported-for-in
 
 - **Code:** `pine-converter/parse/unsupported-for-in`
@@ -198,6 +205,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** error
 - **Message:** Drawing collection has no detectable cap; no faithful chartlang analogue.
 - **Suggested fix:** Cap the collection with a `max_*_count` argument or a ring-buffer eviction.
+
+### unknown-enum-member
+
+- **Code:** `pine-converter/semantic/unknown-enum-member`
+- **Severity:** error
+- **Message:** Reference to an undeclared enum member.
+- **Suggested fix:** Use one of the members declared on the enum type.
 
 ### unknown-identifier
 
@@ -395,12 +409,12 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** This `input.*` argument has no chartlang analogue and was dropped.
 - **Suggested fix:** Remove the argument; chartlang inputs do not model it.
 
-### input-enum-rejected
+### input-enum-default-not-member
 
-- **Code:** `pine-converter/transform/input-enum-rejected`
+- **Code:** `pine-converter/transform/input-enum-default-not-member`
 - **Severity:** error
-- **Message:** `input.enum(...)` is not supported; Pine enums are UDT-backed in v6.
-- **Suggested fix:** Replace the enum input with an `input.string(...)` of allowed values.
+- **Message:** `input.enum(...)` default must be an enum member reference.
+- **Suggested fix:** Pass a declared enum member such as `Signal.buy`.
 
 ### input-string-options-default-mismatch
 

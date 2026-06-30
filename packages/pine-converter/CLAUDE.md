@@ -357,12 +357,14 @@ that has no byte-identical chartlang analogue.
 - **`table-bucket-cap-adjusted` (info).** The drawing-bucket `other` cap is
   widened to fit the converted tables. Informational; the widening is the fix,
   not a problem.
-- **`input-arg-not-mapped` / `table-formatting-not-mapped` (warning).** core's
-  `InputOptionsObject` (`title/min/max/step/multiline`) and `TableCell`
-  (`text/colors/alignment/size`) genuinely cannot carry Pine's
-  `group`/`inline`/`tooltip`/`confirm` and `text_formatting`/
-  `text_font_family`/`text_wrap`. Consolidated to one warning per distinct arg
-  name (Task 5). The drop is a documented hard boundary.
+- **`input-arg-not-mapped` / `table-formatting-not-mapped` (warning).** Pine
+  input metadata `group`/`inline`/`tooltip`/`display`/`confirm` is modelled
+  when literal; this diagnostic remains only for unmodelled input args such as
+  `active`, unknown input args, or modelled input args whose value is not a
+  compile-time literal. `TableCell` still cannot carry Pine
+  `text_formatting`/`text_font_family`/`text_wrap`. Consolidated to one
+  warning per distinct arg name (Task 5). The drop is a documented hard
+  boundary.
 - **`request-security-different-symbol` / `request-security-gaps-dropped`
   (info).** Multi-symbol/timeframe feed notes — the feed resolved through its
   input default; `gaps=` has no chartlang analogue. Informational.
@@ -584,6 +586,17 @@ that has no byte-identical chartlang analogue.
   WITHOUT a `semantic → transform` cycle (the `transform/callArgs.ts` precedent);
   do NOT import these through the `transform/index.ts` barrel (it pulls
   `coordinates.ts → ../semantic`, which WOULD cycle).
+- **Native Pine enum declarations are compile-time symbols.** The parser reads
+  `enum Name` into an `EnumDeclaration` whose members preserve declaration
+  order and carry either the explicit string title (`member = "Title"`) or
+  `null` (semantic default: the member name). `registerEnumTypes` hoists
+  top-level enums BEFORE the statement walk, creates a `kind: "enum-type"`
+  symbol in the root scope, and exposes the deterministic lookup on
+  `SemanticResult.enumTypes` for Task 4's `input.enum` lowering. A
+  `EnumType.member` reference resolves through that symbol; an unknown member
+  is `unknown-enum-member`, not `unknown-identifier`. Enum declarations emit
+  nothing, so every statement walker carries an explicit no-op
+  `enum-declaration` arm.
 - **A user-defined function (`FunctionDeclaration`) registers a `kind:
   "function"` symbol carrying `params: readonly string[]` and a resolved
   `stateful: boolean`; Tasks 3/4 read that symbol to choose reuse vs.
@@ -827,29 +840,43 @@ that has no byte-identical chartlang analogue.
   `udfInline` clones nodes; the span survives). Without this the raw
   `input.*(...)` call would leak into `compute` (the hole throws at runtime).
 - **Rejects push a `pine-converter/transform/...` error and skip the input
-  (no `appendInput`):** `input.enum` → `input-enum-rejected`; a computed
+  (no `appendInput`):** a native `input.enum(...)` whose default is not a
+  declared `EnumType.member` → `input-enum-default-not-member`; a computed
   `input.source` default → `non-literal-source-input`; a non-literal default
   (incl. an unknown/`non-string` timeframe) → `non-literal-input-default`; an
   unrecognised `input.*` → `unknown-input-primitive`. Allowed defaults are
   compile-time literals PLUS a unary `+`/`-` on a numeric literal
-  (`input.int(-1)`). Unmapped named args (`tooltip`/`group`/`inline`/
-  `confirm`, a non-literal `title`/`minval`/…) warn via `input-arg-not-mapped`
-  and are dropped, but the input is still emitted — and these consolidate to
-  ONE diagnostic per distinct ARG NAME across the whole script (via
-  `pushCodeOnce`, `warnUnmappedInputArg`/`warnNonLiteralInputArg`), not one per
-  call site.
+  (`input.int(-1)`). Literal `group`/`inline`/`tooltip` pass through as string
+  opts; Pine input `display.all` is recognized and omitted, `display.none` /
+  `display.status_line` / `display.data_window` lower to `"none"` /
+  `"status-line"` / `"data-window"` via `INPUT_DISPLAY_MAP`; literal
+  `confirm=true|false` passes through. Unmapped named args (`active`,
+  unknowns, unsupported `display.*`, a non-literal `title`/`minval`/metadata
+  arg…) warn via `input-arg-not-mapped` and are dropped, but the input is still
+  emitted — and these consolidate to ONE diagnostic per distinct ARG NAME
+  across the whole script (via `pushCodeOnce`, `warnUnmappedInputArg`/
+  `warnNonLiteralInputArg`), not one per call site.
+- **A native Pine `input.enum(EnumType.member, title?, …)` lowers to a
+  string-backed chartlang `input.enum("<member value>", ["<all member values>"], { title? })`.**
+  The enum type is resolved from `SemanticResult.enumTypes`; the selected
+  member's resolved value becomes the default, all declaration-ordered member
+  values become the options list, and the SAME metadata helper used by the
+  dropdown bridge threads `title` (2nd positional or named), `group`, `inline`,
+  `tooltip`, `display`, and `confirm`. A default that is not a resolved
+  `EnumType.member` raises `input-enum-default-not-member` and skips the input.
 - **A Pine `input.string/int/float(default, title?, options=[literals])`
   (dropdown) becomes chartlang `input.enum(default, [literals], { title? })`
   (`resolveOptionsEnum`, parameterised by an `OptionsConfig`), keyed on the
   `options=` named arg being an `ArrayLiteralExpression` of UNIFORM literals
   (all strings, or all numbers — `OPTIONS_DROPDOWN_CONFIG` maps `input.string`→
   string, `input.int`/`input.float`→numeric).** This is the
-  converter-SYNTHESISED options → enum bridge, distinct from Pine's
-  own UDT-backed `input.enum` primitive (which STAYS rejected via
-  `input-enum-rejected`). The target builder name lives in mapping
+  converter-SYNTHESISED options → enum bridge, distinct from Pine's native
+  `input.enum` primitive above. The target builder name lives in mapping
   (`STRING_OPTIONS_ENUM_BUILDER`, `mapping/inputs.ts`), not inlined. The
   title threads from the 2nd positional arg OR a `title=` named arg (core's
-  `input.enum` takes the title in an options OBJECT, not a trailing slot).
+  `input.enum` takes the title in an options OBJECT, not a trailing slot), and
+  the same literal `group`/`inline`/`tooltip`/`display`/`confirm` metadata
+  helper used by normal inputs builds the enum options object.
   A default ∉ options warns `input-string-options-default-mismatch` (still
   emits the enum); a MIXED / non-literal `options=` list cannot become an
   enum and falls back to the plain factory (options dropped) with
@@ -1427,6 +1454,12 @@ that has no byte-identical chartlang analogue.
   `inputs.len as number` cast (`EmitContext.inputCasts`). `input.color` casts as
   `string` (a `#RRGGBB[AA]` colour string), so a bare `color=lineColor` draw
   option assigns to the `string` colour field.
+- **Native Pine enum member reads are compile-time string values in expression
+  emission.** `emitExpr` receives `SemanticResult.enumTypes` through
+  `EmitContext.enumTypes` and lowers a resolved bare `EnumType.member` access to
+  `"<member value>"` before falling back to the normal dotted member-chain
+  output. Unknown members are already semantic `unknown-enum-member`; unresolved
+  accesses remain verbatim so existing fallback behavior is preserved.
 - **A NESTED `math.*` call lowers its callee to the bare-native `Math.*`
   passthrough through the SAME `rewriteTree` seam (`emitContext.ts`).** The
   top-level `emitMath` (`other.ts`) only remaps the OUTERMOST call, so before

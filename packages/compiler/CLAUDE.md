@@ -276,6 +276,16 @@
     test (`compile.test.ts` → "type-checks the request.security expression
     overload through the ambient shim"). Any future overloaded namespace
     member must follow the interface pattern.
+  - **Input presentation metadata is a shim + extractor lockstep surface.**
+    Core's `CommonInputOpts` (`group?`, `inline?`, `tooltip?`, `display?`,
+    `confirm?`) is declared in the shim, intersected into the common input
+    descriptor base and `ExternalSeriesDescriptor<T>`, and applied to every
+    builder opts type. Normal builders serialize through
+    `copyObjectLiteralFields`, which intentionally copies any literal-valued
+    opts property. `input.externalSeries(...)` does NOT use that generic path:
+    `serialiseExternalSeries` must explicitly copy those five metadata keys
+    alongside `title`, with literal-only diagnostics, or adapter panel metadata
+    silently drops for that one kind.
 - **Callee resolution handles nested core namespaces.** `resolveCalleeName`
   must preserve full names such as `state.tick.float` in addition to
   one-hop names like `ta.ema`; callsite-id injection and loop diagnostics

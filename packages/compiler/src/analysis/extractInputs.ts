@@ -47,6 +47,8 @@ const KIND_TO_WIRE: Readonly<Record<string, string>> = Object.freeze({
     externalSeries: "external-series",
 });
 
+const EXTERNAL_SERIES_METADATA_KEYS = new Set(["group", "inline", "tooltip", "display", "confirm"]);
+
 /**
  * Frozen, JSON-clean input descriptor extracted from a script's
  * `define*({ inputs })` object.
@@ -278,6 +280,13 @@ function serialiseExternalSeries(
                 return null;
             }
             descriptor.title = value;
+        } else if (EXTERNAL_SERIES_METADATA_KEYS.has(key)) {
+            const value = readLiteral(property.initializer);
+            if (!isExternalSeriesMetadataValue(key, value)) {
+                addDefaultLiteralDiagnostic("externalSeries", property.initializer, context);
+                return null;
+            }
+            descriptor[key] = value;
         }
     }
 
@@ -286,6 +295,11 @@ function serialiseExternalSeries(
         return null;
     }
     return Object.freeze(descriptor);
+}
+
+function isExternalSeriesMetadataValue(key: string, value: unknown): value is string | boolean {
+    if (key === "confirm") return typeof value === "boolean";
+    return typeof value === "string";
 }
 
 function copyObjectLiteralFields(

@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { describe, expect, it } from "vitest";
-import { ENUM_VALUE_MAP, enumLookup } from "./enums.js";
+import { ENUM_VALUE_MAP, INPUT_DISPLAY_MAP, enumLookup } from "./enums.js";
 
 describe("ENUM_VALUE_MAP", () => {
     it("maps the three core line styles to chartlang LineStyle literals", () => {
@@ -91,5 +91,14 @@ describe("enumLookup", () => {
     it("returns null for unknown and REJECT entries", () => {
         expect(enumLookup("line.style_unknown")).toBeNull();
         expect(enumLookup("text.format_bold")).toBeNull();
+    });
+});
+
+describe("INPUT_DISPLAY_MAP", () => {
+    it("maps input display members to chartlang input-display literals", () => {
+        expect(INPUT_DISPLAY_MAP.get("all")).toBe("all");
+        expect(INPUT_DISPLAY_MAP.get("none")).toBe("none");
+        expect(INPUT_DISPLAY_MAP.get("status_line")).toBe("status-line");
+        expect(INPUT_DISPLAY_MAP.get("data_window")).toBe("data-window");
     });
 });

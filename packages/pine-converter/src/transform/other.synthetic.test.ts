@@ -30,6 +30,15 @@ function scriptWith(body: readonly Statement[]): Script {
     return { kind: "script", version: null, declaration: null, body, span: SPAN };
 }
 
+function enumStmt(): Statement {
+    return {
+        kind: "enum-declaration",
+        name: "Signal",
+        members: [{ name: "buy", value: null, span: SPAN }],
+        span: SPAN,
+    };
+}
+
 function analysisWith(
     body: readonly Statement[],
     drawingSites: readonly DrawingCallSite[] = [],
@@ -122,6 +131,10 @@ describe("transformOther — synthetic defensive arms", () => {
             span: SPAN,
         };
         expect(run([decl])).toEqual([]);
+    });
+
+    it("emits nothing for an enum-declaration", () => {
+        expect(run([enumStmt()])).toEqual([]);
     });
 
     it("treats a setter whose first arg is not an identifier as a normal call", () => {

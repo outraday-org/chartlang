@@ -135,6 +135,78 @@ describe("extractInputs", () => {
         });
     });
 
+    it("serialises presentation metadata and preserves input declaration order", () => {
+        const result = run(`
+            a: input.int(20, {
+                title: "Length",
+                group: "MA",
+                inline: "row-1",
+                tooltip: "Moving average length",
+                display: "data-window",
+                confirm: true,
+            }),
+            b: input.bool(false, {
+                title: "Enabled",
+                group: "MA",
+                inline: "row-1",
+                tooltip: "Toggle overlay",
+                display: "status-line",
+                confirm: false,
+            }),
+        `);
+
+        expect(result.diagnostics).toEqual([]);
+        expect(Object.keys(result.inputs)).toEqual(["a", "b"]);
+        expect(result.inputs.a).toEqual({
+            kind: "int",
+            defaultValue: 20,
+            title: "Length",
+            group: "MA",
+            inline: "row-1",
+            tooltip: "Moving average length",
+            display: "data-window",
+            confirm: true,
+        });
+        expect(result.inputs.b).toEqual({
+            kind: "bool",
+            defaultValue: false,
+            title: "Enabled",
+            group: "MA",
+            inline: "row-1",
+            tooltip: "Toggle overlay",
+            display: "status-line",
+            confirm: false,
+        });
+    });
+
+    it("serialises presentation metadata on externalSeries descriptors", () => {
+        const result = run(`
+            ext: input.externalSeries({
+                name: "earnings",
+                schema,
+                title: "Earnings",
+                group: "Events",
+                inline: "row-2",
+                tooltip: "Adapter-supplied earnings data",
+                display: "none",
+                confirm: true,
+            }),
+        `);
+
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs.ext).toEqual({
+            kind: "external-series",
+            name: "earnings",
+            schema: { kind: "external-series-schema" },
+            title: "Earnings",
+            group: "Events",
+            inline: "row-2",
+            tooltip: "Adapter-supplied earnings data",
+            display: "none",
+            confirm: true,
+        });
+    });
+
     it("returns frozen records and nested arrays", () => {
         const result = run('mode: input.enum("a", ["a", "b"] as const)');
         expect(Object.isFrozen(result)).toBe(true);
@@ -286,6 +358,8 @@ export default defineIndicator({
         notObject: input.externalSeries(schema),
         dynamicName: input.externalSeries({ name: name, schema }),
         dynamicTitle: input.externalSeries({ name: "earnings", schema, title: name }),
+        dynamicGroup: input.externalSeries({ name: "group", schema, group: name }),
+        dynamicConfirm: input.externalSeries({ name: "confirm", schema, confirm: name }),
         missingSchema: input.externalSeries({ name: "earnings" }),
         computedSchema: input.externalSeries({ name: "computed", ["schema"]: schema }),
         explicitSchema: input.externalSeries({ ...{}, name: "sales", schema: { kind: "external-series-schema" } as const }),
@@ -298,6 +372,8 @@ export default defineIndicator({
         });
         const result = extractInputs(sourceFile, checker, "external.chart.ts");
         expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+            "input-default-not-literal",
+            "input-default-not-literal",
             "input-default-not-literal",
             "input-default-not-literal",
             "input-default-not-literal",

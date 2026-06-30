@@ -59,6 +59,15 @@ function scriptWith(body: readonly Statement[]): Script {
     return { kind: "script", version: null, declaration: null, body, span: SPAN };
 }
 
+function enumStmt(): Statement {
+    return {
+        kind: "enum-declaration",
+        name: "Signal",
+        members: [{ name: "buy", value: null, span: SPAN }],
+        span: SPAN,
+    };
+}
+
 function emptyScaffold(): ScriptScaffold {
     return {
         constructor: "defineIndicator",
@@ -159,6 +168,11 @@ describe("transformInputs — synthetic defensive arms", () => {
             },
         ]);
         expect(scaffold.inputs.map((i) => i.code)).toEqual(["input.int(5)"]);
+    });
+
+    it("ignores enum declarations", () => {
+        const scaffold = runBody([enumStmt()]);
+        expect(scaffold.inputs).toEqual([]);
     });
 
     it("rejects a bare input whose default is a literal-expression of kind na", () => {

@@ -11,7 +11,7 @@ import {
     remapIdentifier,
     taLookup,
 } from "../mapping/index.js";
-import type { SemanticResult } from "../semantic/index.js";
+import type { EnumTypeInfo, SemanticResult } from "../semantic/index.js";
 import { mapArrayBuiltin } from "./arrayBuiltinMap.js";
 import { spanKey } from "./callArgs.js";
 import type { AnnotationLookup } from "./exprEmit.js";
@@ -82,6 +82,12 @@ export type NestedTaWarnCode = "nested-ta-lowered" | "nested-ta-not-lowered";
  */
 export type EmitContext = Readonly<{
     annotations: AnnotationLookup;
+    /**
+     * Native Pine enum declarations registered by semantic analysis. When
+     * present, expression emission lowers bare `EnumType.member` reads to the
+     * member's resolved string value.
+     */
+    enumTypes?: ReadonlyMap<string, EnumTypeInfo>;
     inputNames: ReadonlySet<string>;
     localNames: ReadonlySet<string>;
     stateSlots: ReadonlyMap<string, string>;
@@ -809,7 +815,7 @@ export function emitWithContext(node: ExpressionNode, ctx: EmitContext): string 
     // A SERIES root position: a top-level `ta.*` call stays a `Series` (the
     // caller — `plot`/`hline`/`request.security`/`emitTa` — owns its handling);
     // nested scalar sub-positions still lower.
-    return emitExpr(rewriteTree(node, ctx, false), ctx.annotations);
+    return emitExpr(rewriteTree(node, ctx, false), ctx.annotations, ctx.enumTypes);
 }
 
 /**
@@ -841,7 +847,7 @@ export function emitWithContext(node: ExpressionNode, ctx: EmitContext): string 
  *     emitScalar(call, ctx); // "ta.atr(14).current"
  */
 export function emitScalar(node: ExpressionNode, ctx: EmitContext): string {
-    return emitExpr(rewriteTree(node, ctx, true), ctx.annotations);
+    return emitExpr(rewriteTree(node, ctx, true), ctx.annotations, ctx.enumTypes);
 }
 
 /**
@@ -938,6 +944,7 @@ export function buildDrawingEmitContext(
     }
     return {
         annotations: analysis.annotations,
+        enumTypes: analysis.enumTypes,
         inputNames,
         localNames: new Set(),
         stateSlots: new Map(),

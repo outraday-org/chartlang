@@ -12,7 +12,7 @@ import type {
     VariableDeclaration,
 } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
-import type { FunctionDeclaration } from "../ast/statements.js";
+import type { EnumDeclaration, FunctionDeclaration } from "../ast/statements.js";
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic, SourceSpan } from "../index.js";
 import { type SecurityFeedInputs, collectSecurityFeedInputs } from "../transform/securityShape.js";
@@ -32,6 +32,7 @@ import { analyzeSecurityTuple } from "./securityTuple.js";
 import { functionParamArity, resolveUdfStatefulness } from "./statefulness.js";
 import type {
     AstNode,
+    EnumTypeInfo,
     HandleType,
     Scope,
     SemanticAnnotation,
@@ -64,6 +65,7 @@ type WalkState = {
     readonly scopes: Map<AstNode, Scope>;
     readonly annotations: Map<AstNode, SemanticAnnotation>;
     readonly symbols: Map<SourceSpan, SymbolInfo>;
+    readonly enumTypes: Map<string, EnumTypeInfo>;
     readonly diagnostics: Diagnostic[];
     readonly lifetimes: ReturnType<typeof createLifetimeCollector>;
     readonly securityFeedInputs: SecurityFeedInputs;
@@ -151,7 +153,18 @@ function walkExpression(
             return;
         case "member-access-expression": {
             const root = rootIdentifier(expr);
-            if (root !== null && root !== "bar_index" && resolve(root) === null) {
+            const rootSymbol = root === null ? null : resolve(root);
+            if (rootSymbol?.kind === "enum-type") {
+                const member = expr.chain[1];
+                const known =
+                    member !== undefined &&
+                    rootSymbol.enumType?.members.some((entry) => entry.name === member) === true;
+                if (!known) {
+                    state.diagnostics.push(makeDiagnostic("unknown-enum-member", expr.span));
+                }
+                return;
+            }
+            if (root !== null && root !== "bar_index" && rootSymbol === null) {
                 state.diagnostics.push(makeDiagnostic("unknown-identifier", expr.span));
             }
             if (root === "bar_index") {
@@ -402,6 +415,8 @@ function walkStatement(state: WalkState, scope: ScopeBuilder, stmt: Statement): 
         case "function-declaration":
             walkFunctionBody(state, scope, stmt);
             return;
+        case "enum-declaration":
+            return;
         case "expression-statement": {
             recordHandleMutation(state, scope, stmt.expression);
             walkExpression(state, scope, stmt.expression, null);
@@ -541,6 +556,42 @@ function registerUserFunctions(state: WalkState, root: ScopeBuilder, script: Scr
     }
 }
 
+function enumTypeInfo(decl: EnumDeclaration): EnumTypeInfo {
+    const members = decl.members.map((member) => ({
+        name: member.name,
+        value: member.value ?? member.name,
+    }));
+    return { name: decl.name, members, defaultMember: members[0]?.name ?? "" };
+}
+
+// Hoist native Pine enum types before the expression walk so forward
+// `EnumType.member` references resolve. Duplicate names keep the first enum in
+// `SemanticResult.enumTypes` and report the existing shadowing diagnostic.
+function registerEnumTypes(state: WalkState, root: ScopeBuilder, script: Script): void {
+    for (const stmt of script.body) {
+        if (stmt.kind !== "enum-declaration") {
+            continue;
+        }
+        if (state.enumTypes.has(stmt.name)) {
+            state.diagnostics.push(makeDiagnostic("accidental-shadowing", stmt.span));
+            continue;
+        }
+        const info = enumTypeInfo(stmt);
+        const symbol: SymbolInfo = {
+            name: stmt.name,
+            kind: "enum-type",
+            declarationSpan: stmt.span,
+            typeAnnotation: null,
+            qualifier: "const",
+            handleType: null,
+            enumType: info,
+        };
+        state.enumTypes.set(stmt.name, info);
+        defineSymbol(root, symbol);
+        state.symbols.set(stmt.span, symbol);
+    }
+}
+
 function extractIndicatorCaps(args: readonly Argument[]): IndicatorCaps {
     const caps: { -readonly [K in HandleType]?: number } = {};
     const byArg: Readonly<Record<string, HandleType>> = {
@@ -596,6 +647,7 @@ export function analyze(script: Script): SemanticResult {
         scopes: new Map(),
         annotations: new Map(),
         symbols: new Map(),
+        enumTypes: new Map(),
         diagnostics: [],
         lifetimes: createLifetimeCollector(),
         securityFeedInputs: collectSecurityFeedInputs(script),
@@ -603,6 +655,7 @@ export function analyze(script: Script): SemanticResult {
         futureBarIndex: false,
     };
 
+    registerEnumTypes(state, rootBuilder, script);
     registerUserFunctions(state, rootBuilder, script);
 
     for (const stmt of script.body) {
@@ -629,6 +682,7 @@ export function analyze(script: Script): SemanticResult {
         scopes: state.scopes,
         annotations: state.annotations,
         symbols: state.symbols,
+        enumTypes: state.enumTypes,
         lifetimes: state.lifetimes.build(),
         drawingSites: classification.sites,
         drawingClassifications: classification.classifications,

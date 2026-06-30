@@ -1,6 +1,6 @@
 # Task 3 — Converter: parse native Pine `enum` declarations + register members
 
-> **Status: TODO**
+> **Status: Complete + Ship**
 
 ## Goal
 

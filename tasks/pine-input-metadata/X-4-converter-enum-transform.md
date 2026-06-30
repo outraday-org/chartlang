@@ -1,6 +1,6 @@
 # Task 4 — Converter: lower native `input.enum(EnumType.member, …)`
 
-> **Status: TODO**
+> **Status: Complete + Ship**
 
 ## Goal
 

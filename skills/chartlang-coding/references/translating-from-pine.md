@@ -412,6 +412,15 @@ legacy generic `input()` becomes a source or typed builder.
 | `input(close, "Source")` | `input.source("close", { title: "Source" })` | Bare `input()` with a **series** default (an OHLCV / synthetic source). Hoisted to `manifest.inputs`, referenced as `inputs.<name>`. |
 | `input(14, "Length")` | `input.int(14, { title: "Length" })` | Bare `input()` with a **literal** default → the typed builder by the literal's kind (`input(14)` → `input.int`, `input(1.5)` → `input.float`, `input(true)` → `input.bool`, …). |
 
+Pine input metadata maps to chartlang input opts on every builder:
+`group`, `inline`, `tooltip`, `confirm`, and `display`. Input `display`
+uses `"all"`, `"status-line"`, `"data-window"`, or `"none"` and controls
+where the input value appears outside the settings panel. This is separate
+from `plot(..., display=...)`, which maps only the all/none show-hide toggle
+to `plot(..., { visible })`. Metadata values must be literals; non-literal
+metadata and Pine's conditional `active=` argument are dropped with
+`input-arg-not-mapped`.
+
 - **Default must be one of the options.** If the dropdown `default` isn't in
   `options=`, the enum is still emitted with an
   `input-string-options-default-mismatch` warning — fix the source to pick a
@@ -516,11 +525,12 @@ legacy generic `input()` becomes a source or typed builder.
   `plot-display-approximated` warning is emitted.
 - **Inputs must be literal.** Defaults and option values must be
   compile-time literals (a unary `+`/`-` on a number is fine). A computed
-  default rejects. Pine's own UDT-backed `input.enum` (Pine v6 enums) is
-  **not** translated — use `input.string`/`input.int` with an `options=`
-  dropdown as the migration target, which the converter then lowers to a
-  chartlang `input.enum` (see [Inputs — dropdowns &
-  bare `input()`](#inputs--dropdowns--inputenum-bare-input)).
+  default rejects. A native Pine `input.enum(EnumType.member, title?, ...)`
+  lowers to a string-backed chartlang `input.enum`, with options taken from the
+  enum declaration in order; comparisons against `EnumType.member` lower to
+  the same string values. `input.string` / `input.int` / `input.float`
+  `options=` dropdowns still use the converter-synthesised `input.enum` bridge
+  (see [Inputs — dropdowns & bare `input()`](#inputs--dropdowns--inputenum-bare-input)).
 - **`explicit_plot_zorder` needs no translation.** chartlang already orders
   marks by declaration within a group by default, so Pine's
   `explicit_plot_zorder=true` is chartlang's default — the converter

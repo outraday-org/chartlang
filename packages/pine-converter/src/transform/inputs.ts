@@ -5,10 +5,11 @@ import type { CallExpression, ExpressionNode, LiteralKind } from "../ast/index.j
 import type { Argument } from "../ast/script.js";
 import type { Statement } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
-import { STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
-import type { SemanticResult } from "../semantic/index.js";
+import { INPUT_DISPLAY_MAP, STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
+import type { EnumTypeInfo, SemanticResult } from "../semantic/index.js";
 import { positionalArgs, spanKey } from "./callArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
+import { resolveEnumMemberValue, resolveEnumType } from "./enumMembers.js";
 import type { InputDeclarationIR, ScriptScaffold } from "./ir.js";
 import { appendInput } from "./scaffoldMutators.js";
 import { pineTimeframeToInterval } from "./timeframeConvert.js";
@@ -34,6 +35,14 @@ const RANGE_ARG_TO_OPTION: ReadonlyMap<string, "min" | "max" | "step"> = new Map
     ["minval", "min"],
     ["maxval", "max"],
     ["step", "step"],
+]);
+
+// Pine input metadata string args that map 1:1 to chartlang input opts.
+const STRING_PASSTHROUGH_ARGS: ReadonlyMap<string, string> = new Map([
+    ["title", "title"],
+    ["group", "group"],
+    ["inline", "inline"],
+    ["tooltip", "tooltip"],
 ]);
 
 // The Pine `input.*` member key (`"input.int"`) for a call whose callee is
@@ -99,6 +108,28 @@ function literalDefault(node: ExpressionNode): string | null {
     return null;
 }
 
+// The chartlang source for a boolean literal input option.
+function booleanLiteralOf(node: ExpressionNode): string | null {
+    if (node.kind === "literal-expression" && node.literalKind === "bool") {
+        return node.value;
+    }
+    return null;
+}
+
+// The Pine `display.<member>` member name for an input `display=` option, or
+// `null` when the value is not a bare display member.
+function inputDisplayMember(node: ExpressionNode): string | null {
+    if (
+        node.kind === "member-access-expression" &&
+        node.head === null &&
+        node.chain.length === 2 &&
+        node.chain[0] === "display"
+    ) {
+        return node.chain.join(".").slice("display.".length);
+    }
+    return null;
+}
+
 // Split a call's argument list into the leading positional default value (or
 // `null` if absent) and the named arguments by key. Pine's `input.*` defval
 // is always the first positional argument.
@@ -160,27 +191,40 @@ function warnNonLiteralInputArg(
     );
 }
 
-// Build the chartlang options-object source (`{ title: "X", min: 1 }`) from
-// the named args, or `null` when no recognised option is present. Unmapped
-// named args (`tooltip`/`group`/`inline`/`confirm`/…) raise
-// `input-arg-not-mapped` once per distinct argument name across the script.
-// `multiline` is forced on for a `text_area` source.
-function buildOptions(
+function isInputMetadataArg(name: string): boolean {
+    return STRING_PASSTHROUGH_ARGS.has(name) || name === "display" || name === "confirm";
+}
+
+function isRecognizedInputOptionArg(name: string): boolean {
+    return isInputMetadataArg(name) || RANGE_ARG_TO_OPTION.has(name);
+}
+
+function appendStringOptions(
+    parts: string[],
     named: ReadonlyMap<string, Argument>,
-    multiline: boolean,
     diagnostics: DiagnosticCollector,
-    skipOptionsArg: boolean,
-): string | null {
-    const parts: string[] = [];
-    const titleArg = named.get("title");
-    if (titleArg !== undefined) {
-        const title = stringLiteralOf(titleArg.value);
-        if (title !== null) {
-            parts.push(`title: ${title}`);
+    positionalTitleArg: Argument | undefined,
+): void {
+    for (const [argName, option] of STRING_PASSTHROUGH_ARGS) {
+        const arg =
+            argName === "title" ? (named.get("title") ?? positionalTitleArg) : named.get(argName);
+        if (arg === undefined) {
+            continue;
+        }
+        const value = stringLiteralOf(arg.value);
+        if (value !== null) {
+            parts.push(`${option}: ${value}`);
         } else {
-            warnNonLiteralInputArg(diagnostics, "title", titleArg.span);
+            warnNonLiteralInputArg(diagnostics, argName, arg.span);
         }
     }
+}
+
+function appendRangeOptions(
+    parts: string[],
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): void {
     for (const [argName, option] of RANGE_ARG_TO_OPTION) {
         const arg = named.get(argName);
         if (arg === undefined) {
@@ -193,6 +237,50 @@ function buildOptions(
             warnNonLiteralInputArg(diagnostics, argName, arg.span);
         }
     }
+}
+
+function appendConfirmOption(
+    parts: string[],
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): void {
+    const arg = named.get("confirm");
+    if (arg === undefined) {
+        return;
+    }
+    const value = booleanLiteralOf(arg.value);
+    if (value !== null) {
+        parts.push(`confirm: ${value}`);
+    } else {
+        warnNonLiteralInputArg(diagnostics, "confirm", arg.span);
+    }
+}
+
+function appendDisplayOption(
+    parts: string[],
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): void {
+    const arg = named.get("display");
+    if (arg === undefined) {
+        return;
+    }
+    const member = inputDisplayMember(arg.value);
+    const value = member === null ? undefined : INPUT_DISPLAY_MAP.get(member);
+    if (value === undefined) {
+        warnUnmappedInputArg(diagnostics, "display", arg.span);
+        return;
+    }
+    if (value !== "all") {
+        parts.push(`display: ${JSON.stringify(value)}`);
+    }
+}
+
+function appendUnmappedInputArgDiagnostics(
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+    skipOptionsArg: boolean,
+): void {
     for (const [argName, arg] of named) {
         // A non-literal/mixed `options=` list was already reported by the enum
         // bridge (`input-string-options-not-literal`) and dropped, so it must
@@ -200,10 +288,29 @@ function buildOptions(
         if (skipOptionsArg && argName === "options") {
             continue;
         }
-        if (argName !== "title" && !RANGE_ARG_TO_OPTION.has(argName)) {
+        if (!isRecognizedInputOptionArg(argName)) {
             warnUnmappedInputArg(diagnostics, argName, arg.span);
         }
     }
+}
+
+// Build the chartlang options-object source (`{ title: "X", min: 1 }`) from
+// the named args, or `null` when no recognised option is present. Unmapped
+// named args (`active`, unknowns, wrong-shape `display`) raise
+// `input-arg-not-mapped` once per distinct argument name across the script.
+// `multiline` is forced on for a `text_area` source.
+function buildOptions(
+    named: ReadonlyMap<string, Argument>,
+    multiline: boolean,
+    diagnostics: DiagnosticCollector,
+    skipOptionsArg: boolean,
+): string | null {
+    const parts: string[] = [];
+    appendStringOptions(parts, named, diagnostics, undefined);
+    appendRangeOptions(parts, named, diagnostics);
+    appendDisplayOption(parts, named, diagnostics);
+    appendConfirmOption(parts, named, diagnostics);
+    appendUnmappedInputArgDiagnostics(named, diagnostics, skipOptionsArg);
     if (multiline) {
         parts.push("multiline: true");
     }
@@ -306,27 +413,33 @@ function numericLiteralOf(node: ExpressionNode): string | null {
     return null;
 }
 
-// The chartlang `{ title: "X" }` opts fragment for a string-enum, threaded from
-// a named `title=` arg or the 2nd positional arg (Pine `input.string(default,
-// title, …)`). A present-but-non-literal title is dropped with
-// `input-arg-not-mapped` (mirroring `buildOptions`). Returns the leading `, `
-// included, or `""` when there is no usable title.
-function enumTitleOpt(
+// The chartlang `{ ... }` opts fragment for a converter-synthesised enum,
+// threaded from the same named metadata args as normal inputs. `title` also
+// falls back to the 2nd positional arg (Pine `input.string(default, title, …)`).
+// Returns the leading `, ` included, or `""` when there is no usable option.
+function buildEnumOpts(
     call: CallExpression,
     named: ReadonlyMap<string, Argument>,
     diagnostics: DiagnosticCollector,
 ): string {
     const positional = positionalArgs(call.args);
-    const titleArg = named.get("title") ?? (positional.length >= 2 ? positional[1] : undefined);
-    if (titleArg === undefined) {
-        return "";
+    const positionalTitle = positional.length >= 2 ? positional[1] : undefined;
+    const parts: string[] = [];
+    appendStringOptions(parts, named, diagnostics, positionalTitle);
+    appendDisplayOption(parts, named, diagnostics);
+    appendConfirmOption(parts, named, diagnostics);
+    return parts.length === 0 ? "" : `, { ${parts.join(", ")} }`;
+}
+
+function warnUnmappedEnumArgs(
+    named: ReadonlyMap<string, Argument>,
+    diagnostics: DiagnosticCollector,
+): void {
+    for (const [argName, arg] of named) {
+        if (argName !== "options" && !isInputMetadataArg(argName)) {
+            warnUnmappedInputArg(diagnostics, argName, arg.span);
+        }
     }
-    const title = stringLiteralOf(titleArg.value);
-    if (title === null) {
-        warnNonLiteralInputArg(diagnostics, "title", titleArg.span);
-        return "";
-    }
-    return `, { title: ${title} }`;
 }
 
 // The outcome of inspecting an `input.string` `options=` named arg. `enum` is a
@@ -425,17 +538,36 @@ function resolveOptionsEnum(
     if (!optionLiterals.some((option) => config.matchesDefault(option, defaultLiteral))) {
         diagnostics.pushCode("input-string-options-default-mismatch", call.span);
     }
-    // Any other named arg (`tooltip`/`group`/`confirm`/…) has no enum analogue.
-    for (const [argName, arg] of named) {
-        if (argName !== "title" && argName !== "options") {
-            warnUnmappedInputArg(diagnostics, argName, arg.span);
-        }
-    }
-    const titleOpt = enumTitleOpt(call, named, diagnostics);
+    // Any other named arg has no enum analogue.
+    warnUnmappedEnumArgs(named, diagnostics);
+    const optionsOpt = buildEnumOpts(call, named, diagnostics);
     return {
         kind: "enum",
-        code: `${STRING_OPTIONS_ENUM_BUILDER}(${defaultLiteral}, [${optionLiterals.join(", ")}]${titleOpt})`,
+        code: `${STRING_OPTIONS_ENUM_BUILDER}(${defaultLiteral}, [${optionLiterals.join(", ")}]${optionsOpt})`,
     };
+}
+
+function buildNativeEnum(
+    call: CallExpression,
+    enumTypes: ReadonlyMap<string, EnumTypeInfo>,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    const { defaultArg, named } = splitArgs(call);
+    if (defaultArg === null || defaultArg.value.kind !== "member-access-expression") {
+        diagnostics.pushCode("input-enum-default-not-member", call.span);
+        return null;
+    }
+    const defaultValue = defaultArg.value;
+    const enumType = resolveEnumType(defaultValue, enumTypes);
+    const selected = resolveEnumMemberValue(defaultValue, enumTypes);
+    if (enumType === null || selected === null) {
+        diagnostics.pushCode("input-enum-default-not-member", defaultArg.span);
+        return null;
+    }
+    const options = enumType.members.map((member) => JSON.stringify(member.value));
+    warnUnmappedEnumArgs(named, diagnostics);
+    const optionsOpt = buildEnumOpts(call, named, diagnostics);
+    return `${STRING_OPTIONS_ENUM_BUILDER}(${JSON.stringify(selected)}, [${options.join(", ")}]${optionsOpt})`;
 }
 
 // The typed `input.*` factory a bare `input(defval=<literal>)` maps to, by the
@@ -520,11 +652,11 @@ function buildBareInput(
 function buildInputCode(
     call: CallExpression,
     primitive: string,
+    enumTypes: ReadonlyMap<string, EnumTypeInfo>,
     diagnostics: DiagnosticCollector,
 ): string | null {
     if (primitive === "input.enum") {
-        diagnostics.pushCode("input-enum-rejected", call.span);
-        return null;
+        return buildNativeEnum(call, enumTypes, diagnostics);
     }
     const mapping = inputLookup(primitive);
     if (mapping === null) {
@@ -628,6 +760,7 @@ function collectInlineInputs(node: ExpressionNode, out: InlineInput[]): void {
 type WalkState = {
     scaffold: ScriptScaffold;
     diagnostics: DiagnosticCollector;
+    enumTypes: ReadonlyMap<string, EnumTypeInfo>;
     // Inline `input.*(...)` call `spanKey` → its promoted top-level input name,
     // so the emitter can rewrite the use site to the `inputs.<name>` read.
     // Keyed by span (not node identity — `udfInline` clones nodes downstream).
@@ -637,7 +770,7 @@ type WalkState = {
 // Register a named input declaration (`len = input.int(...)`) — its bound
 // name keys the chartlang descriptor.
 function registerNamed(name: string, call: CallExpression, key: string, state: WalkState): void {
-    const code = buildInputCode(call, key, state.diagnostics);
+    const code = buildInputCode(call, key, state.enumTypes, state.diagnostics);
     if (code === null) {
         return;
     }
@@ -648,7 +781,7 @@ function registerNamed(name: string, call: CallExpression, key: string, state: W
 // Register a promoted inline input (`ta.ema(close, input.int(20))`) with a
 // synthesised name and an `inline-input-promoted` info diagnostic.
 function registerInline(inline: InlineInput, state: WalkState): void {
-    const code = buildInputCode(inline.call, inline.key, state.diagnostics);
+    const code = buildInputCode(inline.call, inline.key, state.enumTypes, state.diagnostics);
     if (code === null) {
         return;
     }
@@ -732,6 +865,8 @@ function walkStatement(statement: Statement, state: WalkState): void {
                 walkInlineExpression(statement.value, state);
             }
             return;
+        case "enum-declaration":
+            return;
         default:
             return;
     }
@@ -751,10 +886,11 @@ function walkStatements(statements: readonly Statement[], state: WalkState): voi
  * an inline call (`ta.ema(close, input.int(20))`) is promoted to a
  * synthesised `inlineInput` name (e.g. `inlineInput`/`inlineInput2`) with an `inline-input-promoted` info
  * diagnostic. A `string`/`numeric` `options=[…]` dropdown bridges onto
- * `input.enum`; a bare generic `input(...)` lowers to `input.source` (series
+ * `input.enum`; native Pine `input.enum(EnumType.member, ...)` lowers to a
+ * string-backed chartlang `input.enum`; a bare generic `input(...)` lowers to `input.source` (series
  * default) or the typed `input.int/float/bool/string` (literal default).
- * Unconvertible inputs (`input.enum`, a computed `input.source`
- * default, a non-literal default) push an error and are skipped. The
+ * Unconvertible inputs (a non-member native enum default, a computed
+ * `input.source` default, a non-literal default) push an error and are skipped. The
  * function mutates the scaffold (appending to `scaffold.inputs`) and RETURNS a
  * map from each promoted inline `input.*(...)` call node to its synthesised
  * input name, so the emitter rewrites the inline use site to its
@@ -785,7 +921,12 @@ export function transformInputs(
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
 ): ReadonlyMap<string, string> {
-    const state: WalkState = { scaffold, diagnostics, promotedInline: new Map() };
+    const state: WalkState = {
+        scaffold,
+        diagnostics,
+        enumTypes: analysis.enumTypes,
+        promotedInline: new Map(),
+    };
     walkStatements(analysis.script.body, state);
     return state.promotedInline;
 }

@@ -62,6 +62,8 @@ function statementHasPlot(statement: Statement): boolean {
             return statement.cases.some((arm) => hasPlotCall(arm.body));
         case "block-statement":
             return hasPlotCall(statement.body);
+        case "enum-declaration":
+            return false;
         default:
             return false;
     }

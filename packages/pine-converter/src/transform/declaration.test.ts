@@ -54,6 +54,11 @@ describe("transformDeclaration — indicator args", () => {
         expect(scaffold.computeBody.statements).toEqual([]);
     });
 
+    it("ignores enum declarations when choosing the constructor", () => {
+        const { scaffold } = scaffoldOf(`//@version=6\nindicator("X")\nenum Signal\n    buy\n`);
+        expect(scaffold.constructor).toBe("defineIndicator");
+    });
+
     it("maps shorttitle / format / precision / scale", () => {
         const { scaffold } = indicator(
             '"X", shorttitle="X2", format=format.percent, precision=3, scale=scale.left',

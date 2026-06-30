@@ -168,4 +168,23 @@ describe("resolveInputs", () => {
         expect(ctx.emissions.diagnostics).toHaveLength(1);
         expect(ctx.diagnosedInputKeys.has("length")).toBe(true);
     });
+
+    it("ignores presentation metadata when resolving values", () => {
+        const withoutMetadata = resolveInputs(manifest({ length: input.int(14) }), {}, context());
+        const withMetadata = resolveInputs(
+            manifest({
+                length: input.int(14, {
+                    group: "Trend",
+                    tooltip: "Moving average length",
+                    inline: "row-1",
+                    display: "data-window",
+                    confirm: true,
+                }),
+            }),
+            {},
+            context(),
+        );
+
+        expect(withMetadata).toEqual(withoutMetadata);
+    });
 });

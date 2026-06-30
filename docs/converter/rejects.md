@@ -146,7 +146,7 @@ no analogue for resolving a fill across an unbounded handle collection.
 
 | Code | When | Rewrite |
 |---|---|---|
-| [`input-enum-rejected`](./diagnostics.md#input-enum-rejected) | `input.enum(...)`. | Use `input.string(...)` of the allowed values. |
+| [`input-enum-default-not-member`](./diagnostics.md#input-enum-default-not-member) | `input.enum(...)` default is not a declared `EnumType.member`. | Pass a member reference such as `Signal.buy`. |
 | [`non-literal-input-default`](./diagnostics.md#non-literal-input-default) | An `input.*` default is computed. | Use a compile-time literal default. |
 | [`non-literal-source-input`](./diagnostics.md#non-literal-source-input) | `input.source(...)` default is a computed series. | Pass an OHLCV built-in (`close`, `hl2`, …). |
 | [`input-string-options-default-mismatch`](./diagnostics.md#input-string-options-default-mismatch) | An `input.string(default, options=[…])` default is not one of the options (the enum is still emitted). | Set the default to one of the `options=` values. |

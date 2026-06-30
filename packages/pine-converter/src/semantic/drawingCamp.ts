@@ -89,6 +89,8 @@ function flattenStatements(statements: readonly Statement[]): Statement[] {
             case "block-statement":
                 stmt.body.forEach(visit);
                 return;
+            case "enum-declaration":
+                return;
             default:
                 return;
         }

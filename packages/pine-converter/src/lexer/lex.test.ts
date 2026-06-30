@@ -48,8 +48,14 @@ describe("lex — acceptance fixture", () => {
 
 describe("lex — keywords and identifiers", () => {
     it("classifies keywords vs identifiers", () => {
-        const { tokens } = lex("if and not close");
-        expect(kinds(tokens.slice(0, 4))).toEqual(["keyword", "keyword", "keyword", "identifier"]);
+        const { tokens } = lex("if and not enum close");
+        expect(kinds(tokens.slice(0, 5))).toEqual([
+            "keyword",
+            "keyword",
+            "keyword",
+            "keyword",
+            "identifier",
+        ]);
     });
 
     it("treats reserved built-in references as plain identifiers", () => {

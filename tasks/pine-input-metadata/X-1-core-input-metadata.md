@@ -1,6 +1,6 @@
 # Task 1 — Core input metadata fields (group / inline / tooltip / display / confirm)
 
-> **Status: TODO**
+> **Status: Complete + Ship**
 
 ## Goal
 

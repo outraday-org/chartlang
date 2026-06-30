@@ -360,12 +360,13 @@ function parseMemberAccess(ctx: ParserContext, receiver: ExpressionNode): Member
         head = receiver.head;
     }
     ctx.cursor.next();
-    const nameToken = ctx.cursor.expect("identifier");
-    if (nameToken === null) {
+    const nameToken = ctx.cursor.peek();
+    if (nameToken.kind !== "identifier" && nameToken.kind !== "keyword") {
         const at = ctx.cursor.peek().span;
         ctx.addDiagnostic(makeDiagnostic("expected-token", at, "Expected a member name."));
         return { kind: "member-access-expression", head, chain, span: receiver.span };
     }
+    ctx.cursor.next();
     chain.push(nameToken.text);
     return {
         kind: "member-access-expression",

@@ -3,7 +3,8 @@
 
 import type { ExpressionNode, HistoryAccessExpression, SwitchExpression } from "../ast/index.js";
 import { PINE_NA_COLOR, lowerBuiltinCall, remapIdentifier } from "../mapping/index.js";
-import type { AstNode, SemanticAnnotation } from "../semantic/index.js";
+import type { AstNode, EnumTypeInfo, SemanticAnnotation } from "../semantic/index.js";
+import { resolveEnumMemberValue } from "./enumMembers.js";
 
 /**
  * Per-node semantic facts the emitter consults — currently just the
@@ -42,8 +43,12 @@ function isAtomic(node: ExpressionNode): boolean {
 // Wrap a non-atomic emitted operand so the (loose, precedence-blind) string
 // concatenation never changes meaning. The chartlang typechecker tolerates
 // the redundant parens.
-function operand(node: ExpressionNode, annotations: AnnotationLookup): string {
-    const emitted = emitExpr(node, annotations);
+function operand(
+    node: ExpressionNode,
+    annotations: AnnotationLookup,
+    enumTypes: ReadonlyMap<string, EnumTypeInfo> | undefined,
+): string {
+    const emitted = emitExpr(node, annotations, enumTypes);
     return isAtomic(node) ? emitted : `(${emitted})`;
 }
 
@@ -79,19 +84,23 @@ function emitMemberChain(chain: readonly string[], headExpr: string | null): str
 // nothing matches and there is no default). Building right-to-left nests the
 // ternary correctly without extra parentheses (ternary is right-associative);
 // `operand` self-parenthesises any non-atomic sub-expression.
-function emitSwitchExpression(node: SwitchExpression, annotations: AnnotationLookup): string {
+function emitSwitchExpression(
+    node: SwitchExpression,
+    annotations: AnnotationLookup,
+    enumTypes: ReadonlyMap<string, EnumTypeInfo> | undefined,
+): string {
     let chain = "Number.NaN";
     for (let i = node.cases.length - 1; i >= 0; i -= 1) {
         const arm = node.cases[i];
-        const value = operand(arm.value, annotations);
+        const value = operand(arm.value, annotations, enumTypes);
         if (arm.test === null) {
             chain = value;
             continue;
         }
         const condition =
             node.subject === null
-                ? operand(arm.test, annotations)
-                : `${operand(node.subject, annotations)} === ${operand(arm.test, annotations)}`;
+                ? operand(arm.test, annotations, enumTypes)
+                : `${operand(node.subject, annotations, enumTypes)} === ${operand(arm.test, annotations, enumTypes)}`;
         chain = `${condition} ? ${value} : ${chain}`;
     }
     return chain;
@@ -140,7 +149,11 @@ function literalBaseType(node: ExpressionNode): "string" | "number" | "boolean" 
  *     } as const;
  *     emitExpr(node, new Map()); // "bar.close"
  */
-export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): string {
+export function emitExpr(
+    node: ExpressionNode,
+    annotations: AnnotationLookup,
+    enumTypes?: ReadonlyMap<string, EnumTypeInfo>,
+): string {
     switch (node.kind) {
         case "identifier-expression":
             return remapIdentifier(node.name) ?? node.name;
@@ -150,12 +163,12 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
             return emitNa(node, annotations);
         case "unary-expression": {
             const op = node.operator === "not" ? "!" : node.operator;
-            return `${op}${operand(node.operand, annotations)}`;
+            return `${op}${operand(node.operand, annotations, enumTypes)}`;
         }
         case "binary-expression": {
             const op = LOGICAL_OPERATORS.get(node.operator) ?? node.operator;
-            const left = operand(node.left, annotations);
-            const right = operand(node.right, annotations);
+            const left = operand(node.left, annotations, enumTypes);
+            const right = operand(node.right, annotations, enumTypes);
             // A stateful UDF inlined by `udfInline.ts` can substitute a string /
             // numeric LITERAL argument into an equality test, leaving literal
             // operands on BOTH sides (`"EMA" == "HMA"`). Under strict TS that is
@@ -177,9 +190,9 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
         }
         case "ternary-expression":
             return (
-                `${operand(node.condition, annotations)} ? ` +
-                `${operand(node.consequent, annotations)} : ` +
-                `${operand(node.alternate, annotations)}`
+                `${operand(node.condition, annotations, enumTypes)} ? ` +
+                `${operand(node.consequent, annotations, enumTypes)} : ` +
+                `${operand(node.alternate, annotations, enumTypes)}`
             );
         case "call-expression": {
             // `na(x)` is the Pine "is missing" test, NOT a call of the `na`
@@ -190,13 +203,13 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
             if (node.callee.kind === "na-expression") {
                 const first = node.args[0];
                 if (first !== undefined) {
-                    const arg = emitExpr(first.value, annotations);
+                    const arg = emitExpr(first.value, annotations, enumTypes);
                     return annotations.get(node.callee)?.naKind === "handle"
                         ? `(${arg} === null)`
                         : `!Number.isFinite(${arg})`;
                 }
             }
-            const emittedArgs = node.args.map((arg) => emitExpr(arg.value, annotations));
+            const emittedArgs = node.args.map((arg) => emitExpr(arg.value, annotations, enumTypes));
             // A bare-rooted calendar built-in call (`time()`, `time_close()`,
             // `dayofweek(t)`) lowers via the call-form table BEFORE the generic
             // path — its callee would otherwise remap as a value fragment
@@ -217,25 +230,32 @@ export function emitExpr(node: ExpressionNode, annotations: AnnotationLookup): s
                     return `math.nz(${emittedArgs.join(", ")})`;
                 }
             }
-            const callee = emitExpr(node.callee, annotations);
+            const callee = emitExpr(node.callee, annotations, enumTypes);
             return `${callee}(${emittedArgs.join(", ")})`;
         }
-        case "member-access-expression":
+        case "member-access-expression": {
+            if (enumTypes !== undefined) {
+                const value = resolveEnumMemberValue(node, enumTypes);
+                if (value !== null) {
+                    return JSON.stringify(value);
+                }
+            }
             return emitMemberChain(
                 node.chain,
-                node.head === null ? null : operand(node.head, annotations),
+                node.head === null ? null : operand(node.head, annotations, enumTypes),
             );
+        }
         case "history-access-expression":
-            return `${operand(node.receiver, annotations)}[${emitExpr(node.offset, annotations)}]`;
+            return `${operand(node.receiver, annotations, enumTypes)}[${emitExpr(node.offset, annotations, enumTypes)}]`;
         case "paren-expression":
-            return `(${emitExpr(node.expression, annotations)})`;
+            return `(${emitExpr(node.expression, annotations, enumTypes)})`;
         case "tuple-expression":
         case "array-literal-expression":
-            return `[${node.elements.map((el) => emitExpr(el, annotations)).join(", ")}]`;
+            return `[${node.elements.map((el) => emitExpr(el, annotations, enumTypes)).join(", ")}]`;
         case "lambda-expression":
-            return `(${node.params.join(", ")}) => ${operand(node.body, annotations)}`;
+            return `(${node.params.join(", ")}) => ${operand(node.body, annotations, enumTypes)}`;
         case "switch-expression":
-            return emitSwitchExpression(node, annotations);
+            return emitSwitchExpression(node, annotations, enumTypes);
         case "unknown-expression":
             // Unrecoverable parser fallback; never reaches a real coordinate
             // arg. Emit a benign placeholder so the output still parses.

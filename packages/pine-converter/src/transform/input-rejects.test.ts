@@ -38,10 +38,10 @@ function runInputs(body: string): {
 }
 
 describe("transformInputs — rejects", () => {
-    it("rejects input.enum and appends no input", () => {
-        const { inputs, codes } = runInputs("mode = input.enum(Direction.up)");
+    it("rejects input.enum when the default is not an enum member", () => {
+        const { inputs, codes } = runInputs('mode = input.enum("up")');
         expect(inputs).toHaveLength(0);
-        expect(codes).toContain("pine-converter/transform/input-enum-rejected");
+        expect(codes).toContain("pine-converter/transform/input-enum-default-not-member");
     });
 
     it("rejects a non-built-in input.source default", () => {
@@ -69,7 +69,7 @@ describe("transformInputs — rejects", () => {
     });
 
     it("warns once on an unmapped named argument and still emits the input", () => {
-        const { inputs, codes } = runInputs('len = input.int(9, tooltip="hi")');
+        const { inputs, codes } = runInputs("len = input.int(9, active=true)");
         expect(inputs).toHaveLength(1);
         expect(
             codes.filter((c) => c === "pine-converter/transform/input-arg-not-mapped"),

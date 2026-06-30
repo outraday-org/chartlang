@@ -1,6 +1,6 @@
 # Task 2 — Converter: map group / inline / tooltip / display / confirm through
 
-> **Status: TODO**
+> **Status: Complete + Ship**
 
 ## Goal
 

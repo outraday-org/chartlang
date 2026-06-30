@@ -248,6 +248,17 @@
   serialises a uniform numeric options list into the manifest. String-enum
   behaviour is byte-stable.
 
+- **All `input.*` descriptors carry the shared presentation metadata mixin.**
+  `CommonInputOpts` (`group?`, `inline?`, `tooltip?`, `display?`,
+  `confirm?`) is intersected into the common descriptor base AND
+  `ExternalSeriesDescriptor<T>` (which does not use that base), and every
+  builder opts surface accepts it. These fields are presentation-only:
+  adapters may use them to lay out settings panels, but runtime input
+  resolution ignores them. Omitted fields must remain omitted (no
+  `undefined` keys), so `input.externalSeries` forwards each metadata key only
+  when defined. The compiler's `program.ts` shim mirrors the mixin and builder
+  opts in lockstep.
+
 - **Coverage excludes `index.ts` (barrel) and any `types.ts` (declarations).**
   Real exported logic lives in dedicated files with co-located `*.test.ts`
   (unit) and `*.types.test.ts` (`expect-type`) layers. The two type-test

@@ -215,6 +215,8 @@ function substituteStatement(stmt: Statement, variable: string, value: number): 
                 elseBody:
                     stmt.elseBody === null ? null : substituteBlock(stmt.elseBody, variable, value),
             };
+        case "enum-declaration":
+            return stmt;
         default:
             return stmt;
     }
@@ -361,6 +363,8 @@ export function substituteParamsStatement(
                 elseBody:
                     stmt.elseBody === null ? null : substituteParamsBlock(stmt.elseBody, bindings),
             };
+        case "enum-declaration":
+            return stmt;
         default:
             return stmt;
     }
@@ -439,6 +443,8 @@ function statementHasStatefulPrimitive(stmt: Statement): boolean {
             return stmt.cases.some((arm) => bodyHasStatefulPrimitive(arm.body));
         case "block-statement":
             return bodyHasStatefulPrimitive(stmt.body);
+        case "enum-declaration":
+            return false;
         default:
             return false;
     }
@@ -471,6 +477,8 @@ function statementHasBreakContinue(stmt: Statement): boolean {
             return stmt.cases.some((arm) => bodyHasBreakContinue(arm.body));
         case "block-statement":
             return bodyHasBreakContinue(stmt.body);
+        case "enum-declaration":
+            return false;
         default:
             return false;
     }

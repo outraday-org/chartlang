@@ -209,6 +209,8 @@ function collectStatementFacts(stmt: Statement, acc: FactsAccumulator): void {
         case "function-declaration":
             collectBodyFacts(stmt.body.body, acc);
             return;
+        case "enum-declaration":
+            return;
         case "break-statement":
         case "continue-statement":
             return;

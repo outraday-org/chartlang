@@ -20,6 +20,7 @@ type ConvertibleDecl = Extract<
 function runInputs(body: string): {
     inputs: readonly InputDeclarationIR[];
     diagnostics: DiagnosticCollector;
+    analysis: ReturnType<typeof analyze>;
 } {
     const src = `//@version=6\nindicator("X")\n${body}\nplot(close)\n`;
     const analysis = analyze(parseStatements(lex(src).tokens).script);
@@ -34,7 +35,7 @@ function runInputs(body: string): {
     const diagnostics = new DiagnosticCollector();
     const scaffold = transformDeclaration(decl as ConvertibleDecl, analysis, diagnostics);
     transformInputs(analysis, scaffold, diagnostics);
-    return { inputs: scaffold.inputs, diagnostics };
+    return { inputs: scaffold.inputs, diagnostics, analysis };
 }
 
 function single(body: string): InputDeclarationIR {
@@ -147,6 +148,81 @@ describe("transformInputs — per-kind mapping", () => {
     });
 });
 
+describe("transformInputs — input metadata passthrough", () => {
+    it("maps title, group, inline, tooltip, display, and confirm", () => {
+        const input = single(
+            [
+                'len = input.int(9, title="Length", group="MA", inline="row",',
+                '    tooltip="fast length", display=display.status_line, confirm=true)',
+            ].join("\n"),
+        );
+        expect(input.code).toBe(
+            'input.int(9, { title: "Length", group: "MA", inline: "row", tooltip: "fast length", display: "status-line", confirm: true })',
+        );
+    });
+
+    it("maps input display.data_window and display.none", () => {
+        const { inputs } = runInputs(
+            [
+                "dw = input.bool(true, display=display.data_window)",
+                'hidden = input.string("x", display=display.none)',
+            ].join("\n"),
+        );
+        expect(inputs.map((i) => i.code)).toEqual([
+            'input.bool(true, { display: "data-window" })',
+            'input.string("x", { display: "none" })',
+        ]);
+    });
+
+    it("omits input display.all because it is the default", () => {
+        const { inputs, diagnostics } = runInputs("flag = input.bool(true, display=display.all)");
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.bool(true)");
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(false);
+    });
+
+    it("maps confirm false as written", () => {
+        expect(single("flag = input.bool(true, confirm=false)").code).toBe(
+            "input.bool(true, { confirm: false })",
+        );
+    });
+
+    it("drops non-literal metadata values with the non-literal message", () => {
+        const { inputs, diagnostics } = runInputs(
+            [
+                "len = input.int(9, group=groupName, inline=inlineName, tooltip=hint, confirm=needsConfirm)",
+                "flag = input.bool(true, display=showDisplay)",
+            ].join("\n"),
+        );
+        expect(inputs.map((i) => i.code)).toEqual(["input.int(9)", "input.bool(true)"]);
+        const messages = diagnostics
+            .toArray()
+            .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped")
+            .map((d) => d.message);
+        expect(messages).toEqual([
+            "The `group` input argument was dropped; its value is not a compile-time literal.",
+            "The `inline` input argument was dropped; its value is not a compile-time literal.",
+            "The `tooltip` input argument was dropped; its value is not a compile-time literal.",
+            "The `confirm` input argument was dropped; its value is not a compile-time literal.",
+            "The `display` input argument has no chartlang analogue and was dropped.",
+        ]);
+    });
+
+    it("drops unsupported display members with one display diagnostic", () => {
+        const { inputs, diagnostics } = runInputs(
+            [
+                "a = input.int(1, display=display.price_scale)",
+                "b = input.int(2, display=display.pane)",
+            ].join("\n"),
+        );
+        expect(inputs.map((i) => i.code)).toEqual(["input.int(1)", "input.int(2)"]);
+        expect(
+            diagnostics
+                .toArray()
+                .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped"),
+        ).toHaveLength(1);
+    });
+});
+
 describe("transformInputs — input.string(options=) → input.enum", () => {
     it("maps string options with a positional title to input.enum", () => {
         const input = single('t = input.string("EMA", "MA Type", options = ["SMA", "EMA"])');
@@ -215,11 +291,32 @@ describe("transformInputs — input.string(options=) → input.enum", () => {
         expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
     });
 
+    it("maps metadata alongside the enum", () => {
+        const { inputs, diagnostics } = runInputs(
+            [
+                't = input.string("a", "Mode", options = ["a", "b"],',
+                '    group = "G", inline = "row", tooltip = "hint", display = display.data_window, confirm = true)',
+            ].join("\n"),
+        );
+        expect((inputs[0] as InputDeclarationIR).code).toBe(
+            'input.enum("a", ["a", "b"], { title: "Mode", group: "G", inline: "row", tooltip: "hint", display: "data-window", confirm: true })',
+        );
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(false);
+    });
+
     it("warns on an extra unmapped named arg alongside the enum", () => {
         const { inputs, diagnostics } = runInputs(
-            't = input.string("a", options = ["a", "b"], tooltip = "hint")',
+            't = input.string("a", options = ["a", "b"], active = true)',
         );
         expect((inputs[0] as InputDeclarationIR).code).toBe('input.enum("a", ["a", "b"])');
+        expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
+    });
+
+    it("still warns on range args that have no synthesized-enum analogue", () => {
+        const { inputs, diagnostics } = runInputs(
+            "len = input.int(8, options = [8, 21], minval = 1)",
+        );
+        expect((inputs[0] as InputDeclarationIR).code).toBe("input.enum(8, [8, 21])");
         expect(diagnostics.has("pine-converter/transform/input-arg-not-mapped")).toBe(true);
     });
 
@@ -232,6 +329,50 @@ describe("transformInputs — input.string(options=) → input.enum", () => {
         const { inputs, diagnostics } = runInputs('t = input.string(sym, options = ["a", "b"])');
         expect(inputs).toHaveLength(0);
         expect(diagnostics.has("pine-converter/transform/non-literal-input-default")).toBe(true);
+    });
+});
+
+describe("transformInputs — native input.enum", () => {
+    it("lowers a native enum input to a string-backed chartlang enum with metadata", () => {
+        const input = single(
+            [
+                'enum Signal\n    buy = "Buy Signal"\n    sell = "Sell Signal"\n    flat',
+                'sig = input.enum(Signal.sell, "Entry Signal", group="Trade", tooltip="Pick")',
+            ].join("\n"),
+        );
+        expect(input.name).toBe("sig");
+        expect(input.code).toBe(
+            'input.enum("Sell Signal", ["Buy Signal", "Sell Signal", "flat"], { title: "Entry Signal", group: "Trade", tooltip: "Pick" })',
+        );
+    });
+
+    it("rejects native enum defaults that are not enum member references", () => {
+        const { inputs, diagnostics } = runInputs(
+            'enum Signal\n    buy\nsig = input.enum("buy", "Signal")',
+        );
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/input-enum-default-not-member")).toBe(
+            true,
+        );
+    });
+
+    it("flags an unknown member default at both the semantic and transform layers", () => {
+        // `Signal.nope` IS a member-access expression (so it passes the first
+        // guard) but `nope` is not a declared member — the second guard rejects
+        // it. The two layers report independently: the semantic walk flags the
+        // bad member reference (`unknown-enum-member`), the transform drops the
+        // input (`input-enum-default-not-member`). Both are honest, distinct
+        // notes — this test pins that layered behavior.
+        const { inputs, diagnostics, analysis } = runInputs(
+            "enum Signal\n    buy\nsig = input.enum(Signal.nope)",
+        );
+        expect(inputs).toHaveLength(0);
+        expect(diagnostics.has("pine-converter/transform/input-enum-default-not-member")).toBe(
+            true,
+        );
+        expect(analysis.diagnostics.map((diag) => diag.code)).toContain(
+            "pine-converter/semantic/unknown-enum-member",
+        );
     });
 });
 
@@ -298,7 +439,7 @@ describe("transformInputs — unmapped-arg consolidation", () => {
             .toArray()
             .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped").length;
 
-    it("warns once per distinct arg name across many inputs, not once per call", () => {
+    it("passes through metadata without unmapped diagnostics", () => {
         const { inputs, diagnostics } = runInputs(
             [
                 'fast = input.int(9, group="MA", inline="row", tooltip="fast")',
@@ -307,29 +448,24 @@ describe("transformInputs — unmapped-arg consolidation", () => {
             ].join("\n"),
         );
         expect(inputs).toHaveLength(3);
-        // 3 inputs × {group, inline, tooltip} = 9 occurrences → 3 diagnostics.
-        expect(unmappedCount(diagnostics)).toBe(3);
-        const messages = diagnostics
-            .toArray()
-            .filter((d) => d.code === "pine-converter/transform/input-arg-not-mapped")
-            .map((d) => d.message);
-        expect(messages).toEqual([
-            "The `group` input argument has no chartlang analogue and was dropped.",
-            "The `inline` input argument has no chartlang analogue and was dropped.",
-            "The `tooltip` input argument has no chartlang analogue and was dropped.",
+        expect(inputs.map((i) => i.code)).toEqual([
+            'input.int(9, { group: "MA", inline: "row", tooltip: "fast" })',
+            'input.int(21, { group: "MA", inline: "row", tooltip: "slow" })',
+            'input.source("close", { group: "MA", inline: "row", tooltip: "src" })',
         ]);
+        expect(unmappedCount(diagnostics)).toBe(0);
     });
 
     it("consolidates one arg name across different input primitives", () => {
         const { diagnostics } = runInputs(
-            ['a = input.int(1, group="G")', 'b = input.bool(true, group="G")'].join("\n"),
+            ["a = input.int(1, active=true)", "b = input.bool(true, active=false)"].join("\n"),
         );
         expect(unmappedCount(diagnostics)).toBe(1);
     });
 
     it("keeps the first occurrence span as the representative", () => {
         const { diagnostics } = runInputs(
-            ['a = input.int(1, group="G")', 'b = input.int(2, group="G")'].join("\n"),
+            ["a = input.int(1, active=true)", "b = input.int(2, active=false)"].join("\n"),
         );
         const diag = diagnostics
             .toArray()

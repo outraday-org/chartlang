@@ -329,6 +329,22 @@ describe("transformOther — calendar built-in calls", () => {
 });
 
 describe("transformOther — scalars", () => {
+    it("casts native enum inputs as string and lowers enum member comparisons", () => {
+        expect(
+            stmts(
+                [
+                    'enum Signal\n    buy = "Buy Signal"\n    sell = "Sell Signal"',
+                    "sig = input.enum(Signal.buy)",
+                    "isSell = sig == Signal.sell",
+                    "plot(isSell ? 1 : 0)",
+                ].join("\n"),
+            ),
+        ).toEqual([
+            'let isSell = (inputs.sig as string) == "Sell Signal";',
+            "plot(isSell ? 1 : 0);",
+        ]);
+    });
+
     it("lowers a var int scalar to a state.int slot and reassignment to .value", () => {
         const { scaffold } = run("var n = 0\nn := n + 1\nplot(n)");
         expect(scaffold.stateSlots).toEqual([{ name: "n", initExpr: "state.int(0)" }]);

@@ -75,8 +75,46 @@ export type SymbolKind =
     | "varip-variable"
     | "for-iterator"
     | "function-parameter"
+    | "enum-type"
     | "function"
     | "builtin";
+
+/**
+ * One resolved native Pine enum member: `name` is the declared field and
+ * `value` is the display/value string (the explicit string literal, or the
+ * member name when omitted).
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const m: EnumTypeMemberInfo = { name: "buy", value: "Buy Signal" };
+ *     void m;
+ */
+export type EnumTypeMemberInfo = Readonly<{
+    name: string;
+    value: string;
+}>;
+
+/**
+ * Semantic information for one native Pine enum type, exposed on
+ * {@link SemanticResult.enumTypes} for input lowering. `defaultMember` is the
+ * first declared member, matching Pine's default enum value.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const e: EnumTypeInfo = {
+ *         name: "Signal",
+ *         members: [{ name: "buy", value: "Buy Signal" }],
+ *         defaultMember: "buy",
+ *     };
+ *     void e;
+ */
+export type EnumTypeInfo = Readonly<{
+    name: string;
+    members: readonly EnumTypeMemberInfo[];
+    defaultMember: string;
+}>;
 
 /**
  * A resolved symbol: its name, what declared it, where, its inferred
@@ -85,7 +123,9 @@ export type SymbolKind =
  * user-defined function, `params` lists its parameter names and `stateful`
  * is the resolved transitive classification Tasks 3/4 read (pure `false` →
  * a reusable function; `true` → inline per call site); both fields are
- * absent on every non-function symbol.
+ * absent on every non-function symbol. For a `kind: "enum-type"` symbol,
+ * `enumType` carries the ordered members and default member; it is absent on
+ * every non-enum symbol.
  *
  * @since 0.1
  * @stable
@@ -109,6 +149,7 @@ export type SymbolInfo = Readonly<{
     handleType: HandleType | null;
     params?: readonly string[];
     stateful?: boolean;
+    enumType?: EnumTypeInfo;
 }>;
 
 /**
@@ -308,7 +349,7 @@ export type DrawingCallSite = Readonly<{
 /**
  * The full output of {@link analyze}: the input script, the scope graph,
  * per-node annotations + scope membership, the symbol table (keyed by
- * declaration span), the `var`/`varip` lifetimes, the classified drawing
+ * declaration span), native enum-type lookup, the `var`/`varip` lifetimes, the classified drawing
  * sites (both a flat list and a per-call map), the bar-index reference
  * flags, and the accumulated diagnostics. Every transform task (8–15)
  * consumes this.
@@ -332,6 +373,7 @@ export type DrawingCallSite = Readonly<{
  *         scopes: new Map(),
  *         annotations: new Map(),
  *         symbols: new Map(),
+ *         enumTypes: new Map(),
  *         lifetimes: new Map(),
  *         drawingSites: [],
  *         drawingClassifications: new Map(),
@@ -347,6 +389,7 @@ export type SemanticResult = Readonly<{
     scopes: ReadonlyMap<AstNode, Scope>;
     annotations: ReadonlyMap<AstNode, SemanticAnnotation>;
     symbols: ReadonlyMap<SourceSpan, SymbolInfo>;
+    enumTypes: ReadonlyMap<string, EnumTypeInfo>;
     lifetimes: LifetimeMap;
     drawingSites: readonly DrawingCallSite[];
     drawingClassifications: ReadonlyMap<CallExpression, DrawingCamp>;

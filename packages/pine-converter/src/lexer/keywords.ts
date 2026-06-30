@@ -28,6 +28,7 @@ export const PINE_V6_KEYWORDS: ReadonlySet<string> = new Set([
     "in",
     "while",
     "switch",
+    "enum",
     "case",
     "default",
     "var",
