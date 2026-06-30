@@ -37,6 +37,7 @@ declare global {
     var __chartlang_load: (json: string) => Promise<string>;
     var __chartlang_push: (json: string) => Promise<string>;
     var __chartlang_setPlotOverrides: (json: string) => string;
+    var __chartlang_setExternalSeries: (json: string) => string;
     var __chartlang_drain: (json: string) => string;
     var __chartlang_dispose: () => string;
 }
@@ -77,5 +78,6 @@ const handlers = createDispatcher({
 globalThis.__chartlang_load = handlers.load;
 globalThis.__chartlang_push = handlers.push;
 globalThis.__chartlang_setPlotOverrides = handlers.setPlotOverrides;
+globalThis.__chartlang_setExternalSeries = handlers.setExternalSeries;
 globalThis.__chartlang_drain = handlers.drain;
 globalThis.__chartlang_dispose = handlers.dispose;

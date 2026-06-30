@@ -163,11 +163,15 @@ describe("createWorkerHost", () => {
         const resolvePlotOverrides = vi.fn((_scriptId: string) => ({
             "p:1:1#0": { visible: false },
         }));
+        const resolveExternalSeries = vi.fn((_scriptId: string) => ({
+            earnings: { values: [1, 2, 3] },
+        }));
         const host = createWorkerHost({
             capabilities: caps,
             symInfo,
             resolveInputs,
             resolvePlotOverrides,
+            resolveExternalSeries,
             workerLike: worker,
             limits: { maxRingBufferBars: 999 },
         });
@@ -178,10 +182,12 @@ describe("createWorkerHost", () => {
         expect(frame.symInfo).toBe(symInfo);
         expect(frame.inputOverrides).toEqual({ length: 4 });
         expect(frame.plotOverrides).toEqual({ "p:1:1#0": { visible: false } });
+        expect(frame.externalSeriesFeeds).toEqual({ earnings: { values: [1, 2, 3] } });
         expect(frame.limits.maxRingBufferBars).toBe(999);
         expect(frame.compiled.manifest.name).toBe("demo");
         expect(resolveInputs).toHaveBeenCalledWith("demo");
         expect(resolvePlotOverrides).toHaveBeenCalledWith("demo");
+        expect(resolveExternalSeries).toHaveBeenCalledWith("demo");
         worker.deliver({ kind: "loaded" });
         await p;
     });
@@ -204,6 +210,15 @@ describe("createWorkerHost", () => {
         const last = worker.sent[worker.sent.length - 1];
         if (last.kind !== "setPlotOverrides") throw new Error("expected setPlotOverrides");
         expect(last.overrides).toEqual({ "p:1:1#0": { color: "#f00" } });
+    });
+
+    it("posts a setExternalSeries frame for host.setExternalSeries(...)", () => {
+        const worker = makeFakeWorker();
+        const host = createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
+        host.setExternalSeries({ feed: { values: [1, 2] } });
+        const last = worker.sent[worker.sent.length - 1];
+        if (last.kind !== "setExternalSeries") throw new Error("expected setExternalSeries");
+        expect(last.feeds).toEqual({ feed: { values: [1, 2] } });
     });
 
     it("rejects a second load() while the first is still in flight", async () => {

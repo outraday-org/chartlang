@@ -72,6 +72,7 @@ type FakeRunner = {
     push: ReturnType<typeof vi.fn>;
     drain: ReturnType<typeof vi.fn>;
     setPlotOverrides: ReturnType<typeof vi.fn>;
+    setExternalSeries: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
     onHistory: ReturnType<typeof vi.fn>;
     onBarClose: ReturnType<typeof vi.fn>;
@@ -83,6 +84,7 @@ function makeFakeRunner(opts?: {
     pushThrow?: Error;
     drainThrow?: Error;
     setPlotOverridesThrow?: Error;
+    setExternalSeriesThrow?: Error;
     disposeThrow?: Error;
     emissions?: RunnerEmissions;
 }): FakeRunner {
@@ -96,6 +98,9 @@ function makeFakeRunner(opts?: {
         }),
         setPlotOverrides: vi.fn(() => {
             if (opts?.setPlotOverridesThrow !== undefined) throw opts.setPlotOverridesThrow;
+        }),
+        setExternalSeries: vi.fn(() => {
+            if (opts?.setExternalSeriesThrow !== undefined) throw opts.setExternalSeriesThrow;
         }),
         dispose: vi.fn(async () => {
             if (opts?.disposeThrow !== undefined) throw opts.disposeThrow;
@@ -208,6 +213,14 @@ function setPlotOverridesFrame(
     return JSON.stringify({ kind: "setPlotOverrides", overrides } as HostToQuickJs);
 }
 
+function setExternalSeriesFrame(
+    feeds: Record<string, { readonly values: ReadonlyArray<number> }> = {
+        feed: { values: [1, 2] },
+    },
+): string {
+    return JSON.stringify({ kind: "setExternalSeries", feeds } as HostToQuickJs);
+}
+
 function pushFrame(): string {
     return JSON.stringify({
         kind: "candleEvent",
@@ -223,6 +236,7 @@ describe("createDispatcher", () => {
         expect(typeof handlers.load).toBe("function");
         expect(typeof handlers.push).toBe("function");
         expect(typeof handlers.setPlotOverrides).toBe("function");
+        expect(typeof handlers.setExternalSeries).toBe("function");
         expect(typeof handlers.drain).toBe("function");
         expect(typeof handlers.dispose).toBe("function");
     });
@@ -298,6 +312,19 @@ describe("createDispatcher", () => {
                 DispatcherDeps["runnerFactory"]
             >[0];
             expect(args.plotOverrides).toEqual({ "p:1:1#0": { color: "#f00" } });
+        });
+
+        it("forwards optional externalSeriesFeeds into the runner factory", async () => {
+            const { deps, runnerFactory } = makeDeps();
+            const handlers = createDispatcher(deps);
+            const reply = await handlers.load(
+                loadFrame({ externalSeriesFeeds: { feed: { values: [1, 2] } } }),
+            );
+            expect(JSON.parse(reply).kind).toBe("loaded");
+            const args = runnerFactory.mock.calls[0][0] as Parameters<
+                DispatcherDeps["runnerFactory"]
+            >[0];
+            expect(args.externalSeriesFeeds).toEqual({ feed: { values: [1, 2] } });
         });
 
         it("omits plotOverrides from the runner factory args when absent on the frame", async () => {
@@ -642,6 +669,37 @@ describe("createDispatcher", () => {
             await handlers.load(loadFrame());
             const reply = JSON.parse(handlers.setPlotOverrides(setPlotOverridesFrame()));
             expect(reply).toEqual({ kind: "fatal", message: "override boom" });
+        });
+    });
+
+    describe("setExternalSeries", () => {
+        it("replies with `fatal` before load", () => {
+            const { deps } = makeDeps();
+            const handlers = createDispatcher(deps);
+            const reply = JSON.parse(handlers.setExternalSeries(setExternalSeriesFrame()));
+            expect(reply).toEqual({ kind: "fatal", message: "setExternalSeries before load" });
+        });
+
+        it("forwards the parsed feeds to runner.setExternalSeries and replies with `ack`", async () => {
+            const { deps, runner } = makeDeps();
+            const handlers = createDispatcher(deps);
+            await handlers.load(loadFrame());
+            const reply = JSON.parse(
+                handlers.setExternalSeries(setExternalSeriesFrame({ feed: { values: [10] } })),
+            );
+            expect(reply).toEqual({ kind: "ack" });
+            expect(runner.setExternalSeries).toHaveBeenCalledWith({ feed: { values: [10] } });
+        });
+
+        it("replies with `fatal` when runner.setExternalSeries throws", async () => {
+            const runner = makeFakeRunner({
+                setExternalSeriesThrow: new Error("external boom"),
+            });
+            const { deps } = makeDeps({ runner });
+            const handlers = createDispatcher(deps);
+            await handlers.load(loadFrame());
+            const reply = JSON.parse(handlers.setExternalSeries(setExternalSeriesFrame()));
+            expect(reply).toEqual({ kind: "fatal", message: "external boom" });
         });
     });
 

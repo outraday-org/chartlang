@@ -7,7 +7,25 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(573);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(577);
+    });
+
+    it("contains external-series feed entries (1.9)", () => {
+        expect(HOVER_REGISTRY.ExternalSeriesFeed).toMatchObject({
+            fqn: "ExternalSeriesFeed",
+            kind: "type",
+            since: "1.9",
+        });
+        expect(HOVER_REGISTRY.ExternalSeriesFeedMap).toMatchObject({
+            fqn: "ExternalSeriesFeedMap",
+            kind: "type",
+            since: "1.9",
+        });
+        expect(HOVER_REGISTRY["input.externalSeries"]).toMatchObject({
+            fqn: "input.externalSeries",
+            kind: "function",
+            since: "0.4",
+        });
     });
 
     it("contains the deterministic str formatter helper entries (1.4)", () => {

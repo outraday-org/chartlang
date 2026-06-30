@@ -2,13 +2,20 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
-import { input, type ScriptManifest } from "@invinite-org/chartlang-core";
+import { input, type ScriptManifest, type Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import type { RuntimeContext } from "../runtimeContext.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import { createStreamState } from "../streamState.js";
 import { createRuntimeViews } from "../views/index.js";
+import {
+    advanceExternalSeriesFeeds,
+    createExternalSeriesSlots,
+    isExternalSeriesFeed,
+    isExternalSeriesFeedMap,
+    replaceExternalSeriesFeedMap,
+} from "./externalSeriesFeeds.js";
 import { resolveInputs } from "./resolveInputs.js";
 
 function manifest(inputs: ScriptManifest["inputs"]): ScriptManifest {
@@ -61,16 +68,55 @@ function context(): RuntimeContext {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        seriesSlots: new Map(),
+        arraySlots: new Map(),
+        mapSlots: new Map(),
+        objectSeriesSlots: new Map(),
+        chartSymbol: "",
+        secondaryStreams: new Map(),
         requestSecurityBars: new Map(),
+        requestSecurityAlignments: new Map(),
+        requestSecurityAscendingBars: new Map(),
+        requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
         diagnosedTzKeys: new Set(),
+        logBudget: 0,
+        logBudgetExceededDiagnosed: false,
         resolvedInputs: Object.freeze({}),
+        externalSeriesFeeds: Object.freeze({}),
+        externalSeriesSlots: new Map(),
+        defaultPane: "overlay",
+        scriptPane: "script:demo",
+        plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
 }
 
+function expectSeries(value: unknown): Series<number> {
+    expect(value).toBeDefined();
+    return value as Series<number>;
+}
+
 describe("resolveInputs", () => {
+    it("validates external series feed shapes", () => {
+        expect(isExternalSeriesFeed({ values: [1, Number.NaN] })).toBe(true);
+        expect(isExternalSeriesFeed(null)).toBe(false);
+        expect(isExternalSeriesFeed([])).toBe(false);
+        expect(isExternalSeriesFeed({})).toBe(false);
+        expect(isExternalSeriesFeed({ values: "bad" })).toBe(false);
+        expect(isExternalSeriesFeed({ values: [1, "bad"] })).toBe(false);
+
+        expect(isExternalSeriesFeedMap({ feed: { values: [1] } })).toBe(true);
+        expect(isExternalSeriesFeedMap(null)).toBe(false);
+        expect(isExternalSeriesFeedMap([])).toBe(false);
+        expect(isExternalSeriesFeedMap({ feed: { values: ["bad"] } })).toBe(false);
+        expect(replaceExternalSeriesFeedMap(null)).toEqual({});
+        expect(replaceExternalSeriesFeedMap({ feed: { values: [1] } })).toEqual({
+            feed: { values: [1] },
+        });
+    });
+
     it("uses defaults when overrides are absent or explicitly undefined", () => {
         const ctx = context();
         const resolved = resolveInputs(
@@ -101,11 +147,6 @@ describe("resolveInputs", () => {
         ["symbol", input.symbol("AAPL"), "MSFT"],
         ["interval", input.interval("1D"), "1m"],
         ["session", input.session("0930-1600"), "0800-1700"],
-        [
-            "external-series",
-            input.externalSeries({ name: "earnings", schema: { kind: "external-series-schema" } }),
-            { current: 1 },
-        ],
     ] as const)("accepts matching %s overrides", (_kind, descriptor, override) => {
         const ctx = context();
         const resolved = resolveInputs(manifest({ value: descriptor }), { value: override }, ctx);
@@ -128,12 +169,6 @@ describe("resolveInputs", () => {
         ["symbol", input.symbol("AAPL"), 123, "AAPL"],
         ["interval", input.interval("1D"), 60, "1D"],
         ["session", input.session("0930-1600"), 930, "0930-1600"],
-        [
-            "external-series",
-            input.externalSeries({ name: "earnings", schema: { kind: "external-series-schema" } }),
-            null,
-            undefined,
-        ],
     ] as const)(
         "falls back and diagnoses mismatched %s overrides",
         (kind, descriptor, override, fallback) => {
@@ -157,6 +192,81 @@ describe("resolveInputs", () => {
             ]);
         },
     );
+
+    it("resolves external-series descriptors to stable numeric series views", () => {
+        const ctx = context();
+        ctx.externalSeriesFeeds = Object.freeze({ earnings: { values: [10, 20] } });
+        ctx.externalSeriesSlots = createExternalSeriesSlots(
+            [{ inputKey: "value", feedName: "earnings" }],
+            2,
+        );
+        const descriptor = input.externalSeries({
+            name: "earnings",
+            schema: { kind: "external-series-schema" },
+        });
+        const resolved = resolveInputs(manifest({ value: descriptor }), {}, ctx);
+        advanceExternalSeriesFeeds(ctx.externalSeriesSlots, ctx.externalSeriesFeeds, 0, false);
+        advanceExternalSeriesFeeds(ctx.externalSeriesSlots, ctx.externalSeriesFeeds, 1, false);
+
+        const series = expectSeries(resolved.value);
+        expect(series.current).toBe(20);
+        expect(series[0]).toBe(20);
+        expect(series[1]).toBe(10);
+        expect(resolveInputs(manifest({ value: descriptor }), {}, ctx).value).toBe(resolved.value);
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("uses NaN for missing feeds and ignores unknown feed keys", () => {
+        const ctx = context();
+        ctx.externalSeriesFeeds = Object.freeze({ other: { values: [99] } });
+        ctx.externalSeriesSlots = createExternalSeriesSlots(
+            [{ inputKey: "value", feedName: "earnings" }],
+            1,
+        );
+        const resolved = resolveInputs(
+            manifest({
+                value: input.externalSeries({
+                    name: "earnings",
+                    schema: { kind: "external-series-schema" },
+                }),
+            }),
+            {},
+            ctx,
+        );
+        advanceExternalSeriesFeeds(ctx.externalSeriesSlots, ctx.externalSeriesFeeds, 0, false);
+
+        expect(expectSeries(resolved.value).current).toBeNaN();
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("diagnoses invalid legacy external-series overrides once and keeps the series view", () => {
+        const ctx = context();
+        ctx.externalSeriesSlots = createExternalSeriesSlots(
+            [{ inputKey: "value", feedName: "earnings" }],
+            1,
+        );
+        const m = manifest({
+            value: input.externalSeries({
+                name: "earnings",
+                schema: { kind: "external-series-schema" },
+            }),
+        });
+
+        const resolved = resolveInputs(m, { value: null }, ctx);
+        resolveInputs(m, { value: { values: ["bad"] } }, ctx);
+
+        expect(resolved.value).toBe(ctx.externalSeriesSlots.get("value")?.view);
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "input-coercion-failed",
+                message: expect.stringContaining("expected external-series"),
+                slotId: "value",
+                bar: null,
+            },
+        ]);
+    });
 
     it("dedupes diagnostics per mount and key", () => {
         const ctx = context();

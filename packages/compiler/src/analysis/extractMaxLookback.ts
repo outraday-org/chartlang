@@ -62,12 +62,36 @@ export function extractMaxLookback(
 
     const seriesVarNames = collectSeriesVarNames(scope, checker);
 
-    const visit = (node: ts.Node): void => {
+    const visit = (node: ts.Node, inSecurityCallback: boolean): void => {
         if (ts.isCallExpression(node)) {
             const calleeName = resolveCalleeName(node, checker);
+            // A `request.security({ interval }, (bar) => …)` expression callback
+            // runs on a SECONDARY clock whose stream must retain enough history to
+            // warm the indicators inside it — the host bulk-warms that stream
+            // BEFORE the script's first compute captures the callback, so a stream
+            // sized only for the main body's lookback would evict the warmup window
+            // and the secondary indicator would read NaN forever. Walk the callback
+            // with `inSecurityCallback` so an indicator length there feeds the
+            // shared ring capacity (`resolveCapacity` = maxLookback + 1).
+            if (calleeName === "request.security") {
+                node.arguments.forEach((arg, index) => {
+                    visit(
+                        arg,
+                        inSecurityCallback ||
+                            (index === 1 &&
+                                (ts.isArrowFunction(arg) || ts.isFunctionExpression(arg))),
+                    );
+                });
+                visit(node.expression, inSecurityCallback);
+                return;
+            }
             if (calleeName?.startsWith("ta.")) {
                 const barsDepth = readHighestLowestBarsDepth(calleeName, node);
                 if (barsDepth > maxLookback) maxLookback = barsDepth;
+                if (inSecurityCallback) {
+                    const warmup = readSecurityIndicatorWarmup(node);
+                    if (warmup > maxLookback) maxLookback = warmup;
+                }
             }
             if (isBarPointCall(node)) {
                 const depth = readBarPointLookback(node);
@@ -97,15 +121,45 @@ export function extractMaxLookback(
                 }
             }
         }
-        ts.forEachChild(node, visit);
+        ts.forEachChild(node, (child) => visit(child, inSecurityCallback));
     };
-    visit(scope);
+    visit(scope, false);
 
     return Object.freeze({
         maxLookback,
         seriesCapacities: Object.freeze({ ...seriesCapacities }),
         diagnostics: Object.freeze(diagnostics.slice()),
     });
+}
+
+/**
+ * Cap on the warmup capacity a single `request.security` indicator may request,
+ * mirroring the `dynamicFallback` ceiling so a pathological literal length can't
+ * size a multi-million-slot ring.
+ */
+const SECURITY_WARMUP_CAP = 5000;
+
+/**
+ * The warmup history (in bars) a `ta.*` call inside a `request.security`
+ * expression callback needs to retain on its secondary stream. Approximated by
+ * the largest integer-literal argument to the call — the conventional `length`
+ * for the length-based indicators (`ta.rsi(src, 14)` → 14, `ta.ema(src, 200)` →
+ * 200), positionally robust across the differing `ta` signatures since the
+ * length is always the call's sole / largest numeric literal. A non-length
+ * literal (e.g. a threshold) only over-sizes the buffer, never under-sizes it;
+ * the `SECURITY_WARMUP_CAP` ceiling bounds the over-size. Indicators with no
+ * literal length (self-warming, e.g. `ta.vwap`) contribute `0`.
+ */
+function readSecurityIndicatorWarmup(call: ts.CallExpression): number {
+    let warmup = 0;
+    for (const argument of call.arguments) {
+        if (!ts.isNumericLiteral(argument)) continue;
+        const value = Number(argument.text);
+        if (!Number.isFinite(value) || value <= 0) continue;
+        const bounded = Math.min(Math.floor(value), SECURITY_WARMUP_CAP);
+        if (bounded > warmup) warmup = bounded;
+    }
+    return warmup;
 }
 
 /**

@@ -8,6 +8,7 @@ import type {
     DiagnosticCode,
     RunnerEmissions,
     RuntimeDiagnostic,
+    ExternalSeriesFeedMap,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
@@ -18,7 +19,7 @@ import type { HostCompiledScript, HostLimits } from "./types.js";
 describe("HostToWorker", () => {
     it("is a discriminated union over `kind`", () => {
         expectTypeOf<HostToWorker["kind"]>().toEqualTypeOf<
-            "load" | "candleEvent" | "drain" | "dispose"
+            "load" | "candleEvent" | "setPlotOverrides" | "setExternalSeries" | "drain" | "dispose"
         >();
     });
 
@@ -27,6 +28,9 @@ describe("HostToWorker", () => {
         expectTypeOf<Load["compiled"]>().toEqualTypeOf<HostCompiledScript>();
         expectTypeOf<Load["capabilities"]>().toEqualTypeOf<Capabilities>();
         expectTypeOf<Load["symInfo"]>().toEqualTypeOf<AdapterSymInfo | undefined>();
+        expectTypeOf<Load["externalSeriesFeeds"]>().toEqualTypeOf<
+            ExternalSeriesFeedMap | undefined
+        >();
         expectTypeOf<Load["limits"]>().toEqualTypeOf<HostLimits>();
     });
 
@@ -38,6 +42,11 @@ describe("HostToWorker", () => {
     it("drain carries a numeric nonce", () => {
         type Frame = Extract<HostToWorker, { kind: "drain" }>;
         expectTypeOf<Frame["nonce"]>().toEqualTypeOf<number>();
+    });
+
+    it("setExternalSeries carries a complete feed map", () => {
+        type Frame = Extract<HostToWorker, { kind: "setExternalSeries" }>;
+        expectTypeOf<Frame["feeds"]>().toEqualTypeOf<ExternalSeriesFeedMap>();
     });
 });
 

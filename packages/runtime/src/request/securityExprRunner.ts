@@ -141,6 +141,8 @@ function buildExprContext(
         logBudget: 0,
         logBudgetExceededDiagnosed: false,
         resolvedInputs: parent.resolvedInputs,
+        externalSeriesFeeds: parent.externalSeriesFeeds,
+        externalSeriesSlots: parent.externalSeriesSlots,
         defaultPane: parent.defaultPane,
         scriptPane: parent.scriptPane,
         plotOverrides: Object.freeze({}),

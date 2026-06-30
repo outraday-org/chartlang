@@ -8,6 +8,12 @@ import type { RunnerState } from "../createScriptRunner.js";
 import { pushDiagnostic } from "../emit/emissionsQueue.js";
 import { resolveDefaultPane, resolveScriptPane } from "../emit/paneResolver.js";
 import { resetBarEmissions, runComputeBody } from "../execution/runComputeStep.js";
+import {
+    advanceExternalSeriesFeeds,
+    createExternalSeriesSlots,
+    isExternalSeriesFeed,
+    replaceExternalSeriesFeedMap,
+} from "../inputs/externalSeriesFeeds.js";
 import { resolveInputs } from "../inputs/resolveInputs.js";
 import type { MutableRunnerEmissions } from "../runtimeContext.js";
 import { inMemoryStateStore } from "../stateStore.js";
@@ -118,6 +124,31 @@ function freshEmissions(barIndex: number): MutableRunnerEmissions {
     };
 }
 
+function externalSeriesDescriptors(
+    manifest: CompiledScriptObject["manifest"],
+): ReadonlyArray<Readonly<{ inputKey: string; feedName: string }>> {
+    const descriptors: Array<Readonly<{ inputKey: string; feedName: string }>> = [];
+    for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+        if (descriptor.kind === "external-series") {
+            descriptors.push(Object.freeze({ inputKey, feedName: descriptor.name }));
+        }
+    }
+    return Object.freeze(descriptors);
+}
+
+function externalSeriesFeedsFromInputOverrides(
+    manifest: CompiledScriptObject["manifest"],
+    overrides: Readonly<Record<string, unknown>>,
+) {
+    const feeds: Record<string, { readonly values: ReadonlyArray<number> }> = {};
+    for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+        if (descriptor.kind !== "external-series") continue;
+        const override = overrides[inputKey];
+        if (isExternalSeriesFeed(override)) feeds[descriptor.name] = override;
+    }
+    return replaceExternalSeriesFeedMap(feeds);
+}
+
 function buildSubRunnerState(
     args: CreateDepRunnerArgs,
     slotIdPrefix: string,
@@ -127,6 +158,10 @@ function buildSubRunnerState(
     const emissions = freshEmissions(0);
     const alertConditions = new Map(
         (args.compiled.manifest.alertConditions ?? []).map((c) => [c.id, c]),
+    );
+    const externalSeriesSlots = createExternalSeriesSlots(
+        externalSeriesDescriptors(args.compiled.manifest),
+        args.mainStream.ohlcv.close.capacity,
     );
     const state: RunnerState = {
         manifest: args.compiled.manifest,
@@ -172,6 +207,11 @@ function buildSubRunnerState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            externalSeriesFeeds: externalSeriesFeedsFromInputOverrides(
+                args.compiled.manifest,
+                args.inputOverrides,
+            ),
+            externalSeriesSlots,
             defaultPane: resolveDefaultPane(args.compiled.manifest),
             scriptPane: resolveScriptPane(args.compiled.manifest),
             // Overrides target the primary script's slots only in v1;
@@ -281,6 +321,12 @@ async function executeSubStep(
     eventKind: EventKind,
     isTick: boolean,
 ): Promise<{ readonly halted: boolean; readonly message: string }> {
+    advanceExternalSeriesFeeds(
+        state.runtimeContext.externalSeriesSlots,
+        state.runtimeContext.externalSeriesFeeds,
+        state.barIndex,
+        isTick,
+    );
     resetBarEmissions(state);
     try {
         const outcome = await runComputeBody({ state, eventKind, isTick });

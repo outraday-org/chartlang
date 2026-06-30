@@ -10,7 +10,7 @@ Build a color input descriptor.
 ```ts
 color(defaultValue: Color, opts?: {
     readonly title?: string;
-}): ColorDescriptor {
+} & CommonInputOpts): ColorDescriptor {
     return Object.freeze({ kind: "color" as const, defaultValue, ...opts });
 }
 ```

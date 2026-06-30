@@ -110,6 +110,15 @@ function makeHost(hostErrors: string[]): ReturnType<typeof createQuickJsHost> {
     });
 }
 
+function makeExternalSeriesHost(hostErrors: string[]): ReturnType<typeof createQuickJsHost> {
+    return createQuickJsHost({
+        capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+        onHostError: (message) => {
+            hostErrors.push(message);
+        },
+    });
+}
+
 function expectNoNonTimingHostErrors(hostErrors: ReadonlyArray<string>): void {
     expect(hostErrors.filter((message) => !message.startsWith("step overshoot "))).toEqual([]);
 }
@@ -117,7 +126,7 @@ function expectNoNonTimingHostErrors(hostErrors: ReadonlyArray<string>): void {
 describe("host-quickjs sandbox escapes", () => {
     it("blocks top-level Function constructor reach while loading compiled modules", async () => {
         const hostErrors: string[] = [];
-        const host = makeHost(hostErrors);
+        const host = makeExternalSeriesHost(hostErrors);
         const m = manifest("top-level function");
 
         await host.load({
@@ -377,6 +386,55 @@ export default {
         });
         // No live function reached the guest — the override carried no callable
         // surface into the realm (the emission is plain data only).
+        expect(typeof (plot as unknown as { evil?: unknown }).evil).toBe("undefined");
+        host.dispose();
+    });
+
+    it("delivers setExternalSeries as plain JSON — getter/Function-shaped values are dropped", async () => {
+        const hostErrors: string[] = [];
+        const host = makeExternalSeriesHost(hostErrors);
+        const m: ScriptManifest = {
+            ...manifest("external-series-wire"),
+            inputs: {
+                feed: {
+                    kind: "external-series",
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                },
+            },
+        };
+        await host.load({
+            manifest: m,
+            moduleSource: `
+export default {
+    manifest: ${JSON.stringify(m)},
+    compute: ({ inputs, plot }) => {
+        plot("sandbox.external:1:1#0", inputs.feed.current, {});
+    },
+};
+`,
+        });
+
+        const malicious: Record<string, unknown> = {
+            feed: {
+                get values() {
+                    return [42];
+                },
+                evil: () => "pwned",
+            },
+            fn: () => "dropped",
+        };
+        host.setExternalSeries(malicious as never);
+
+        await host.push({ kind: "close", bar: bar() });
+        const out = await host.drain();
+
+        expectNoNonTimingHostErrors(hostErrors);
+        const plot = out.plots[0];
+        expect(plot).toMatchObject({
+            slotId: "sandbox.external:1:1#0",
+            value: 42,
+        });
         expect(typeof (plot as unknown as { evil?: unknown }).evil).toBe("undefined");
         host.dispose();
     });

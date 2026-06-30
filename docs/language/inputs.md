@@ -52,7 +52,7 @@ them into `manifest.inputs`. Non-literal defaults are rejected with
 | `input.price(default, opts?)` | finite number | `title` | [price](../primitives/input/price.md) |
 | `input.symbol(default, opts?)` | string | `title` | [symbol](../primitives/input/symbol.md) |
 | `input.interval(default, opts?)` | string | `title` | [interval](../primitives/input/interval.md) |
-| `input.externalSeries({ name, schema, title? })` | adapter-supplied feed | none | [external series](../primitives/input/externalSeries.md) |
+| `input.externalSeries({ name, schema, title? })` | host-supplied numeric series | `name`, `schema`, `title` | [external series](../primitives/input/externalSeries.md) |
 
 Adapters declare which input families they can render via
 `Capabilities.inputs`. An input whose kind is outside the adapter's
@@ -72,9 +72,14 @@ just won't expose an editor for it.
   `input.enum` as the `interval` argument to a request primitive.
   Every string option from that enum contributes one entry to
   `manifest.requestedIntervals`.
-- **External series are different.** `input.externalSeries` carries an
-  adapter feed name and an opaque schema instead of a default value;
-  the runtime resolves it to a feed handle, not a scalar.
+- **`input.source` is OHLC-only.** It selects built-in OHLC and derived
+  bar fields only: `open`, `high`, `low`, `close`, `hl2`, `hlc3`,
+  `ohlc4`, or `hlcc4`.
+- **External series are host feeds.** `input.externalSeries` is for
+  host-supplied numeric series such as another indicator output,
+  another script output, fundamentals, or app data. The host is
+  responsible for alignment to the primary chart stream. Missing values
+  are `NaN`.
 
 ## How values reach `compute`
 
@@ -86,12 +91,17 @@ At mount the runtime:
 3. Coerces every override against its manifest descriptor. A value that
    cannot be coerced drops to the manifest default and emits
    `input-coercion-failed`.
-4. Freezes the resolved record and passes it as `ctx.inputs` to every
-   compute step for the lifetime of the runner.
+4. Freezes the resolved scalar-input record and passes it as
+   `ctx.inputs` to every compute step for the lifetime of the runner.
 
-Once resolved, input values are frozen — they do not mutate between
-bars. Script-author logic that needs to react to a change should react
-on the next remount.
+Once resolved, scalar input values are frozen — they do not mutate
+between bars. Script-author logic that needs to react to a scalar input
+change should react on the next remount.
+
+`input.externalSeries` is the exception to the scalar rule. Its resolved
+value is an indexable numeric `Series<number>` whose backing feed can be
+replaced live by the host with `setExternalSeries(feeds)`. The
+replacement is whole-map, not a partial merge.
 
 Inputs tune `compute` and are frozen at mount. For presentation-only
 recolor / show-hide of individual plots from the embedder — without

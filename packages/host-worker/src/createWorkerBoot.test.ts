@@ -33,6 +33,7 @@ const LIMITS: HostLimits = {
     maxHeapBytes: 64 * 1024 * 1024,
     maxCpuMsPerStep: 50,
     maxRingBufferBars: 5_000,
+    maxLoadTimeoutMs: 30_000,
 };
 
 function manifest(): ScriptManifest {
@@ -149,7 +150,7 @@ describe("createWorkerBoot", () => {
         await deliver({
             kind: "load",
             compiled: { moduleSource: NOOP_MODULE_SOURCE, manifest: manifest() },
-            capabilities: makeCapabilities(),
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
             limits: LIMITS,
         });
         await waitFor("loaded");
@@ -179,7 +180,7 @@ describe("createWorkerBoot", () => {
         await deliver({
             kind: "load",
             compiled: { moduleSource, manifest: mtfManifest },
-            capabilities: makeCapabilities(),
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
             limits: LIMITS,
         });
         await waitFor("loaded");
@@ -218,13 +219,49 @@ describe("createWorkerBoot", () => {
         await deliver({
             kind: "load",
             compiled: { moduleSource, manifest: m },
-            capabilities: makeCapabilities(),
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
             inputOverrides: { length: 20 },
             limits: LIMITS,
         });
         await waitFor("loaded");
         await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
         expect(captured.some((msg) => msg.kind === "fatal")).toBe(false);
+    });
+
+    it("passes external-series feeds into the runner at load", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = {
+            ...manifest(),
+            inputs: {
+                feed: {
+                    kind: "external-series",
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                },
+            },
+        };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ inputs, plot }) => {
+                    plot("feed:1:1#0", inputs.feed.current, {});
+                },
+            };
+        `;
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+            externalSeriesFeeds: { feed: { values: [10, 20] } },
+            limits: LIMITS,
+        });
+        await waitFor("loaded");
+        await deliver({ kind: "candleEvent", event: historyEvent() });
+        await deliver({ kind: "drain", nonce: 1 });
+        const reply = await waitFor("emissions");
+        if (reply.kind !== "emissions") throw new Error("expected emissions");
+        expect(reply.emissions.plots.map((plot) => plot.value)).toEqual([10, 20]);
     });
 
     it("posts 'loadError' when the module source throws on import", async () => {
@@ -389,6 +426,60 @@ describe("createWorkerBoot", () => {
         expect(second.emissions.plots[0].color).toBe("#0f0");
     });
 
+    it("replaces external-series feeds live as a whole map", async () => {
+        const { scope, deliver, captured } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = {
+            ...manifest(),
+            inputs: {
+                feed: {
+                    kind: "external-series",
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                },
+            },
+        };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ inputs, plot }) => {
+                    plot("feed:1:1#0", inputs.feed.current, {});
+                },
+            };
+        `;
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+            externalSeriesFeeds: { feed: { values: [1, 2, 3] } },
+            limits: LIMITS,
+        });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(1, 1) } });
+        await deliver({ kind: "drain", nonce: 1 });
+        await deliver({ kind: "setExternalSeries", feeds: { other: { values: [99, 99] } } });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(2, 2) } });
+        await deliver({ kind: "drain", nonce: 2 });
+        await deliver({ kind: "setExternalSeries", feeds: { feed: { values: [10, 20, 30] } } });
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(3, 3) } });
+        await deliver({ kind: "drain", nonce: 3 });
+
+        const byNonce = (nonce: number) =>
+            captured.find((c) => c.kind === "emissions" && c.nonce === nonce);
+        const first = byNonce(1);
+        const second = byNonce(2);
+        const third = byNonce(3);
+        if (
+            first?.kind !== "emissions" ||
+            second?.kind !== "emissions" ||
+            third?.kind !== "emissions"
+        ) {
+            throw new Error("expected three emissions replies");
+        }
+        expect(first.emissions.plots[0].value).toBe(1);
+        expect(second.emissions.plots[0].value).toBeNull();
+        expect(third.emissions.plots[0].value).toBe(30);
+    });
+
     it("posts 'fatal' for a setPlotOverrides before load", async () => {
         const { scope, deliver, waitFor } = makeScope();
         createWorkerBoot(scope);
@@ -396,6 +487,15 @@ describe("createWorkerBoot", () => {
         const reply = await waitFor("fatal");
         if (reply.kind !== "fatal") throw new Error("expected fatal");
         expect(reply.message).toContain("setPlotOverrides before load");
+    });
+
+    it("posts 'fatal' for a setExternalSeries before load", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({ kind: "setExternalSeries", feeds: {} });
+        const reply = await waitFor("fatal");
+        if (reply.kind !== "fatal") throw new Error("expected fatal");
+        expect(reply.message).toContain("setExternalSeries before load");
     });
 
     it("dispatches close + tick candleEvents", async () => {

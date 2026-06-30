@@ -10,7 +10,7 @@ Build a symbol input descriptor.
 ```ts
 symbol(defaultValue: string, opts?: {
     readonly title?: string;
-}): SymbolDescriptor {
+} & CommonInputOpts): SymbolDescriptor {
     return Object.freeze({ kind: "symbol" as const, defaultValue, ...opts });
 }
 ```

@@ -5,6 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "../createScriptRunner.js";
 import { runDepStep, runSiblingStep } from "../dep/index.js";
+import { advanceExternalSeriesFeeds } from "../inputs/externalSeriesFeeds.js";
 import { appendBarToStream, updateFallbackViewport } from "../streamState.js";
 import type { EventKind } from "../views/index.js";
 import { resetBarEmissions, runComputeBody } from "./runComputeStep.js";
@@ -39,6 +40,12 @@ export async function onBarClose(
     eventKind: EventKind = "close",
 ): Promise<void> {
     appendBarToStream(state.mainStream, rawBar);
+    advanceExternalSeriesFeeds(
+        state.runtimeContext.externalSeriesSlots,
+        state.runtimeContext.externalSeriesFeeds,
+        state.barIndex,
+        false,
+    );
     updateFallbackViewport(state.mainStream);
 
     state.depErroredThisBar = false;

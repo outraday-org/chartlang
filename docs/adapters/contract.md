@@ -22,6 +22,7 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    ExternalSeriesFeedMap,
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -34,6 +35,7 @@ export type Adapter = {
     readonly resolvePlotOverrides?: (
         scriptId: string,
     ) => Readonly<Record<string, PlotOverride>>;
+    readonly feedExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
     readonly symInfo?: AdapterSymInfo;
     candles(opts: { interval: string | "chart" }): AsyncIterable<CandleEvent>;
     onEmissions(emissions: RunnerEmissions): void;
@@ -51,6 +53,7 @@ fields. Adapter packages always ship a default export shaped like this.
 | `capabilities` | The adapter's capability bag. The runtime gates every emission against this — see [Capabilities](./capabilities.md). |
 | `resolveInputs?` | Optional callback that returns per-script input overrides at mount. Merged over manifest defaults by the runtime. |
 | `resolvePlotOverrides?` | Optional callback that returns per-script, `slotId`-keyed presentation overrides at mount. See [Plot overrides](#plot-overrides). |
+| `feedExternalSeries?` | Optional callback that returns per-script external-series feeds at mount. Live changes use `host.setExternalSeries(...)`. |
 | `symInfo?` | Optional per-mount symbol metadata. Populates `syminfo.*` in scripts; still gated by `capabilities.symInfoFields`. |
 | `candles` | Async iterable of `history`, `close`, and `tick` events. The runtime consumes them in delivery order. |
 | `onEmissions` | The runtime hands each drained `RunnerEmissions` batch here. Translate into chart operations. |
@@ -218,6 +221,20 @@ TradingView "Style tab" model. Overrides are:
 
 The full walkthrough — slot list → override → live `setPlotOverrides` — is
 in [Plot overrides](./plot-overrides.md).
+
+## External series feeds
+
+`input.externalSeries(...)` declares a host-supplied numeric series. At
+mount time an adapter may provide the initial feed map with
+`feedExternalSeries(scriptId)`. Keys are descriptor `name` values from
+`manifest.inputs`; unknown keys are ignored, and missing or invalid feeds
+resolve to `NaN` values in `compute`.
+
+Live updates go through the host, not the adapter callback:
+`host.setExternalSeries(feeds)` replaces the whole feed map. It does not
+merge keys. Omitting a previously supplied key clears that feed, so reads
+from the corresponding script input become `NaN` until a later whole-map
+replacement supplies it again.
 
 Separately from host overrides, a `PlotEmission` may carry an optional
 `xShift` — a signed integer presentation display shift in bars (`+n`

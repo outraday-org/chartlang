@@ -10,6 +10,8 @@ import type {
     CommonInputOpts,
     EnumDescriptor,
     ExternalSeriesDescriptor,
+    ExternalSeriesFeed,
+    ExternalSeriesFeedMap,
     FloatDescriptor,
     InputDescriptor,
     InputDisplay,
@@ -79,5 +81,14 @@ describe("InputDescriptor discriminated union", () => {
             "all" | "status-line" | "data-window" | "none"
         >();
         expectTypeOf<"price-scale">().not.toMatchTypeOf<InputDisplay>();
+    });
+
+    it("exposes external series feed maps as numeric arrays keyed by feed name", () => {
+        expectTypeOf<ExternalSeriesFeed>().toEqualTypeOf<
+            Readonly<{ values: ReadonlyArray<number> }>
+        >();
+        expectTypeOf<ExternalSeriesFeedMap>().toEqualTypeOf<
+            Readonly<Record<string, ExternalSeriesFeed>>
+        >();
     });
 });

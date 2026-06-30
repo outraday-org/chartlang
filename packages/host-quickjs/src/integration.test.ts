@@ -233,6 +233,36 @@ function resolveOverrides(): Readonly<Record<string, PlotOverride>> {
     return OVERRIDE_MAP;
 }
 
+function externalSeriesManifest(): ScriptManifest {
+    return {
+        ...manifest("external series"),
+        inputs: {
+            feed: {
+                kind: "external-series",
+                name: "feed",
+                schema: { kind: "external-series-schema" },
+            },
+        },
+    };
+}
+
+const EXTERNAL_SERIES_FIXTURE: ScriptFixture = {
+    name: "external series",
+    manifest: externalSeriesManifest(),
+    source: source(
+        externalSeriesManifest(),
+        `({ inputs, plot }) => {
+            plot("parity.external:1:1#0", inputs.feed.current, {});
+        }`,
+    ),
+};
+
+function resolveExternalSeries(): Readonly<
+    Record<string, { readonly values: ReadonlyArray<number> }>
+> {
+    return { feed: { values: [10, 20, 30] } };
+}
+
 async function runWorkerWithOverrides(): Promise<string> {
     const { worker, scope } = pair();
     createWorkerBoot(scope);
@@ -259,6 +289,54 @@ async function runQuickJsWithOverrides(): Promise<string> {
     const emissions = await host.drain();
     host.dispose();
     return JSON.stringify(emissions);
+}
+
+async function runWorkerWithExternalSeries(): Promise<string> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({
+        capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+        workerLike: worker,
+        resolveExternalSeries,
+    });
+    await host.load({
+        moduleSource: EXTERNAL_SERIES_FIXTURE.source,
+        manifest: EXTERNAL_SERIES_FIXTURE.manifest,
+    });
+    await host.push({ kind: "close", bar: bars(1)[0] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const initial = await host.drain();
+    host.setExternalSeries({ other: { values: [99, 99] } });
+    await host.push({ kind: "close", bar: bars(2)[1] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const cleared = await host.drain();
+    host.setExternalSeries({ feed: { values: [1, 2, 33] } });
+    await host.push({ kind: "close", bar: bars(3)[2] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const restored = await host.drain();
+    host.dispose();
+    return JSON.stringify([initial, cleared, restored]);
+}
+
+async function runQuickJsWithExternalSeries(): Promise<string> {
+    const host = createQuickJsHost({
+        capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+        resolveExternalSeries,
+    });
+    await host.load({
+        moduleSource: EXTERNAL_SERIES_FIXTURE.source,
+        manifest: EXTERNAL_SERIES_FIXTURE.manifest,
+    });
+    await host.push({ kind: "close", bar: bars(1)[0] });
+    const initial = await host.drain();
+    host.setExternalSeries({ other: { values: [99, 99] } });
+    await host.push({ kind: "close", bar: bars(2)[1] });
+    const cleared = await host.drain();
+    host.setExternalSeries({ feed: { values: [1, 2, 33] } });
+    await host.push({ kind: "close", bar: bars(3)[2] });
+    const restored = await host.drain();
+    host.dispose();
+    return JSON.stringify([initial, cleared, restored]);
 }
 
 function multiSymbolCapabilities(): Capabilities {
@@ -385,6 +463,18 @@ describe("host-quickjs integration parity", () => {
         expect(hidden?.visible).toBe(false);
         expect(recolored?.color).toBe("#ff0000");
         expect(recolored?.style.lineWidth).toBe(3);
+    });
+
+    it("matches host-worker emissions for external-series load and whole-map replacement", async () => {
+        const quickjs = await runQuickJsWithExternalSeries();
+        const worker = await runWorkerWithExternalSeries();
+        expect(quickjs).toBe(worker);
+        const drained = JSON.parse(quickjs) as ReadonlyArray<{
+            plots: ReadonlyArray<{ value: number | null }>;
+        }>;
+        expect(drained[0]?.plots[0]?.value).toBe(10);
+        expect(drained[1]?.plots[0]?.value).toBeNull();
+        expect(drained[2]?.plots[0]?.value).toBe(33);
     });
 
     it("matches host-worker emissions for a two-symbol composite-stream script", async () => {

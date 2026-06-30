@@ -11,7 +11,7 @@ Build a time input descriptor.
 time(defaultValue: Time, opts?: {
     readonly title?: string;
     readonly pickFromChart?: boolean;
-}): TimeDescriptor {
+} & CommonInputOpts): TimeDescriptor {
     return Object.freeze({ kind: "time" as const, defaultValue, ...opts });
 }
 ```

@@ -5,6 +5,7 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    ExternalSeriesFeedMap,
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -35,12 +36,17 @@ export type HostToQuickJs =
           readonly symInfo?: AdapterSymInfo;
           readonly inputOverrides?: Readonly<Record<string, unknown>>;
           readonly plotOverrides?: Readonly<Record<string, PlotOverride>>;
+          readonly externalSeriesFeeds?: ExternalSeriesFeedMap;
           readonly limits: QuickJsHostLimits;
       }
     | { readonly kind: "candleEvent"; readonly event: CandleEvent }
     | {
           readonly kind: "setPlotOverrides";
           readonly overrides: Readonly<Record<string, PlotOverride>>;
+      }
+    | {
+          readonly kind: "setExternalSeries";
+          readonly feeds: ExternalSeriesFeedMap;
       }
     | { readonly kind: "drain"; readonly nonce: number }
     | { readonly kind: "dispose" };

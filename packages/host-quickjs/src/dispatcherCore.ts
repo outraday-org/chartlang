@@ -15,6 +15,7 @@ import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 type LoadFrame = Extract<HostToQuickJs, { readonly kind: "load" }>;
 type PushFrame = Extract<HostToQuickJs, { readonly kind: "candleEvent" }>;
 type SetPlotOverridesFrame = Extract<HostToQuickJs, { readonly kind: "setPlotOverrides" }>;
+type SetExternalSeriesFrame = Extract<HostToQuickJs, { readonly kind: "setExternalSeries" }>;
 type DrainFrame = Extract<HostToQuickJs, { readonly kind: "drain" }>;
 type ScriptRunnerHandle = ReturnType<typeof createScriptRunner>;
 
@@ -109,6 +110,7 @@ export type DispatcherHandlers = Readonly<{
     load: (json: string) => Promise<string>;
     push: (json: string) => Promise<string>;
     setPlotOverrides: (json: string) => string;
+    setExternalSeries: (json: string) => string;
     drain: (json: string) => string;
     dispose: () => string;
 }>;
@@ -249,6 +251,9 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
                 ...(frame.plotOverrides === undefined
                     ? {}
                     : { plotOverrides: frame.plotOverrides }),
+                ...(frame.externalSeriesFeeds === undefined
+                    ? {}
+                    : { externalSeriesFeeds: frame.externalSeriesFeeds }),
             });
             return reply({ kind: "loaded" });
         } catch (err) {
@@ -282,6 +287,19 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
     }
 
+    function setExternalSeries(json: string): string {
+        try {
+            if (runner === null) {
+                throw new Error("setExternalSeries before load");
+            }
+            const frame = JSON.parse(json) as SetExternalSeriesFrame;
+            runner.setExternalSeries(frame.feeds);
+            return reply({ kind: "ack" });
+        } catch (err) {
+            return reply({ kind: "fatal", message: message(err) });
+        }
+    }
+
     function drain(json: string): string {
         try {
             if (runner === null) {
@@ -309,5 +327,5 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
     }
 
-    return Object.freeze({ load, push, setPlotOverrides, drain, dispose });
+    return Object.freeze({ load, push, setPlotOverrides, setExternalSeries, drain, dispose });
 }

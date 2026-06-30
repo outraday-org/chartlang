@@ -86,6 +86,7 @@ export type CreateWebglAdapterOpts = {
      */
     readonly palette?: Palette;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     readonly onAlert?: (a: AlertEmission) => void;
     /**
      * When supplied, only alerts for which this returns `true` are kept in the
@@ -468,6 +469,9 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
                           : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
+                          : {}),
                       workerLike: opts.workerLike,
                   }
                 : {
@@ -475,6 +479,9 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
                       symInfo: WEBGL_SYM_INFO,
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
                           : {}),
                   },
         );
@@ -533,6 +540,9 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
         name: "WebGL Reference Adapter",
         capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         symInfo: WEBGL_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {

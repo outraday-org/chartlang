@@ -83,6 +83,9 @@ export function defineAdapter(opts: DefineAdapterOpts): Adapter {
         name: opts.name,
         capabilities: opts.capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         ...(opts.symInfo !== undefined ? { symInfo: opts.symInfo } : {}),
         candles: opts.candles,
         onEmissions: opts.onEmissions,

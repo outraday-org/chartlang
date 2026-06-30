@@ -273,6 +273,7 @@ export type CreateUplotAdapterOpts = {
     readonly interval?: string;
     readonly uplotFactory?: UplotFactory;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
@@ -1666,6 +1667,9 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
                           : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
+                          : {}),
                       workerLike: opts.workerLike,
                   }
                 : {
@@ -1673,6 +1677,9 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
                       symInfo: UPLOT_SYM_INFO,
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
                           : {}),
                   },
         );
@@ -1682,6 +1689,9 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         name: "uPlot Example Adapter",
         capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         symInfo: UPLOT_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {

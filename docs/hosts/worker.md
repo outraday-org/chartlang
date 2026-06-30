@@ -41,10 +41,11 @@ are:
 
 | Method | Purpose |
 | --- | --- |
-| `load(compiled)` | Send the compiled bundle plus the adapter's capabilities, resolved inputs, and resolved plot overrides to the worker. Awaits the boot `loaded` reply or rejects after `maxLoadTimeoutMs` (default 30 s). |
+| `load(compiled)` | Send the compiled bundle plus the adapter's capabilities, resolved inputs, resolved plot overrides, and initial external-series feeds to the worker. Awaits the boot `loaded` reply or rejects after `maxLoadTimeoutMs` (default 30 s). |
 | `push(event)` | Forward a `history`, `close`, or `tick` `CandleEvent` to the worker. Fire-and-forget. |
 | `drain()` | Round-trip a request for the queued `RunnerEmissions` batch since the last drain. |
 | `setPlotOverrides(overrides)` | Replace the live `slotId`-keyed [plot overrides](../adapters/contract.md#plot-overrides) — visibility / color / line cosmetics. Presentation-only, no recompute; the next `drain()` reflects it. Fire-and-forget. |
+| `setExternalSeries(feeds)` | Replace the complete `input.externalSeries(...)` feed map. Omitted keys clear previous feeds and resolve to `NaN` on later computes. Fire-and-forget. |
 | `dispose()` | Terminate the worker and reject any pending drains. |
 
 `host.limits` exposes the resolved `HostLimits` (`maxCpuMsPerStep: 50`,
@@ -90,6 +91,11 @@ pattern for Worker boot files.
   The host calls it during `load()` and forwards the plain override record
   on the `load` frame; push live changes afterward via
   `host.setPlotOverrides(...)`.
+- `resolveExternalSeries` — optional adapter callback for initial
+  `input.externalSeries(...)` feeds. The host calls it during `load()` and
+  forwards the plain feed map on the `load` frame. Push live whole-map
+  replacements afterward via `host.setExternalSeries(...)`; omitted keys
+  clear previous feeds.
 - `workerLike` — test seam. Tests supply a `MessageChannel` port; in
   production omit it and the host constructs a real `Worker`.
 - `limits` — partial `HostLimits` overrides. Missing fields fall through

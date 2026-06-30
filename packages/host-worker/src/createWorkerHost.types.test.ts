@@ -5,6 +5,7 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    ExternalSeriesFeedMap,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 import { describe, expectTypeOf, it } from "vitest";
@@ -28,6 +29,9 @@ describe("createWorkerHost", () => {
         expectTypeOf<CreateWorkerHostOpts["limits"]>().toEqualTypeOf<
             Partial<HostLimits> | undefined
         >();
+        expectTypeOf<CreateWorkerHostOpts["resolveExternalSeries"]>().toEqualTypeOf<
+            ((scriptId: string) => ExternalSeriesFeedMap) | undefined
+        >();
         expectTypeOf<CreateWorkerHostOpts["onWorkerError"]>().toEqualTypeOf<
             ((message: string) => void) | undefined
         >();
@@ -47,6 +51,13 @@ describe("ScriptHost", () => {
 
     it("drain returns Promise<RunnerEmissions>", () => {
         expectTypeOf<ScriptHost["drain"]>().returns.toEqualTypeOf<Promise<RunnerEmissions>>();
+    });
+
+    it("setExternalSeries accepts a complete external-series feed map", () => {
+        expectTypeOf<ScriptHost["setExternalSeries"]>()
+            .parameter(0)
+            .toEqualTypeOf<ExternalSeriesFeedMap>();
+        expectTypeOf<ScriptHost["setExternalSeries"]>().returns.toEqualTypeOf<void>();
     });
 
     it("dispose returns void", () => {

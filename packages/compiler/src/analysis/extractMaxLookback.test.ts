@@ -585,14 +585,39 @@ void hbar.current; void back;
         expect(result.maxLookback).toBe(20);
     });
 
-    it("ignores a ta.* offset inside a request.security expression callback", () => {
+    it("sizes the secondary warmup from a ta.* length inside a request.security callback", () => {
         const result = run(`
 declare const bar: import("@invinite-org/chartlang-core").Bar;
 import { request, ta } from "@invinite-org/chartlang-core";
 const trend = request.security({ interval: "1W" }, (bar) => ta.ema(bar.close, 200, { offset: 12 }));
 void trend;
 `);
-        // offset is a render shift, not a value-read — no extra buffer depth.
+        // The secondary stream is bulk-warmed BEFORE the callback is captured, so
+        // it must retain enough history to warm ta.ema(200) — the length feeds the
+        // shared ring capacity. The `{ offset: 12 }` opts object is a render shift,
+        // not a value-read, so it adds no depth.
+        expect(result.maxLookback).toBe(200);
+    });
+
+    it("caps a pathological request.security indicator length at the dynamic ceiling", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+import { request, ta } from "@invinite-org/chartlang-core";
+const trend = request.security({ interval: "1W" }, (bar) => ta.sma(bar.close, 9999999));
+void trend;
+`);
+        expect(result.maxLookback).toBe(5000);
+    });
+
+    it("does not size warmup from a ta.* length OUTSIDE a request.security callback", () => {
+        const result = run(`
+import { ta } from "@invinite-org/chartlang-core";
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+const e = ta.ema(bar.close, 200);
+void e.current;
+`);
+        // Main-clock indicators self-warm via scalar slot state and are read at
+        // `.current`, so the length is NOT a buffer-depth requirement here.
         expect(result.maxLookback).toBe(0);
     });
 

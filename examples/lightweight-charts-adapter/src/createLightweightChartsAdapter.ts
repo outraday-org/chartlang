@@ -149,6 +149,7 @@ export type CreateLightweightChartsAdapterOpts = {
      */
     readonly initialVisibleBars?: number;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
@@ -1281,6 +1282,9 @@ export function createLightweightChartsAdapter(
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
                           : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
+                          : {}),
                       workerLike: opts.workerLike,
                   }
                 : {
@@ -1288,6 +1292,9 @@ export function createLightweightChartsAdapter(
                       symInfo: LWC_SYM_INFO,
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
                           : {}),
                   },
         );
@@ -1297,6 +1304,9 @@ export function createLightweightChartsAdapter(
         name: "Lightweight Charts Reference Adapter",
         capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         symInfo: LWC_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => ingest(state, emissions, opts.onAlert),

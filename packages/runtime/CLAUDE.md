@@ -84,6 +84,15 @@
   or the `BarView`.** Ticks happen within the in-progress bar
   whose `time` / `open` were set by the preceding `onBarClose`.
   Only close-side and derived sources change.
+- **External-series input feeds are runner-owned rings aligned to the primary
+  cursor, not `input.source` fields.** `input.externalSeries(...)` resolves at
+  mount to a stable `Series<number>` view backed by an external feed
+  `Float64RingBuffer` keyed by the script input key; the host feed map is keyed
+  by descriptor `name`. Close/history appends `feeds[name].values[barIndex]`
+  before compute, tick replaces the head at the same cursor, and missing,
+  short, or non-finite values write `NaN`. `setExternalSeries(feeds)` atomically
+  replaces the whole feed map for subsequent computes and never merges partial
+  keys.
 - **`drain()` reassigns each emission array to `[]`, not
   `.length = 0`.** The adapter holds the snapshot's arrays; the
   runner gets fresh containers for the next step. `Object.freeze`

@@ -3,21 +3,20 @@
 > **Stability:** stable
 > **Since:** 0.4
 
-Build an adapter-supplied external series input descriptor.
+Build a host-supplied external numeric series input descriptor. Use this
+for another indicator output, another script output, fundamentals, or
+app data aligned by the host to the primary chart stream. Missing feed
+values read as `NaN`.
 
 ## Signature
 
 ```ts
-externalSeries<T>(args: {
-    readonly name: string;
-    readonly schema: Schema<T>;
-    readonly title?: string;
-}): ExternalSeriesDescriptor<T> {
+externalSeries<T>(args: ExternalSeriesArgs<T>): ExternalSeriesDescriptor<T> {
     return Object.freeze({
         kind: "external-series" as const,
         name: args.name,
         schema: args.schema,
-        ...(args.title === undefined ? {} : { title: args.title }),
+        ...definedExternalSeriesMetadata(args),
     });
 }
 ```

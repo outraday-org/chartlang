@@ -18,11 +18,13 @@ import type {
     DrawingCounts,
     DrawingKind,
     DrawingState,
+    ExternalSeriesFeedMap,
     SecurityBar,
     Series,
 } from "@invinite-org/chartlang-core";
 
 import type { DepOutputStore } from "./dep/DepOutputStore.js";
+import type { ExternalSeriesSlot } from "./inputs/externalSeriesFeeds.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import type { SecurityExprRunner } from "./request/securityExprRunner.js";
 import type { ArrayStateSlot } from "./state/arrayStateSlot.js";
@@ -337,6 +339,19 @@ export type RuntimeContext = {
      * at mount and reused by every compute step. @since 0.4
      */
     resolvedInputs: Readonly<Record<string, unknown>>;
+    /**
+     * Host-supplied external-series feed map keyed by descriptor `name`.
+     * Mutable only through `setExternalSeries`, which replaces the whole map.
+     * Feed rings in `externalSeriesSlots` advance in primary-stream lockstep.
+     * @since 1.9
+     */
+    externalSeriesFeeds: ExternalSeriesFeedMap;
+    /**
+     * Runtime external-series slots keyed by script input key. Each slot owns a
+     * numeric ring and a stable `Series<number>` view returned through
+     * `resolvedInputs`. Cleared with the runner context on dispose. @since 1.9
+     */
+    externalSeriesSlots: Map<string, ExternalSeriesSlot>;
     /**
      * Mount-time script pane default. The runner sets it from
      * `manifest.overlay`:

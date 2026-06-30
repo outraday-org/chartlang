@@ -255,6 +255,16 @@ function intervalToSeconds(d) {
 }
 
 // ../core/dist/input/input.js
+function definedExternalSeriesMetadata(args) {
+  return {
+    ...args.title === void 0 ? {} : { title: args.title },
+    ...args.group === void 0 ? {} : { group: args.group },
+    ...args.inline === void 0 ? {} : { inline: args.inline },
+    ...args.tooltip === void 0 ? {} : { tooltip: args.tooltip },
+    ...args.display === void 0 ? {} : { display: args.display },
+    ...args.confirm === void 0 ? {} : { confirm: args.confirm }
+  };
+}
 var input = Object.freeze({
   /**
    * Build an integer input descriptor.
@@ -338,7 +348,10 @@ var input = Object.freeze({
     return Object.freeze({ kind: "color", defaultValue, ...opts });
   },
   /**
-   * Build a source-field input descriptor.
+   * Build a source-field input descriptor. `input.source` selects only the
+   * built-in OHLC and derived bar fields (`open`, `high`, `low`, `close`,
+   * `hl2`, `hlc3`, `ohlc4`, `hlcc4`). Host-supplied numeric series belong
+   * in `input.externalSeries`.
    *
    * @since 0.4
    * @stable
@@ -412,7 +425,10 @@ var input = Object.freeze({
     return Object.freeze({ kind: "session", defaultValue, ...opts });
   },
   /**
-   * Build an adapter-supplied external series input descriptor.
+   * Build a host-supplied external numeric series input descriptor. Use this
+   * for another indicator output, another script output, fundamentals, or
+   * app data aligned by the host to the primary chart stream. Missing feed
+   * values read as `NaN`.
    *
    * @since 0.4
    * @stable
@@ -428,7 +444,7 @@ var input = Object.freeze({
       kind: "external-series",
       name: args.name,
       schema: args.schema,
-      ...args.title === void 0 ? {} : { title: args.title }
+      ...definedExternalSeriesMetadata(args)
     });
   }
 });
@@ -2796,6 +2812,61 @@ function buildStateNamespace() {
   return ns;
 }
 
+// ../runtime/dist/inputs/externalSeriesFeeds.js
+function isExternalSeriesFeed(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  if (!("values" in value) || !Array.isArray(value.values))
+    return false;
+  return value.values.every((entry) => typeof entry === "number");
+}
+function isExternalSeriesFeedMap(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
+  for (const feed of Object.values(value)) {
+    if (!isExternalSeriesFeed(feed))
+      return false;
+  }
+  return true;
+}
+function createExternalSeriesSlots(descriptors, capacity) {
+  const slots = /* @__PURE__ */ new Map();
+  for (const descriptor of descriptors) {
+    const buffer = new Float64RingBuffer(capacity);
+    slots.set(descriptor.inputKey, {
+      inputKey: descriptor.inputKey,
+      feedName: descriptor.feedName,
+      buffer,
+      view: makeSeriesView(buffer)
+    });
+  }
+  return slots;
+}
+function valueAt2(feeds, feedName, index) {
+  const value = feeds[feedName]?.values[index];
+  return typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+}
+function advanceExternalSeriesFeeds(slots, feeds, barIndex, isTick) {
+  for (const slot of slots.values()) {
+    const value = valueAt2(feeds, slot.feedName, barIndex);
+    if (isTick) {
+      slot.buffer.replaceHead(value);
+    } else {
+      slot.buffer.append(value);
+    }
+  }
+}
+function replaceExternalSeriesFeedMap(value) {
+  if (!isExternalSeriesFeedMap(value))
+    return Object.freeze({});
+  const out = {};
+  const feeds = value;
+  for (const [key, feed] of Object.entries(feeds)) {
+    out[key] = Object.freeze({ values: Object.freeze([...feed.values]) });
+  }
+  return Object.freeze(out);
+}
+
 // ../runtime/dist/inputs/resolveInputs.js
 var SOURCE_FIELDS = /* @__PURE__ */ new Set([
   "open",
@@ -2810,7 +2881,14 @@ var SOURCE_FIELDS = /* @__PURE__ */ new Set([
 function resolveInputs(manifest, overrides, ctx) {
   const out = {};
   for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-    const fallback2 = defaultValueFor(descriptor);
+    if (descriptor.kind === "external-series") {
+      if (Object.hasOwn(overrides, key) && overrides[key] !== void 0 && !isExternalSeriesFeed(overrides[key])) {
+        pushInputDiagnostic(ctx, key, descriptor.kind, overrides[key]);
+      }
+      out[key] = ctx.externalSeriesSlots.get(key)?.view;
+      continue;
+    }
+    const fallback2 = descriptor.defaultValue;
     if (!Object.hasOwn(overrides, key) || overrides[key] === void 0) {
       out[key] = fallback2;
       continue;
@@ -2824,11 +2902,6 @@ function resolveInputs(manifest, overrides, ctx) {
     out[key] = fallback2;
   }
   return Object.freeze(out);
-}
-function defaultValueFor(descriptor) {
-  if ("defaultValue" in descriptor)
-    return descriptor.defaultValue;
-  return void 0;
 }
 function matchesDescriptor(descriptor, value) {
   switch (descriptor.kind) {
@@ -2850,8 +2923,6 @@ function matchesDescriptor(descriptor, value) {
       return (typeof value === "string" || typeof value === "number") && descriptor.options.includes(value);
     case "source":
       return typeof value === "string" && SOURCE_FIELDS.has(value);
-    case "external-series":
-      return value !== null && typeof value === "object";
   }
 }
 function pushInputDiagnostic(ctx, key, expected, value) {
@@ -3244,6 +3315,8 @@ function buildExprContext(parent, slotId, foldStream) {
     logBudget: 0,
     logBudgetExceededDiagnosed: false,
     resolvedInputs: parent.resolvedInputs,
+    externalSeriesFeeds: parent.externalSeriesFeeds,
+    externalSeriesSlots: parent.externalSeriesSlots,
     defaultPane: parent.defaultPane,
     scriptPane: parent.scriptPane,
     plotOverrides: Object.freeze({}),
@@ -16433,10 +16506,31 @@ function freshEmissions(barIndex) {
     toBar: barIndex
   };
 }
+function externalSeriesDescriptors(manifest) {
+  const descriptors = [];
+  for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+    if (descriptor.kind === "external-series") {
+      descriptors.push(Object.freeze({ inputKey, feedName: descriptor.name }));
+    }
+  }
+  return Object.freeze(descriptors);
+}
+function externalSeriesFeedsFromInputOverrides(manifest, overrides) {
+  const feeds = {};
+  for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+    if (descriptor.kind !== "external-series")
+      continue;
+    const override = overrides[inputKey];
+    if (isExternalSeriesFeed(override))
+      feeds[descriptor.name] = override;
+  }
+  return replaceExternalSeriesFeedMap(feeds);
+}
 function buildSubRunnerState(args, slotIdPrefix, isDep) {
   const stateStore = inMemoryStateStore();
   const emissions = freshEmissions(0);
   const alertConditions = new Map((args.compiled.manifest.alertConditions ?? []).map((c) => [c.id, c]));
+  const externalSeriesSlots = createExternalSeriesSlots(externalSeriesDescriptors(args.compiled.manifest), args.mainStream.ohlcv.close.capacity);
   const state2 = {
     manifest: args.compiled.manifest,
     compute: args.compiled.compute,
@@ -16481,6 +16575,8 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      externalSeriesFeeds: externalSeriesFeedsFromInputOverrides(args.compiled.manifest, args.inputOverrides),
+      externalSeriesSlots,
       defaultPane: resolveDefaultPane(args.compiled.manifest),
       scriptPane: resolveScriptPane(args.compiled.manifest),
       // Overrides target the primary script's slots only in v1;
@@ -16544,6 +16640,7 @@ function siblingRunnerLike(sib) {
   };
 }
 async function executeSubStep(state2, eventKind, isTick) {
+  advanceExternalSeriesFeeds(state2.runtimeContext.externalSeriesSlots, state2.runtimeContext.externalSeriesFeeds, state2.barIndex, isTick);
   resetBarEmissions(state2);
   try {
     const outcome = await runComputeBody({ state: state2, eventKind, isTick });
@@ -16720,6 +16817,7 @@ function clearVisualEmissions(state2) {
 }
 async function onBarClose(state2, rawBar, eventKind = "close") {
   appendBarToStream(state2.mainStream, rawBar);
+  advanceExternalSeriesFeeds(state2.runtimeContext.externalSeriesSlots, state2.runtimeContext.externalSeriesFeeds, state2.barIndex, false);
   updateFallbackViewport(state2.mainStream);
   state2.depErroredThisBar = false;
   resetBarEmissions(state2);
@@ -16747,6 +16845,7 @@ function clearVisualEmissions2(state2) {
 }
 async function onBarTick(state2, rawBar) {
   replaceTickHead(state2.mainStream, rawBar);
+  advanceExternalSeriesFeeds(state2.runtimeContext.externalSeriesSlots, state2.runtimeContext.externalSeriesFeeds, state2.barIndex, true);
   updateFallbackViewport(state2.mainStream);
   state2.depErroredThisBar = false;
   resetBarEmissions(state2);
@@ -17288,6 +17387,36 @@ function createSecondaryStreams(manifest, capacity, chartSymbol) {
   }
   return streams;
 }
+function externalSeriesDescriptors2(manifest) {
+  const descriptors = [];
+  for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+    if (descriptor.kind === "external-series") {
+      descriptors.push(Object.freeze({ inputKey, feedName: descriptor.name }));
+    }
+  }
+  return Object.freeze(descriptors);
+}
+function externalSeriesFeedsFromInputOverrides2(manifest, overrides) {
+  const feeds = {};
+  for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+    if (descriptor.kind !== "external-series")
+      continue;
+    const override = overrides[inputKey];
+    if (isExternalSeriesFeed(override))
+      feeds[descriptor.name] = override;
+  }
+  return replaceExternalSeriesFeedMap(feeds);
+}
+function resolveInitialExternalSeriesFeeds(args, manifest, inputOverrides) {
+  if (args.externalSeriesFeeds !== void 0) {
+    return replaceExternalSeriesFeedMap(args.externalSeriesFeeds);
+  }
+  const resolved = args.resolveExternalSeries?.(manifest.name);
+  if (resolved !== void 0) {
+    return replaceExternalSeriesFeedMap(resolved);
+  }
+  return externalSeriesFeedsFromInputOverrides2(manifest, inputOverrides);
+}
 async function pushMainEvent(state2, event) {
   switch (event.kind) {
     case "history":
@@ -17346,6 +17475,9 @@ function buildPrimaryState(args, primary) {
   const secondaryStreams = createSecondaryStreams(primary.manifest, capacity, chartSymbol);
   const stateStore = args.stateStore ?? inMemoryStateStore();
   const now = args.now ?? Date.now;
+  const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
+  const externalSeriesSlots = createExternalSeriesSlots(externalSeriesDescriptors2(primary.manifest), capacity);
+  const externalSeriesFeeds = resolveInitialExternalSeriesFeeds(args, primary.manifest, overrides);
   const views = createRuntimeViews({
     syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields)
   });
@@ -17405,6 +17537,8 @@ function buildPrimaryState(args, primary) {
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
+      externalSeriesFeeds,
+      externalSeriesSlots,
       defaultPane: resolveDefaultPane(primary.manifest),
       scriptPane: resolveScriptPane(primary.manifest),
       plotOverrides: Object.freeze({}),
@@ -17418,7 +17552,6 @@ function buildPrimaryState(args, primary) {
     depErroredThisBar: false,
     barIndex: 0
   };
-  const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
   state2.runtimeContext.resolvedInputs = resolveInputs(primary.manifest, overrides, state2.runtimeContext);
   state2.runtimeContext.plotOverrides = args.plotOverrides ?? args.resolvePlotOverrides?.(primary.manifest.name) ?? Object.freeze({});
   const exprRunners = buildSecurityExprRunners(primary.manifest, state2.runtimeContext, capacity);
@@ -17548,6 +17681,9 @@ function createScriptRunner(args) {
     },
     setPlotOverrides(next) {
       state2.runtimeContext.plotOverrides = Object.freeze({ ...next });
+    },
+    setExternalSeries(feeds) {
+      state2.runtimeContext.externalSeriesFeeds = replaceExternalSeriesFeedMap(feeds);
     },
     async dispose() {
       const finalSave = saveStateSnapshot(state2, state2.now());
@@ -17679,7 +17815,8 @@ ${moduleSourceToScript(source)}
         capabilities: reviveCapabilities(frame2.capabilities),
         ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
         ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides },
-        ...frame2.plotOverrides === void 0 ? {} : { plotOverrides: frame2.plotOverrides }
+        ...frame2.plotOverrides === void 0 ? {} : { plotOverrides: frame2.plotOverrides },
+        ...frame2.externalSeriesFeeds === void 0 ? {} : { externalSeriesFeeds: frame2.externalSeriesFeeds }
       });
       return reply({ kind: "loaded" });
     } catch (err) {
@@ -17710,6 +17847,18 @@ ${moduleSourceToScript(source)}
       return reply({ kind: "fatal", message: message(err) });
     }
   }
+  function setExternalSeries(json) {
+    try {
+      if (runner === null) {
+        throw new Error("setExternalSeries before load");
+      }
+      const frame2 = JSON.parse(json);
+      runner.setExternalSeries(frame2.feeds);
+      return reply({ kind: "ack" });
+    } catch (err) {
+      return reply({ kind: "fatal", message: message(err) });
+    }
+  }
   function drain2(json) {
     try {
       if (runner === null) {
@@ -17735,7 +17884,7 @@ ${moduleSourceToScript(source)}
       return reply({ kind: "fatal", message: message(err) });
     }
   }
-  return Object.freeze({ load, push, setPlotOverrides, drain: drain2, dispose: dispose2 });
+  return Object.freeze({ load, push, setPlotOverrides, setExternalSeries, drain: drain2, dispose: dispose2 });
 }
 
 // src/dispatcher.ts
@@ -17770,5 +17919,6 @@ var handlers = createDispatcher({
 globalThis.__chartlang_load = handlers.load;
 globalThis.__chartlang_push = handlers.push;
 globalThis.__chartlang_setPlotOverrides = handlers.setPlotOverrides;
+globalThis.__chartlang_setExternalSeries = handlers.setExternalSeries;
 globalThis.__chartlang_drain = handlers.drain;
 globalThis.__chartlang_dispose = handlers.dispose;

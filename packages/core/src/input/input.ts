@@ -176,7 +176,10 @@ export const input = Object.freeze({
     },
 
     /**
-     * Build a source-field input descriptor.
+     * Build a source-field input descriptor. `input.source` selects only the
+     * built-in OHLC and derived bar fields (`open`, `high`, `low`, `close`,
+     * `hl2`, `hlc3`, `ohlc4`, `hlcc4`). Host-supplied numeric series belong
+     * in `input.externalSeries`.
      *
      * @since 0.4
      * @stable
@@ -274,7 +277,10 @@ export const input = Object.freeze({
     },
 
     /**
-     * Build an adapter-supplied external series input descriptor.
+     * Build a host-supplied external numeric series input descriptor. Use this
+     * for another indicator output, another script output, fundamentals, or
+     * app data aligned by the host to the primary chart stream. Missing feed
+     * values read as `NaN`.
      *
      * @since 0.4
      * @stable

@@ -64,6 +64,12 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   `createScriptRunner`'s immutability contract in the runtime so
   consumer-repo adapters cannot monkey-patch methods after
   construction.
+- **`setExternalSeries(feeds)` mirrors `setPlotOverrides` but affects
+  compute inputs.** The host resolves initial feeds during `load()` and
+  sends live `setExternalSeries` frames as complete-map replacements. The
+  worker boot calls `runner.setExternalSeries(feeds)` directly; omitted
+  keys clear previous feeds and later reads produce the runtime's `NaN`
+  feed fallback.
 - **`dispose()` clears `pendingDrains` after terminating.** A
   drain awaiting a reply post-dispose stays unresolved forever
   (the worker is gone). Tests assert this — adding a "resolve

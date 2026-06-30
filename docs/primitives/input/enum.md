@@ -12,7 +12,7 @@ options.
 ```ts
 enum<T extends string | number>(defaultValue: T, options: ReadonlyArray<T>, opts?: {
     readonly title?: string;
-}): EnumDescriptor<T> {
+} & CommonInputOpts): EnumDescriptor<T> {
     return Object.freeze({
         kind: "enum" as const,
         defaultValue,

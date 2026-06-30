@@ -41,8 +41,9 @@ export type InputKind =
 export type SourceField = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "ohlc4" | "hlcc4";
 
 /**
- * Opaque schema wrapper for `input.externalSeries`. Phase 4 ships the type
- * only; runtime validation lands in Phase 5.
+ * Opaque v1 schema marker for `input.externalSeries`. Numeric external
+ * series feeds are resolved by the runtime; richer schemas remain a
+ * forward-compatible marker carried in descriptors.
  *
  * @since 0.4
  * @stable
@@ -51,6 +52,36 @@ export type SourceField = "open" | "high" | "low" | "close" | "hl2" | "hlc3" | "
  *     void s;
  */
 export type Schema<T> = Readonly<{ kind: "external-series-schema"; __brand?: T }>;
+
+/**
+ * Host-supplied numeric values for one `input.externalSeries(...)` descriptor.
+ * Values are aligned by index to the primary chart bar stream; missing, short,
+ * or non-finite runtime values read as `NaN`.
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     const feed: ExternalSeriesFeed = { values: [1, 2, 3] };
+ *     void feed;
+ */
+export type ExternalSeriesFeed = Readonly<{
+    values: ReadonlyArray<number>;
+}>;
+
+/**
+ * Complete external-series feed map keyed by descriptor `name`.
+ * `runner.setExternalSeries(...)` replaces this whole map rather than merging
+ * partial keys.
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     const feeds: ExternalSeriesFeedMap = {
+ *         earnings: { values: [Number.NaN, 1, 2] },
+ *     };
+ *     void feeds;
+ */
+export type ExternalSeriesFeedMap = Readonly<Record<string, ExternalSeriesFeed>>;
 
 type NumericInputOpts = Readonly<{ min?: number; max?: number; step?: number }>;
 

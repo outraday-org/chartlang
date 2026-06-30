@@ -13,6 +13,7 @@ import type {
     Capabilities,
     DiagnosticCode,
     DrawingEmission,
+    ExternalSeriesFeedMap,
     LogEmission,
     PlotEmission,
     PlotOverride,
@@ -146,6 +147,21 @@ export type Scenario = {
      * ordinal like {@link Scenario.plotOverrides}. `@since 0.8`.
      */
     readonly overrideEvents?: ReadonlyArray<ScenarioOverrideEvent>;
+    /**
+     * Mount-time external-series feeds keyed by descriptor `name`. The runner
+     * passes this complete map to `createScriptRunner`; unknown keys are
+     * ignored by runtime input resolution, and missing descriptor feeds read
+     * as `NaN`. `@since 1.9`.
+     */
+    readonly externalSeriesFeeds?: ExternalSeriesFeedMap;
+    /**
+     * Mid-stream external-series feed replacements applied via
+     * `runner.setExternalSeries(...)`. Each event's `feeds` REPLACES the
+     * whole feed map after the bar at `atBar` is pushed. The just-pushed
+     * bar's emissions were already baked during `compute`; the swap takes
+     * effect starting with bar `atBar + 1`'s `compute`. `@since 1.9`.
+     */
+    readonly externalSeriesEvents?: ReadonlyArray<ScenarioExternalSeriesEvent>;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
 };
 
@@ -184,6 +200,25 @@ export type PlotSlotOverride = {
 export type ScenarioOverrideEvent = {
     readonly atBar: number;
     readonly overrides: ReadonlyArray<PlotSlotOverride>;
+};
+
+/**
+ * A mid-stream `setExternalSeries` event. `feeds` is the full replacement map
+ * applied after the bar at `atBar` is pushed and before it is drained.
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     import type { ScenarioExternalSeriesEvent } from "@invinite-org/chartlang-conformance";
+ *     const e: ScenarioExternalSeriesEvent = {
+ *         atBar: 3,
+ *         feeds: { other: { values: [1, 2, 3] } },
+ *     };
+ *     void e;
+ */
+export type ScenarioExternalSeriesEvent = {
+    readonly atBar: number;
+    readonly feeds: ExternalSeriesFeedMap;
 };
 
 /**
@@ -828,6 +863,9 @@ async function runOne(
         ...(scenario.plotOverrides === undefined
             ? {}
             : { plotOverrides: resolveOverrideMap(scenario.plotOverrides, plotSlotIds) }),
+        ...(scenario.externalSeriesFeeds === undefined
+            ? {}
+            : { externalSeriesFeeds: scenario.externalSeriesFeeds }),
     });
 
     const plots: PlotEmission[] = [];
@@ -878,6 +916,12 @@ async function runOne(
                 for (const event of scenario.overrideEvents) {
                     if (event.atBar !== eventIndex) continue;
                     runner.setPlotOverrides(resolveOverrideMap(event.overrides, plotSlotIds));
+                }
+            }
+            if (scenario.externalSeriesEvents !== undefined) {
+                for (const event of scenario.externalSeriesEvents) {
+                    if (event.atBar !== eventIndex) continue;
+                    runner.setExternalSeries(event.feeds);
                 }
             }
             eventIndex += 1;

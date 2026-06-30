@@ -43,7 +43,7 @@ No. `fetch`, dynamic `import(...)`, and `new Function(...)` are all
 compile-time errors (`hostile-global`). External data only reaches a
 script through the candle stream (`bar`, `request.security`,
 `request.lowerTf`) and through `input.externalSeries` feeds supplied by
-the adapter.
+the host.
 
 ## How are alerts delivered?
 

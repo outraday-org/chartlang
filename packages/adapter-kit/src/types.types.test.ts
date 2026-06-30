@@ -12,12 +12,7 @@ import { expectTypeOf } from "expect-type";
 import { describe, expect, it } from "vitest";
 
 import { bucketFor } from ".";
-import type {
-    DrawingBucket,
-    GroupedInputEntry,
-    GroupedInputRow,
-    GroupedInputSection,
-} from ".";
+import type { DrawingBucket, GroupedInputEntry, GroupedInputRow, GroupedInputSection } from ".";
 import type { defineAdapter } from "./defineAdapter.js";
 import type { mockCandleSource } from "./mocks/index.js";
 import type {
@@ -31,6 +26,8 @@ import type {
     DiagnosticCode,
     DrawingEmission,
     DrawingKind,
+    ExternalSeriesFeed,
+    ExternalSeriesFeedMap,
     LogEmission,
     PlotEmission,
     PlotKind,
@@ -156,6 +153,18 @@ describe("type assertions", () => {
     it("Adapter exposes an optional input override resolver", () => {
         expectTypeOf<Adapter["resolveInputs"]>().toEqualTypeOf<
             ((scriptId: string) => Readonly<Record<string, unknown>>) | undefined
+        >();
+    });
+
+    it("Adapter exposes an optional external-series feed resolver", () => {
+        expectTypeOf<ExternalSeriesFeed>().toEqualTypeOf<
+            Readonly<{ values: ReadonlyArray<number> }>
+        >();
+        expectTypeOf<ExternalSeriesFeedMap>().toEqualTypeOf<
+            Readonly<Record<string, ExternalSeriesFeed>>
+        >();
+        expectTypeOf<Adapter["feedExternalSeries"]>().toEqualTypeOf<
+            ((scriptId: string) => ExternalSeriesFeedMap) | undefined
         >();
     });
 

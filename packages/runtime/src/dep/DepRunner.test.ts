@@ -3,7 +3,7 @@
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import { defineIndicator } from "@invinite-org/chartlang-core";
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
 import type { Bar, CompiledScriptBundle, CompiledScriptObject } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
@@ -102,6 +102,42 @@ describe("createDepRunner / createSiblingRunner — shape", () => {
         expect(dep.state.runtimeContext.isDep).toBe(true);
         expect(dep.state.runtimeContext.slotIdPrefix).toBe("dep:x/");
         expect(dep.declaredOutputs).toEqual(["line"]);
+    });
+
+    it("createDepRunner builds external-series slots from legacy input overrides", () => {
+        const store = createDepOutputStore({
+            producers: [{ producerId: "x", outputs: [{ title: "line" }] }],
+            capacity: 4,
+        });
+        const compiled = defineIndicator({
+            name: "dep",
+            apiVersion: 1,
+            inputs: {
+                length: input.int(14),
+                feed: input.externalSeries({
+                    name: "dep-feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: () => {},
+        });
+
+        const dep = createDepRunner({
+            compiled,
+            localId: "x",
+            parentCapabilities: makeCapabilities(),
+            chartSymbol: "",
+            mainStream: fakeMainStream(),
+            secondaryStreams: new Map(),
+            depOutputStore: store,
+            inputOverrides: { feed: { values: [1] } },
+            now: () => 0,
+        });
+
+        expect(dep.state.runtimeContext.externalSeriesSlots.has("feed")).toBe(true);
+        expect(dep.state.runtimeContext.externalSeriesFeeds).toEqual({
+            "dep-feed": { values: [1] },
+        });
     });
 
     it("createSiblingRunner sets export slot-id prefix and isDep=false", () => {

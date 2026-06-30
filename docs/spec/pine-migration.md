@@ -306,7 +306,7 @@ export default defineIndicator({
 chartlang v1 stays data-source neutral. Pine `request.financial`,
 `request.dividends`, `request.splits`, `request.earnings`, and
 `request.economic` do not have host-owned built-ins. Scripts declare external
-data requirements with `input.externalSeries`, and the adapter supplies values
+data requirements with `input.externalSeries`, and the host supplies values
 according to its own data policy.
 
 ```ts
@@ -370,7 +370,7 @@ Status meanings:
 | Loops over history or drawing sets | Pivot Point levels, table rows, ZigZag segments | Bounded `for` loops with literal numeric bounds; no stateful calls inside loops | covered-inline: [grammar loop rules](/spec/grammar#typescript-subset) |
 | Pine libraries (`library()`, `import`) | PineCoders libraries, community utility packages | Normal bundled TypeScript helper modules only; Pine library scripts are not v1 | not-supported: [Pine library scripts](#pine-library-scripts) |
 | Strategy primitives (`strategy.*`) | RSI Strategy, SuperTrend Strategy, Chandelier strategy variants | No order, fill, P&L, or equity-curve language in v1 | not-supported: [strategy primitives](#strategy-primitives) |
-| TradingView-hosted fundamentals and corporate actions | Earnings overlays, dividends/splits/economic scripts | `input.externalSeries` for adapter-supplied data; Pine built-ins are absent | not-supported: [hosted fundamentals built-ins](#hosted-fundamentals-built-ins) |
+| TradingView-hosted fundamentals and corporate actions | Earnings overlays, dividends/splits/economic scripts | `input.externalSeries` for host-supplied data; Pine built-ins are absent | not-supported: [hosted fundamentals built-ins](#hosted-fundamentals-built-ins) |
 | Webhook payload transport | Alert webhook bots and automation scripts | Alert emissions are adapter-facing; core does not deliver webhooks | not-supported: [webhook delivery](#webhook-delivery) |
 
 ## Not Supported in 1.0
@@ -387,7 +387,7 @@ Strategy primitives are Beyond 1.0 and require a future
 Pine `request.financial`, `request.dividends`, `request.splits`,
 `request.earnings`, and `request.economic` depend on TradingView-hosted data.
 chartlang stays data-source neutral. Use
-`input.externalSeries(...)` when an adapter supplies equivalent data; there is
+`input.externalSeries(...)` when a host supplies equivalent data; there is
 no v1 built-in data request.
 
 ### Webhook Delivery

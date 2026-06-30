@@ -13,7 +13,7 @@ int(defaultValue: number, opts?: {
     readonly max?: number;
     readonly step?: number;
     readonly title?: string;
-}): IntDescriptor {
+} & CommonInputOpts): IntDescriptor {
     return Object.freeze({ kind: "int" as const, defaultValue, ...opts });
 }
 ```

@@ -3,6 +3,7 @@
 
 import type {
     CandleEvent,
+    ExternalSeriesFeedMap,
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -94,6 +95,14 @@ export type ScriptHost = {
      * `drain` reflects the new map. @since 0.8
      */
     setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
+    /**
+     * Live-swap the complete external-series feed map keyed by
+     * `input.externalSeries(...)` descriptor name. Omitted keys clear any
+     * previous feed and resolve to `NaN` values on subsequent computes.
+     *
+     * @since 1.9
+     */
+    setExternalSeries(feeds: ExternalSeriesFeedMap): void;
     drain(): Promise<RunnerEmissions>;
     dispose(): void;
     readonly limits: HostLimits;
@@ -163,6 +172,7 @@ export type ScriptRunnerHandle = {
     push(event: CandleEvent): Promise<void>;
     drain(): RunnerEmissions;
     setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
+    setExternalSeries(feeds: ExternalSeriesFeedMap): void;
     dispose(): Promise<void>;
 };
 

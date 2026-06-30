@@ -837,6 +837,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "CommonInputOpts": {
+        "fqn": "CommonInputOpts",
+        "kind": "type",
+        "title": "CommonInputOpts",
+        "summary": "Presentation/help metadata shared by every `input.*` descriptor. All fields\nare optional and ignored by value resolution; adapters read them to lay out\na settings panel.",
+        "examples": [
+            "const m: CommonInputOpts = { group: \"Trend\", inline: \"row1\", tooltip: \"Help\" };\nvoid m;"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
     "CompiledScriptBundle": {
         "fqn": "CompiledScriptBundle",
         "kind": "type",
@@ -2809,6 +2820,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.4",
         "stability": "stable"
     },
+    "ExternalSeriesFeed": {
+        "fqn": "ExternalSeriesFeed",
+        "kind": "type",
+        "title": "ExternalSeriesFeed",
+        "summary": "Host-supplied numeric values for one `input.externalSeries(...)` descriptor.\nValues are aligned by index to the primary chart bar stream; missing, short,\nor non-finite runtime values read as `NaN`.",
+        "examples": [
+            "const feed: ExternalSeriesFeed = { values: [1, 2, 3] };\nvoid feed;"
+        ],
+        "since": "1.9",
+        "stability": "stable"
+    },
+    "ExternalSeriesFeedMap": {
+        "fqn": "ExternalSeriesFeedMap",
+        "kind": "type",
+        "title": "ExternalSeriesFeedMap",
+        "summary": "Complete external-series feed map keyed by descriptor `name`.\n`runner.setExternalSeries(...)` replaces this whole map rather than merging\npartial keys.",
+        "examples": [
+            "const feeds: ExternalSeriesFeedMap = {\nearnings: { values: [Number.NaN, 1, 2] },\n};\nvoid feeds;"
+        ],
+        "since": "1.9",
+        "stability": "stable"
+    },
     "feedKey": {
         "fqn": "feedKey",
         "kind": "function",
@@ -3420,7 +3453,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3443,7 +3476,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3471,7 +3504,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3485,11 +3518,11 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "input.externalSeries",
         "kind": "function",
         "title": "input.externalSeries(args)",
-        "summary": "Build an adapter-supplied external series input descriptor.",
+        "summary": "Build a host-supplied external numeric series input descriptor. Use this\nfor another indicator output, another script output, fundamentals, or\napp data aligned by the host to the primary chart stream. Missing feed\nvalues read as `NaN`.",
         "paramTable": [
             {
                 "name": "args",
-                "type": "{\n        readonly name: string;\n        readonly schema: Schema<T>;\n        readonly title?: string;\n    }",
+                "type": "ExternalSeriesArgs<T>",
                 "doc": ""
             }
         ],
@@ -3512,7 +3545,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{\n            readonly min?: number;\n            readonly max?: number;\n            readonly step?: number;\n            readonly title?: string;\n        }",
+                "type": "{\n            readonly min?: number;\n            readonly max?: number;\n            readonly step?: number;\n            readonly title?: string;\n        } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3535,7 +3568,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{\n            readonly min?: number;\n            readonly max?: number;\n            readonly step?: number;\n            readonly title?: string;\n        }",
+                "type": "{\n            readonly min?: number;\n            readonly max?: number;\n            readonly step?: number;\n            readonly title?: string;\n        } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3558,7 +3591,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3581,7 +3614,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3604,7 +3637,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3618,7 +3651,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "input.source",
         "kind": "function",
         "title": "input.source(defaultValue, opts?)",
-        "summary": "Build a source-field input descriptor.",
+        "summary": "Build a source-field input descriptor. `input.source` selects only the\nbuilt-in OHLC and derived bar fields (`open`, `high`, `low`, `close`,\n`hl2`, `hlc3`, `ohlc4`, `hlcc4`). Host-supplied numeric series belong\nin `input.externalSeries`.",
         "paramTable": [
             {
                 "name": "defaultValue",
@@ -3627,7 +3660,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3650,7 +3683,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string; readonly multiline?: boolean }",
+                "type": "{ readonly title?: string; readonly multiline?: boolean } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3673,7 +3706,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string }",
+                "type": "{ readonly title?: string } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3696,7 +3729,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "opts",
-                "type": "{ readonly title?: string; readonly pickFromChart?: boolean }",
+                "type": "{ readonly title?: string; readonly pickFromChart?: boolean } & CommonInputOpts",
                 "doc": ""
             }
         ],
@@ -3715,6 +3748,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const d: InputDescriptor<number> = {\nkind: \"int\",\ndefaultValue: 14,\ntitle: \"Length\",\n};\nvoid d;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "InputDisplay": {
+        "fqn": "InputDisplay",
+        "kind": "type",
+        "title": "InputDisplay",
+        "summary": "Where an input's value is surfaced outside the settings panel. Mirrors\nPine's `display.*`; omitted means `\"all\"`. Presentation-only: the runtime\nignores it.",
+        "examples": [
+            "const d: InputDisplay = \"data-window\";\nvoid d;"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "InputKind": {
@@ -5040,7 +5084,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "Schema",
         "kind": "type",
         "title": "Schema",
-        "summary": "Opaque schema wrapper for `input.externalSeries`. Phase 4 ships the type\nonly; runtime validation lands in Phase 5.",
+        "summary": "Opaque v1 schema marker for `input.externalSeries`. Numeric external\nseries feeds are resolved by the runtime; richer schemas remain a\nforward-compatible marker carried in descriptors.",
         "examples": [
             "const s: Schema<number> = { kind: \"external-series-schema\" };\nvoid s;"
         ],

@@ -4,6 +4,12 @@
 import type { InputDescriptor, ScriptManifest } from "@invinite-org/chartlang-core";
 
 import type { RuntimeContext } from "../runtimeContext.js";
+import { isExternalSeriesFeed } from "./externalSeriesFeeds.js";
+
+type ScalarInputDescriptor = Exclude<
+    InputDescriptor<unknown>,
+    Readonly<{ kind: "external-series" }>
+>;
 
 const SOURCE_FIELDS = new Set<string>([
     "open",
@@ -37,7 +43,18 @@ export function resolveInputs(
 ): Readonly<Record<string, unknown>> {
     const out: Record<string, unknown> = {};
     for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-        const fallback = defaultValueFor(descriptor);
+        if (descriptor.kind === "external-series") {
+            if (
+                Object.hasOwn(overrides, key) &&
+                overrides[key] !== undefined &&
+                !isExternalSeriesFeed(overrides[key])
+            ) {
+                pushInputDiagnostic(ctx, key, descriptor.kind, overrides[key]);
+            }
+            out[key] = ctx.externalSeriesSlots.get(key)?.view;
+            continue;
+        }
+        const fallback = descriptor.defaultValue;
         if (!Object.hasOwn(overrides, key) || overrides[key] === undefined) {
             out[key] = fallback;
             continue;
@@ -53,12 +70,7 @@ export function resolveInputs(
     return Object.freeze(out);
 }
 
-function defaultValueFor(descriptor: InputDescriptor<unknown>): unknown {
-    if ("defaultValue" in descriptor) return descriptor.defaultValue;
-    return undefined;
-}
-
-function matchesDescriptor(descriptor: InputDescriptor<unknown>, value: unknown): boolean {
+function matchesDescriptor(descriptor: ScalarInputDescriptor, value: unknown): boolean {
     switch (descriptor.kind) {
         case "int":
             return typeof value === "number" && Number.isInteger(value);
@@ -85,8 +97,6 @@ function matchesDescriptor(descriptor: InputDescriptor<unknown>, value: unknown)
             );
         case "source":
             return typeof value === "string" && SOURCE_FIELDS.has(value);
-        case "external-series":
-            return value !== null && typeof value === "object";
     }
 }
 

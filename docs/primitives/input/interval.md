@@ -10,7 +10,7 @@ Build a main-interval input descriptor.
 ```ts
 interval(defaultValue: string, opts?: {
     readonly title?: string;
-}): IntervalDescriptorInput {
+} & CommonInputOpts): IntervalDescriptorInput {
     return Object.freeze({ kind: "interval" as const, defaultValue, ...opts });
 }
 ```

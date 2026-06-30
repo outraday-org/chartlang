@@ -11,7 +11,7 @@ Build a string input descriptor.
 string(defaultValue: string, opts?: {
     readonly title?: string;
     readonly multiline?: boolean;
-}): StringDescriptor {
+} & CommonInputOpts): StringDescriptor {
     return Object.freeze({ kind: "string" as const, defaultValue, ...opts });
 }
 ```

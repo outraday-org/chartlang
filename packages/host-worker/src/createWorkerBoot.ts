@@ -176,6 +176,9 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                     ...(msg.plotOverrides !== undefined
                         ? { plotOverrides: msg.plotOverrides }
                         : {}),
+                    ...(msg.externalSeriesFeeds !== undefined
+                        ? { externalSeriesFeeds: msg.externalSeriesFeeds }
+                        : {}),
                 });
                 limits = msg.limits;
                 scope.postMessage({ kind: "loaded" });
@@ -209,6 +212,13 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
                         throw new Error("setPlotOverrides before load");
                     }
                     runner.setPlotOverrides(msg.overrides);
+                    break;
+                }
+                case "setExternalSeries": {
+                    if (runner === null) {
+                        throw new Error("setExternalSeries before load");
+                    }
+                    runner.setExternalSeries(msg.feeds);
                     break;
                 }
                 case "drain": {

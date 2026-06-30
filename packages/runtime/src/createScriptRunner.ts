@@ -12,6 +12,7 @@ import type {
     CompiledScriptBundle,
     CompiledScriptObject,
     ComputeFn,
+    ExternalSeriesFeedMap,
     RequestedFeed,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
@@ -27,6 +28,11 @@ import {
     installDepOutputGlobal,
 } from "./dep/index.js";
 import { pushDiagnostic, resolveDefaultPane, resolveScriptPane } from "./emit/index.js";
+import {
+    createExternalSeriesSlots,
+    isExternalSeriesFeed,
+    replaceExternalSeriesFeedMap,
+} from "./inputs/externalSeriesFeeds.js";
 import {
     dispose as disposeImpl,
     drain as drainImpl,
@@ -149,6 +155,17 @@ export type ScriptRunner = {
      *     // runner.setPlotOverrides({ "ema.chart.ts:12:5#0": { visible: false } });
      */
     setPlotOverrides(next: Readonly<Record<string, PlotOverride>>): void;
+    /**
+     * Replace the complete external-series feed map live. The swap is
+     * recompute-free and affects the next `compute`; partial maps are not
+     * merged with previous feeds.
+     *
+     * @since 1.9
+     * @stable
+     * @example
+     *     // runner.setExternalSeries({ earnings: { values: [1, 2, 3] } });
+     */
+    setExternalSeries(feeds: ExternalSeriesFeedMap): void;
     dispose(): Promise<void>;
 };
 
@@ -188,6 +205,8 @@ export type CreateScriptRunnerArgs = {
     readonly symInfo?: AdapterSymInfo;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly inputOverrides?: Readonly<Record<string, unknown>>;
+    readonly resolveExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
+    readonly externalSeriesFeeds?: ExternalSeriesFeedMap;
     readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     readonly plotOverrides?: Readonly<Record<string, PlotOverride>>;
 };
@@ -236,6 +255,46 @@ function createSecondaryStreams(
         streams.set(key, createStreamState({ interval: feed.interval, capacity, symbol }));
     }
     return streams;
+}
+
+function externalSeriesDescriptors(
+    manifest: ScriptManifest,
+): ReadonlyArray<Readonly<{ inputKey: string; feedName: string }>> {
+    const descriptors: Array<Readonly<{ inputKey: string; feedName: string }>> = [];
+    for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+        if (descriptor.kind === "external-series") {
+            descriptors.push(Object.freeze({ inputKey, feedName: descriptor.name }));
+        }
+    }
+    return Object.freeze(descriptors);
+}
+
+function externalSeriesFeedsFromInputOverrides(
+    manifest: ScriptManifest,
+    overrides: Readonly<Record<string, unknown>>,
+): ExternalSeriesFeedMap {
+    const feeds: Record<string, ExternalSeriesFeedMap[string]> = {};
+    for (const [inputKey, descriptor] of Object.entries(manifest.inputs)) {
+        if (descriptor.kind !== "external-series") continue;
+        const override = overrides[inputKey];
+        if (isExternalSeriesFeed(override)) feeds[descriptor.name] = override;
+    }
+    return replaceExternalSeriesFeedMap(feeds);
+}
+
+function resolveInitialExternalSeriesFeeds(
+    args: CreateScriptRunnerArgs,
+    manifest: ScriptManifest,
+    inputOverrides: Readonly<Record<string, unknown>>,
+): ExternalSeriesFeedMap {
+    if (args.externalSeriesFeeds !== undefined) {
+        return replaceExternalSeriesFeedMap(args.externalSeriesFeeds);
+    }
+    const resolved = args.resolveExternalSeries?.(manifest.name);
+    if (resolved !== undefined) {
+        return replaceExternalSeriesFeedMap(resolved);
+    }
+    return externalSeriesFeedsFromInputOverrides(manifest, inputOverrides);
 }
 
 async function pushMainEvent(state: RunnerState, event: CandleEvent): Promise<void> {
@@ -310,6 +369,17 @@ function buildPrimaryState(
     const secondaryStreams = createSecondaryStreams(primary.manifest, capacity, chartSymbol);
     const stateStore = args.stateStore ?? inMemoryStateStore();
     const now = args.now ?? Date.now;
+    const overrides =
+        args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
+    const externalSeriesSlots = createExternalSeriesSlots(
+        externalSeriesDescriptors(primary.manifest),
+        capacity,
+    );
+    const externalSeriesFeeds = resolveInitialExternalSeriesFeeds(
+        args,
+        primary.manifest,
+        overrides,
+    );
     const views = createRuntimeViews({
         syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields),
     });
@@ -374,6 +444,8 @@ function buildPrimaryState(
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),
+            externalSeriesFeeds,
+            externalSeriesSlots,
             defaultPane: resolveDefaultPane(primary.manifest),
             scriptPane: resolveScriptPane(primary.manifest),
             plotOverrides: Object.freeze({}),
@@ -387,8 +459,6 @@ function buildPrimaryState(
         depErroredThisBar: false,
         barIndex: 0,
     };
-    const overrides =
-        args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
     state.runtimeContext.resolvedInputs = resolveInputs(
         primary.manifest,
         overrides,
@@ -560,6 +630,9 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
         },
         setPlotOverrides(next) {
             state.runtimeContext.plotOverrides = Object.freeze({ ...next });
+        },
+        setExternalSeries(feeds) {
+            state.runtimeContext.externalSeriesFeeds = replaceExternalSeriesFeedMap(feeds);
         },
         async dispose() {
             const finalSave = saveStateSnapshot(state, state.now());

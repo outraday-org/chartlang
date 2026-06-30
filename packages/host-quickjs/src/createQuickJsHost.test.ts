@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
+import type { Capabilities, ExternalSeriesFeedMap } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
@@ -101,11 +101,13 @@ class FakeContext implements QuickJsContextLike {
     drainReply: unknown | null = null;
     disposeReply: unknown = { kind: "loaded" };
     setPlotOverridesReply: unknown = { kind: "ack" };
+    setExternalSeriesReply: unknown = { kind: "ack" };
     pushThrow: string | null = null;
     pushThrowValue: unknown = null;
     onPush: (() => void) | null = null;
     lastLoadFrame: unknown = null;
     lastSetPlotOverridesFrame: unknown = null;
+    lastSetExternalSeriesFrame: unknown = null;
 
     evalCode(code: string, filename?: string): unknown {
         this.calls.push(`${filename ?? "eval"}:${code.length}`);
@@ -140,6 +142,12 @@ class FakeContext implements QuickJsContextLike {
             return new FakeHandle((json?: string) => {
                 this.lastSetPlotOverridesFrame = JSON.parse(json ?? "{}");
                 return JSON.stringify(this.setPlotOverridesReply);
+            });
+        }
+        if (key === "__chartlang_setExternalSeries") {
+            return new FakeHandle((json?: string) => {
+                this.lastSetExternalSeriesFrame = JSON.parse(json ?? "{}");
+                return JSON.stringify(this.setExternalSeriesReply);
             });
         }
         const fn = async (json?: string) => {
@@ -204,6 +212,12 @@ describe("createQuickJsHost", () => {
         expectTypeOf<CreateQuickJsHostOpts["limits"]>().toEqualTypeOf<
             Partial<QuickJsHostLimits> | undefined
         >();
+        expectTypeOf<CreateQuickJsHostOpts["resolveExternalSeries"]>().toEqualTypeOf<
+            ((scriptId: string) => ExternalSeriesFeedMap) | undefined
+        >();
+        expectTypeOf<ScriptHost["setExternalSeries"]>()
+            .parameter(0)
+            .toEqualTypeOf<ExternalSeriesFeedMap>();
     });
 
     it("returns a frozen ScriptHost and reports host-worker-shaped limits", () => {
@@ -263,6 +277,7 @@ describe("createQuickJsHost", () => {
             symInfo: { ticker: "DEMO" },
             resolveInputs: () => ({ length: 20 }),
             resolvePlotOverrides: () => ({ "p:1:1#0": { visible: false, color: "#f00" } }),
+            resolveExternalSeries: () => ({ feed: { values: [1, 2] } }),
             quickJsLike,
         });
 
@@ -272,6 +287,7 @@ describe("createQuickJsHost", () => {
             symInfo: { ticker: "DEMO" },
             inputOverrides: { length: 20 },
             plotOverrides: { "p:1:1#0": { visible: false, color: "#f00" } },
+            externalSeriesFeeds: { feed: { values: [1, 2] } },
             capabilities: {
                 plots: expect.any(Array),
                 drawings: expect.any(Array),
@@ -307,6 +323,30 @@ describe("createQuickJsHost", () => {
         host.dispose();
     });
 
+    it("relays setExternalSeries through the JSON membrane after load", async () => {
+        const context = new FakeContext();
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+        });
+
+        await host.load(compiled(plotSource()));
+        host.setExternalSeries({ feed: { values: [1, 2] } });
+
+        expect(context.lastSetExternalSeriesFrame).toEqual({
+            kind: "setExternalSeries",
+            feeds: { feed: { values: [1, 2] } },
+        });
+        host.dispose();
+    });
+
     it("reports a host error when setPlotOverrides is called before load", () => {
         let lastError = "";
         const host = createQuickJsHost({
@@ -327,6 +367,29 @@ describe("createQuickJsHost", () => {
         host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
 
         expect(lastError).toBe("setPlotOverrides before load");
+        host.dispose();
+    });
+
+    it("reports a host error when setExternalSeries is called before load", () => {
+        let lastError = "";
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => new FakeContext(),
+                }),
+            }),
+            onHostError: (message) => {
+                lastError = message;
+            },
+        });
+
+        host.setExternalSeries({ feed: { values: [1] } });
+
+        expect(lastError).toBe("setExternalSeries before load");
         host.dispose();
     });
 
@@ -353,6 +416,32 @@ describe("createQuickJsHost", () => {
         host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
 
         expect(lastError).toBe("override fatal");
+        host.dispose();
+    });
+
+    it("reports a host error when the guest replies fatal to setExternalSeries", async () => {
+        const context = new FakeContext();
+        context.setExternalSeriesReply = { kind: "fatal", message: "external fatal" };
+        let lastError = "";
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+            onHostError: (message) => {
+                lastError = message;
+            },
+        });
+
+        await host.load(compiled(plotSource()));
+        host.setExternalSeries({ feed: { values: [1] } });
+
+        expect(lastError).toBe("external fatal");
         host.dispose();
     });
 

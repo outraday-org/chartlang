@@ -65,6 +65,8 @@ export type {
     DrawingCounts,
     DrawingEmission,
     DrawingKind,
+    ExternalSeriesFeed,
+    ExternalSeriesFeedMap,
     InputKind,
     LogEmission,
     PlotEmission,

@@ -8,6 +8,7 @@ import type {
     DrawingCounts as CoreDrawingCounts,
     DrawingKind as CoreDrawingKind,
     InputKind as CoreInputKind,
+    ExternalSeriesFeedMap,
     PlotKind as CorePlotKind,
     PlotOverride as CorePlotOverride,
     PlotSlotDescriptor as CorePlotSlotDescriptor,
@@ -18,6 +19,8 @@ import type {
     LogLevel,
     SymbolType,
 } from "@invinite-org/chartlang-core";
+
+export type { ExternalSeriesFeed, ExternalSeriesFeedMap } from "@invinite-org/chartlang-core";
 
 /**
  * Adapter-supplied candle event the runtime consumes through
@@ -239,8 +242,8 @@ export type DrawingCounts = CoreDrawingCounts;
  * declared set become silent no-ops + diagnostic (PLAN §7.4).
  * Capability keys are pinned — additive only across `apiVersion: 1.x`.
  *
- * Phase 1 omits `feedExternalSeries`-related `inputs` entries from any
- * declared subset; Phase 4 wires the surface.
+ * `input.externalSeries(...)` feed support is host-supplied through the
+ * adapter callback, not through this capability subset.
  *
  * @since 0.1
  * @stable
@@ -915,11 +918,7 @@ export type RunnerEmissions = {
 };
 
 /**
- * The host-side contract every chartlang adapter implements. Phase 1
- * omits PLAN §7.1's optional `feedExternalSeries?` — that surface
- * arrives in Phase 4 alongside `input.external-series`. The shape is
- * additive, so consumer-repo adapters won't need a breaking change to
- * opt in later.
+ * The host-side contract every chartlang adapter implements.
  *
  * @since 0.1
  * @stable
@@ -962,6 +961,22 @@ export type Adapter = {
      *     void resolvePlotOverrides;
      */
     readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
+    /**
+     * Optional per-script external-series feed resolver. Called by hosts at
+     * script mount with the script id/name. Returned keys are
+     * `input.externalSeries(...)` descriptor names; missing expected keys and
+     * invalid feed objects resolve to `NaN` series values in the runtime.
+     * Live updates use `ScriptHost.setExternalSeries(...)`, which replaces
+     * the whole feed map.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     const feedExternalSeries: Adapter["feedExternalSeries"] =
+     *         () => ({ earnings: { values: [1, 2, 3] } });
+     *     void feedExternalSeries;
+     */
+    readonly feedExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
     /**
      * Optional per-mount symbol metadata payload used to populate
      * `syminfo.*`. Fields are still gated by `capabilities.symInfoFields`.

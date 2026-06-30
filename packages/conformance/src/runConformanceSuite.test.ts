@@ -29,6 +29,7 @@ import {
     DRAW_TABLE_GATED_SCENARIO,
     DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
+    EXTERNAL_SERIES_FEED_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
     MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
@@ -292,6 +293,18 @@ describe("runConformanceSuite", () => {
         });
         expect(report.failed).toBe(0);
         expect(report.failures).toEqual([]);
+    }, 30_000);
+
+    it("runs the external-series-feed scenario end-to-end (history + live replacement)", async () => {
+        // Exercises mount-time `externalSeriesFeeds`, mid-stream
+        // `setExternalSeries`, and ordinary series reads from the resolved
+        // `input.externalSeries` value.
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [EXTERNAL_SERIES_FEED_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failures).toEqual([]);
+        expect(report.failed).toBe(0);
     }, 30_000);
 
     it("runs the plot-offset-xshift scenario end-to-end (signed xShift + unshifted value)", async () => {

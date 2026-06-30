@@ -4,7 +4,7 @@
 import { capabilities, mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
 import type { CandleEvent, Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import { defineIndicator, input } from "@invinite-org/chartlang-core";
-import type { Bar } from "@invinite-org/chartlang-core";
+import type { Bar, CompiledScriptObject, Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner.js";
@@ -53,6 +53,21 @@ function makeBar(i: number): Bar {
         symbol: "AAPL",
         interval: "1m",
     };
+}
+
+function withLookback(compiled: CompiledScriptObject, maxLookback: number): CompiledScriptObject {
+    return {
+        ...compiled,
+        manifest: {
+            ...compiled.manifest,
+            maxLookback,
+            seriesCapacities: Object.freeze({ ohlcv: maxLookback + 1 }),
+        },
+    };
+}
+
+function externalSeriesInput(value: unknown): Series<number> {
+    return value as Series<number>;
 }
 
 describe("createScriptRunner", () => {
@@ -150,6 +165,183 @@ describe("createScriptRunner", () => {
         await runner.onBarClose(makeBar(0));
 
         expect(seen).toEqual([[20, "hl2"]]);
+    });
+
+    it("resolves external series feeds as indexable numeric series", async () => {
+        const seen: ReadonlyArray<number>[] = [];
+        const compiled = withLookback(
+            defineIndicator({
+                name: "demo",
+                apiVersion: 1,
+                inputs: {
+                    earnings: input.externalSeries({
+                        name: "earnings",
+                        schema: { kind: "external-series-schema" },
+                    }),
+                },
+                compute: ({ inputs }) => {
+                    const s = externalSeriesInput(inputs.earnings);
+                    seen.push([s.current, s[0], s[1]]);
+                },
+            }),
+            1,
+        );
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { earnings: { values: [10, 20] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+
+        expect(seen).toEqual([
+            [10, 10, Number.NaN],
+            [20, 20, 10],
+        ]);
+    });
+
+    it("resolves external series feeds through the load-time resolver", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "from-resolver",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            resolveExternalSeries: (scriptId) =>
+                scriptId === "demo" ? { "from-resolver": { values: [7] } } : {},
+        });
+
+        await runner.onBarClose(makeBar(0));
+
+        expect(seen).toEqual([7]);
+    });
+
+    it("uses valid legacy inputOverrides as external series feeds when no feed map is supplied", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "legacy-feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            inputOverrides: { feed: { values: [4, 5] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+
+        expect(seen).toEqual([4, 5]);
+    });
+
+    it("replaces the external series head on ticks", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { feed: { values: [1, 9] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarTick(makeBar(1));
+
+        expect(seen).toEqual([1, 9]);
+    });
+
+    it("returns NaN for missing, short, and non-finite external feed values", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { feed: { values: [1, Number.POSITIVE_INFINITY] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+        await runner.onBarClose(makeBar(2));
+
+        expect(seen[0]).toBe(1);
+        expect(seen[1]).toBeNaN();
+        expect(seen[2]).toBeNaN();
+    });
+
+    it("setExternalSeries replaces the whole feed map for later computes", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { feed: { values: [1, 2] }, other: { values: [99, 99] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        runner.setExternalSeries({ other: { values: [5, 6] } });
+        await runner.onBarClose(makeBar(1));
+        runner.setExternalSeries({ feed: { values: [10, 20, 30] } });
+        await runner.onBarClose(makeBar(2));
+
+        expect(seen[0]).toBe(1);
+        expect(seen[1]).toBeNaN();
+        expect(seen[2]).toBe(30);
     });
 
     it("emits input diagnostics once per mount key and keeps defaults", async () => {

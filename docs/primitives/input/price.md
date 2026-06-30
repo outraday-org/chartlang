@@ -10,7 +10,7 @@ Build a price input descriptor.
 ```ts
 price(defaultValue: Price, opts?: {
     readonly title?: string;
-}): PriceDescriptor {
+} & CommonInputOpts): PriceDescriptor {
     return Object.freeze({ kind: "price" as const, defaultValue, ...opts });
 }
 ```

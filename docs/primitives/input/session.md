@@ -12,7 +12,7 @@ a free string in v1 (the grammar is parsed at runtime by
 ```ts
 session(defaultValue: string, opts?: {
     readonly title?: string;
-}): SessionDescriptor {
+} & CommonInputOpts): SessionDescriptor {
     return Object.freeze({ kind: "session" as const, defaultValue, ...opts });
 }
 ```

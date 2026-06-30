@@ -45,7 +45,7 @@ adapter.onEmissions(emissions);
 host.dispose();
 ```
 
-`createQuickJsHost` returns a frozen `ScriptHost` whose four methods
+`createQuickJsHost` returns a frozen `ScriptHost` whose methods
 behave identically to the Worker host:
 
 | Method | Behaviour |
@@ -53,6 +53,8 @@ behave identically to the Worker host:
 | `load(compiled)` | Initialises the QuickJS runtime, evaluates the dispatcher once, then evaluates the compiled module source as an in-realm script. |
 | `push(event)` | Forwards a candle event into the realm by JSON membrane. |
 | `drain()` | Returns the queued `RunnerEmissions` batch since the last drain. Plot and alert emissions are revalidated through `validateEmission` on the way out. |
+| `setPlotOverrides(overrides)` | Synchronously replaces the live plot override map inside the guest realm. |
+| `setExternalSeries(feeds)` | Synchronously replaces the complete external-series feed map inside the guest realm. Omitted keys clear previous feeds and later compute reads become `NaN`. |
 | `dispose()` | Disposes the QuickJS context and runtime; clears pending drains. |
 
 ## Hard runtime caps
@@ -79,7 +81,7 @@ the package's invariants):
 | Direct `eval(...)` | Same hardened-globals path; the compiler also rejects it as `hostile-global`. |
 | Dynamic `import(...)` | No host module resolver — surfaces as a host error. |
 | `globalThis` writes | Confined to the QuickJS realm. Host globals are not reachable. |
-| Host-object capture | The JSON-string membrane drops non-JSON members. |
+| Host-object capture | The JSON-string membrane drops non-JSON members, including live external-series feed updates. |
 | Infinite loops | Bounded by the interrupt handler at `maxStepMs`. |
 | OOM attempts | Bounded by `maxHeapBytes`; reported as `quickjs-oom`. |
 | Realm reflection | Stays in the QuickJS realm; host-only methods remain unavailable. |

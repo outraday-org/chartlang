@@ -15,6 +15,8 @@ Every host implements the same lifecycle handle:
 ```ts
 import type {
     CandleEvent,
+    ExternalSeriesFeedMap,
+    PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 import type { HostCompiledScript, HostLimits } from "@invinite-org/chartlang-host-worker";
@@ -24,12 +26,14 @@ export type ScriptHost = {
     push(event: CandleEvent): Promise<void>;
     drain(): Promise<RunnerEmissions>;
     setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
+    setExternalSeries(feeds: ExternalSeriesFeedMap): void;
     dispose(): void;
     readonly limits: HostLimits;
 };
 ```
 
-`PlotOverride` is re-exported from `@invinite-org/chartlang-adapter-kit`.
+`PlotOverride` and `ExternalSeriesFeedMap` are re-exported from
+`@invinite-org/chartlang-adapter-kit`.
 
 `HostCompiledScript` is `{ moduleSource: string; manifest: ScriptManifest }`.
 The compiled output of `pnpm chartlang compile` is exactly this shape
@@ -39,7 +43,7 @@ Stage the lifecycle as:
 
 1. **`load`.** Boot the isolate, ferry the compiled module source plus
    the adapter's `Capabilities`, `symInfo`, resolved input overrides,
-   and `HostLimits` across the membrane. Run the module to construct
+   initial external-series feeds, and `HostLimits` across the membrane. Run the module to construct
    the `CompiledScriptObject`, then build a `ScriptRunnerHandle`
    around it via `createScriptRunner` from
    `@invinite-org/chartlang-runtime`. Resolve when the boot acks; reject
@@ -88,10 +92,11 @@ must satisfy two invariants:
 
 | Direction | Frame |
 | --- | --- |
-| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, plotOverrides?, limits }` |
+| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, plotOverrides?, externalSeriesFeeds?, limits }` |
 | Host → guest | `{ kind: "candleEvent", event }` (fire-and-forget) |
 | Host → guest | `{ kind: "drain", nonce }` |
 | Host → guest | `{ kind: "setPlotOverrides", overrides }` |
+| Host → guest | `{ kind: "setExternalSeries", feeds }` |
 | Host → guest | `{ kind: "dispose" }` |
 | Guest → host | `{ kind: "loaded" }` or `{ kind: "loadError", message }` |
 | Guest → host | `{ kind: "emissions", nonce, emissions }` |
@@ -112,11 +117,20 @@ mid-run without breaking the frozen-input determinism guarantee. The
 QuickJS host relays `setPlotOverrides` as a synchronous host→guest call
 (like `drain`); the Worker host posts it fire-and-forget.
 
+The optional `externalSeriesFeeds` on the `load` frame is the initial
+`input.externalSeries(...)` feed map resolved from
+`Adapter.feedExternalSeries` / host constructor options. The
+`setExternalSeries` frame is a live whole-map replacement:
+`runner.setExternalSeries(feeds)` replaces the runtime's map without
+merging partial keys. Omitted feed names clear previous data and read as
+`NaN` on later computes. QuickJS relays it synchronously through the JSON
+membrane; the Worker host posts it fire-and-forget.
+
 ## Determinism contract
 
 A host that swaps in for another must preserve cross-host emission
 parity. For the same compiled bundle, the same candle stream, the same
-inputs, the same symbol metadata, and the same capabilities, the
+inputs, external-series feeds, the same symbol metadata, and the same capabilities, the
 drained `RunnerEmissions` must be byte-identical.
 
 The conformance suite at

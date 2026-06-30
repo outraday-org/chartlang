@@ -120,6 +120,7 @@ export type CreateEChartsAdapterOpts = {
     readonly initialVisibleBars?: number;
     readonly backgroundColor?: string;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     readonly onAlert?: (a: AlertEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
@@ -1686,6 +1687,9 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
                           : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
+                          : {}),
                       workerLike: opts.workerLike,
                   }
                 : {
@@ -1693,6 +1697,9 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
                       symInfo: ECHARTS_SYM_INFO,
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
                           : {}),
                   },
         );
@@ -1702,6 +1709,9 @@ export function createEChartsAdapter(opts: CreateEChartsAdapterOpts): EChartsAda
         name: "ECharts Example Adapter",
         capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         symInfo: ECHARTS_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {

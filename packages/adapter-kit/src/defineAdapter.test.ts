@@ -80,11 +80,13 @@ describe("defineAdapter", () => {
                 length: 20,
             }),
         );
+        const feedExternalSeries = vi.fn(() => ({ feed: { values: [1, 2, 3] } }));
         const a = defineAdapter({
             id: "demo",
             name: "Demo",
             capabilities: minimalCapabilities,
             resolveInputs,
+            feedExternalSeries,
             symInfo: { ticker: "DEMO", type: "equity", mintick: 0.01 },
             candles: () => mockCandleSource([]),
             onEmissions: () => {},
@@ -93,5 +95,7 @@ describe("defineAdapter", () => {
         expect(a.symInfo).toEqual({ ticker: "DEMO", type: "equity", mintick: 0.01 });
         expect(a.resolveInputs).toBe(resolveInputs);
         expect(a.resolveInputs?.("demo")).toEqual({ length: 20 });
+        expect(a.feedExternalSeries).toBe(feedExternalSeries);
+        expect(a.feedExternalSeries?.("demo")).toEqual({ feed: { values: [1, 2, 3] } });
     });
 });

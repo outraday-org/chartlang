@@ -5,6 +5,7 @@ import type {
     AdapterSymInfo,
     CandleEvent,
     Capabilities,
+    ExternalSeriesFeedMap,
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -16,13 +17,13 @@ import type { HostCompiledScript, HostLimits } from "./types.js";
  * — every payload survives `structuredClone` without bespoke transferables.
  *
  * - `load` carries the compiled bundle, the adapter's `Capabilities`, and the
- *   host's `HostLimits`. Optional `inputOverrides` / `plotOverrides` are
- *   already resolved on the host side because callbacks cannot cross the
- *   worker boundary.
+ *   host's `HostLimits`. Optional `inputOverrides` / `plotOverrides` and
+ *   external-series feeds are already resolved on the host side because
+ *   callbacks cannot cross the worker boundary.
  * - `candleEvent` is fire-and-forget — the worker only replies on overshoot
  *   or fatal.
- * - `setPlotOverrides` swaps the live presentation-override map; fire-and-forget
- *   like `candleEvent` — the next `drain` reflects it without a recompute.
+ * - `setPlotOverrides` swaps the live presentation-override map.
+ * - `setExternalSeries` swaps the live external-series feed map.
  * - `drain` carries a host-issued `nonce`; the matching reply echoes it.
  * - `dispose` has no reply.
  *
@@ -40,12 +41,17 @@ export type HostToWorker =
           readonly symInfo?: AdapterSymInfo;
           readonly inputOverrides?: Readonly<Record<string, unknown>>;
           readonly plotOverrides?: Readonly<Record<string, PlotOverride>>;
+          readonly externalSeriesFeeds?: ExternalSeriesFeedMap;
           readonly limits: HostLimits;
       }
     | { readonly kind: "candleEvent"; readonly event: CandleEvent }
     | {
           readonly kind: "setPlotOverrides";
           readonly overrides: Readonly<Record<string, PlotOverride>>;
+      }
+    | {
+          readonly kind: "setExternalSeries";
+          readonly feeds: ExternalSeriesFeedMap;
       }
     | { readonly kind: "drain"; readonly nonce: number }
     | { readonly kind: "dispose" };

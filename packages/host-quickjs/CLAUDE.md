@@ -9,11 +9,12 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
 - **Dispatcher source is evaluated once per QuickJS context.** The host reads
   `dist/dispatcher.js`, evaluates it during the first `load()`, then calls only
   `__chartlang_load(json)`, `__chartlang_push(json)`,
-  `__chartlang_setPlotOverrides(json)`, `__chartlang_drain(json)`, and
-  `__chartlang_dispose()` for that context. `__chartlang_setPlotOverrides` is a
-  synchronous host→guest call (like `drain`) that swaps the runtime's live
-  presentation-override map and replies `ack`; the JSON membrane drops any
-  getter / function-shaped fields so no live reference crosses (pinned by
+  `__chartlang_setPlotOverrides(json)`, `__chartlang_setExternalSeries(json)`,
+  `__chartlang_drain(json)`, and `__chartlang_dispose()` for that context.
+  `__chartlang_setPlotOverrides` and `__chartlang_setExternalSeries` are
+  synchronous host→guest calls (like `drain`) that swap the runtime's live
+  maps and reply `ack`; the JSON membrane drops any getter /
+  function-shaped fields so no live reference crosses (pinned by
   `sandbox.test.ts`). After changing the dispatcher you MUST rebuild
   (`pnpm -F @invinite-org/chartlang-host-quickjs build:dispatcher`) — the real-
   QuickJS tests load `dist/dispatcher.js`, not `src/`.

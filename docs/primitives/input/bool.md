@@ -10,7 +10,7 @@ Build a boolean input descriptor.
 ```ts
 bool(defaultValue: boolean, opts?: {
     readonly title?: string;
-}): BoolDescriptor {
+} & CommonInputOpts): BoolDescriptor {
     return Object.freeze({ kind: "bool" as const, defaultValue, ...opts });
 }
 ```

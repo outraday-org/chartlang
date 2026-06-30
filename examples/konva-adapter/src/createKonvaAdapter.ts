@@ -145,6 +145,7 @@ export type CreateKonvaAdapterOpts = {
     readonly interval?: string;
     readonly palette?: KonvaPalette;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
+    readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     /**
      * Default visible window: when set, the chart opens framed on only the
      * most recent N bars (rest stay scrollable); omit/0 = fit all data,
@@ -1538,6 +1539,9 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
                           : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
+                          : {}),
                       workerLike: opts.workerLike,
                   }
                 : {
@@ -1545,6 +1549,9 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
                       symInfo: KONVA_SYM_INFO,
                       ...(opts.resolveInputs !== undefined
                           ? { resolveInputs: opts.resolveInputs }
+                          : {}),
+                      ...(opts.feedExternalSeries !== undefined
+                          ? { resolveExternalSeries: opts.feedExternalSeries }
                           : {}),
                   },
         );
@@ -1554,6 +1561,9 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         name: "Konva Example Adapter",
         capabilities,
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
+        ...(opts.feedExternalSeries !== undefined
+            ? { feedExternalSeries: opts.feedExternalSeries }
+            : {}),
         symInfo: KONVA_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {

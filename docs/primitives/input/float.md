@@ -13,7 +13,7 @@ float(defaultValue: number, opts?: {
     readonly max?: number;
     readonly step?: number;
     readonly title?: string;
-}): FloatDescriptor {
+} & CommonInputOpts): FloatDescriptor {
     return Object.freeze({ kind: "float" as const, defaultValue, ...opts });
 }
 ```

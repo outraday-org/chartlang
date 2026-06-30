@@ -127,6 +127,15 @@ plot hashes, alert counts, and diagnostic codes.
   entry (keeps the suite robust under a stubbed compiler that emits no
   `manifest.plots`); a genuinely mis-authored override then surfaces as
   a failing `plot-field` assertion rather than a throw.
+- **External-series conformance events are feed-name keyed and whole-map.**
+  `EXTERNAL_SERIES_FEED_SCENARIO` declares `externalSeriesFeeds` (mount)
+  and `externalSeriesEvents` (live `setExternalSeries`) keyed by the public
+  `input.externalSeries({ name })` feed name, not by `manifest.inputs`
+  ordinal or plot `slotId`. Each live event replaces the complete feed map
+  after the pushed bar's compute and before drain, so the replacement affects
+  bar `atBar + 1` onward while already-committed `[n]` history remains
+  indexable. Keep this runtime-only; host parity stays in host integration
+  tests.
 - **The `plot-field` assertion inspects override-baked AND runtime-set
   presentation fields.** `plot-hash` deliberately hashes only
   `{ bar, value }` (color/width are excluded so existing hashes stay

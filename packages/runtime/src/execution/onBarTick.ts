@@ -5,6 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "../createScriptRunner.js";
 import { runDepStep, runSiblingStep } from "../dep/index.js";
+import { advanceExternalSeriesFeeds } from "../inputs/externalSeriesFeeds.js";
 import { replaceTickHead, updateFallbackViewport } from "../streamState.js";
 import { resetBarEmissions, runComputeBody } from "./runComputeStep.js";
 
@@ -32,6 +33,12 @@ function clearVisualEmissions(state: RunnerState): void {
  */
 export async function onBarTick(state: RunnerState, rawBar: Bar): Promise<void> {
     replaceTickHead(state.mainStream, rawBar);
+    advanceExternalSeriesFeeds(
+        state.runtimeContext.externalSeriesSlots,
+        state.runtimeContext.externalSeriesFeeds,
+        state.barIndex,
+        true,
+    );
     updateFallbackViewport(state.mainStream);
 
     state.depErroredThisBar = false;

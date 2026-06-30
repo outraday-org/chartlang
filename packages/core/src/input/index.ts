@@ -8,6 +8,8 @@ export type {
     CommonInputOpts,
     EnumDescriptor,
     ExternalSeriesDescriptor,
+    ExternalSeriesFeed,
+    ExternalSeriesFeedMap,
     FloatDescriptor,
     InputDescriptor,
     InputDisplay,

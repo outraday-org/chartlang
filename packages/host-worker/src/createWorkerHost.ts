@@ -4,6 +4,7 @@
 import type {
     AdapterSymInfo,
     Capabilities,
+    ExternalSeriesFeedMap,
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -24,6 +25,9 @@ import type { HostLimits, ScriptHost, WorkerErrorEvent, WorkerLike } from "./typ
  * - `resolvePlotOverrides` — optional adapter callback for the initial per-slot
  *   presentation overrides. Resolved during `load()`; the plain record is sent
  *   to the worker beside `inputOverrides`.
+ * - `resolveExternalSeries` — optional adapter callback for initial
+ *   external-series feeds. Resolved during `load()`; live updates use
+ *   `setExternalSeries(feeds)` and replace the whole feed map.
  * - `workerLike` — injection seam for tests. Production callers omit it; the
  *   host then constructs a real `Worker` via {@link defaultWorkerFactory}.
  * - `limits` — partial `HostLimits` overrides; missing fields fall through to
@@ -45,6 +49,7 @@ export type CreateWorkerHostOpts = {
     readonly symInfo?: AdapterSymInfo;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
+    readonly resolveExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
     readonly workerLike?: WorkerLike;
     readonly limits?: Partial<HostLimits>;
     readonly onWorkerError?: (message: string) => void;
@@ -196,6 +201,13 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                     ...(opts.resolvePlotOverrides !== undefined
                         ? { plotOverrides: opts.resolvePlotOverrides(compiled.manifest.name) }
                         : {}),
+                    ...(opts.resolveExternalSeries !== undefined
+                        ? {
+                              externalSeriesFeeds: opts.resolveExternalSeries(
+                                  compiled.manifest.name,
+                              ),
+                          }
+                        : {}),
                     limits,
                 };
                 worker.postMessage(frame);
@@ -208,6 +220,10 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
         },
         setPlotOverrides(overrides) {
             const frame: HostToWorker = { kind: "setPlotOverrides", overrides };
+            worker.postMessage(frame);
+        },
+        setExternalSeries(feeds) {
+            const frame: HostToWorker = { kind: "setExternalSeries", feeds };
             worker.postMessage(frame);
         },
         drain() {
