@@ -1,0 +1,123 @@
+# canvas2d candle / bar render + capabilities
+
+> **Status: TODO**
+
+## Goal
+
+Render the `candle` and `ohlc-bar` plot styles in the reference
+canvas2d adapter: two render functions, the emission-dispatch +
+per-bar accumulation, the `Capabilities.plots` opt-in, and adapter
+tests. This makes the feature end-to-end visible.
+
+## Prerequisites
+
+Task 4 (wire styles), Task 6 (runtime emits them).
+
+## Current Behavior
+
+`examples/canvas2d-adapter/src/` dispatches each `PlotEmission` on
+`style.kind`. Overlay-style kinds (`candle-override`, `bar-override`,
+markers) draw immediately; series-topology kinds (`line`, `area`,
+`filled-band`) accumulate a per-bar `PlotPoint` and draw at flush.
+`render/filledBand.ts` (`drawFilledBand`) + `createCanvas2dAdapter.ts`
+(`renderFilledBandSeries`, ~lines 552-578, and the style-extract at
+~lines 1005-1034) are the multi-value precedent.
+`render/candleOverride.ts` shows OHLC→pixel projection. The adapter
+declares supported kinds in `src/capabilities.ts`
+(`CANVAS2D_PLOT_KINDS`, ~lines 24-41) — `"candle"` / `"ohlc-bar"` are
+absent.
+
+## Desired Behavior
+
+A `plotcandle` series renders a full candle per bar (high-low wick, an
+open-close body colored by `close ≥ open`, optional border); a
+`plotbar` series renders an OHLC bar (vertical high-low line, left tick
+= open, right tick = close). Both use the emission's own OHLC quad, not
+the primary chart candles, so a derived series (Heikin-Ashi, HTF
+overlay) is drawn correctly.
+
+## Requirements
+
+### 1. Render functions (`examples/canvas2d-adapter/src/render/`)
+
+- `candle.ts` → `drawCandle(ctx, args, viewport)`. `args`: projected
+  `{ x, open, high, low, close }` pixel coords + `{ bull, bear, doji,
+  wickColor, borderColor }`. Draw the wick (`high`→`low` vertical line),
+  then the body rect (`open`↔`close`), pick fill by `close > open` (bull)
+  / `close < open` (bear) / `close === open` (doji ?? bull), enforce a
+  minimum 1px body height (mirror `candleOverride.ts`'s
+  `Math.max(1, …)`), stroke the border if `borderColor` set. A bar whose
+  OHLC is all-`null` draws nothing.
+- `ohlcBar.ts` → `drawOhlcBar(ctx, args, viewport)`. Vertical high-low
+  line at `x`; a short left tick at `open`, right tick at `close`; color
+  by `upColor`/`downColor` (fallback `color`) using `close ≥ open`.
+
+Reuse the shared `timeToX` / `priceToY` / `projectShiftedX` helpers the
+existing renderers use — do not add parallel projection math.
+
+### 2. Dispatch + accumulation (`createCanvas2dAdapter.ts`)
+
+- In the style-extract (mirror the `filled-band` branch ~line 1022),
+  add: `...(plot.style.kind === "candle" ? { open, high, low, close,
+  bull, bear, doji, wickColor, borderColor } : {})` and the analogous
+  `ohlc-bar` extract, into the accumulated `PlotPoint`.
+- Add `renderCandleSeries` / `renderOhlcBarSeries` (mirror
+  `renderFilledBandSeries`, ~line 552): for each accumulated point,
+  project the quad to pixels and call `drawCandle` / `drawOhlcBar`.
+  Candles/bars are drawn **per bar** (not connected), so — unlike
+  filled-band — there is no polygon walk; just iterate and draw.
+- Route `candle` / `ohlc-bar` to the series bucket (they own an
+  x-per-bar topology), the way `filled-band` is routed, in the
+  per-kind dispatch (`applyPlot`).
+
+### 3. Capabilities (`examples/canvas2d-adapter/src/capabilities.ts`)
+
+Add `"candle"` and `"ohlc-bar"` to `CANVAS2D_PLOT_KINDS`. This is the
+adapter's opt-in; without it Task 6's runtime gate no-ops the plot.
+
+### 4. Tests (`examples/canvas2d-adapter/src/**/*.test.ts`)
+
+- Unit-test `drawCandle` / `drawOhlcBar` against a mock 2D context
+  (mirror the `candleOverride` / `filledBand` render tests): assert the
+  fill color chosen for bull / bear / doji, the min-body-height clamp,
+  wick + border stroke calls, and that an all-`null` bar issues no draw
+  calls.
+- Integration: run a small `plotcandle` script through the adapter and
+  assert the accumulated series projects to the expected draw-call
+  sequence (mirror the existing `filled-band` integration test).
+- Capability: with `"candle"` present the plot renders; confirm the
+  adapter still type-checks against the `Capabilities` contract.
+
+## Files to Create / Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `examples/canvas2d-adapter/src/render/candle.ts` (+ test) | Create | `drawCandle` |
+| `examples/canvas2d-adapter/src/render/ohlcBar.ts` (+ test) | Create | `drawOhlcBar` |
+| `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | extract + `renderCandleSeries`/`renderOhlcBarSeries` + dispatch |
+| `examples/canvas2d-adapter/src/capabilities.ts` | Modify | add 2 `PlotKind`s |
+| `examples/canvas2d-adapter/src/**/*.test.ts` | Modify/Create | render + integration + capability tests |
+
+## Gates
+
+- `pnpm typecheck`, `pnpm lint`
+- `pnpm test` (adapter 100% coverage — bull/bear/doji, min-body, null
+  bar, border on/off, up/down bar)
+- `pnpm conformance` (Task 8 adds the scenario; keep the suite green)
+
+## Changeset
+
+`.changeset/canvas2d-candle-render.md` —
+`"@invinite-org/chartlang-canvas2d-adapter": minor` (match the actual
+adapter package name). Body: "Render `candle` / `ohlc-bar` custom
+OHLC series in the canvas2d reference adapter."
+
+## Acceptance Criteria
+
+- `drawCandle` / `drawOhlcBar` render from the emission's own OHLC quad
+  using the shared projection helpers (no parallel math).
+- `candle` / `ohlc-bar` are accumulated + dispatched like `filled-band`
+  (per-bar draw, not a connected polygon); capability opt-in added.
+- Color selection (bull/bear/doji, up/down), min-body clamp, border,
+  and all-null gap are unit-covered; integration test passes.
+- Adapter coverage 100%; changeset committed.
