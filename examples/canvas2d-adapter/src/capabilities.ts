@@ -35,6 +35,8 @@ const CANVAS2D_PLOT_KINDS: ReadonlyArray<PlotKind> = Object.freeze([
     "arrow",
     "candle-override",
     "bar-override",
+    "candle",
+    "ohlc-bar",
     "bg-color",
     "bar-color",
     "horizontal-histogram",

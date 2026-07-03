@@ -129,6 +129,7 @@ import { PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO } from "./plotKindBarOverrideGate
 import { PLOT_KIND_BG_COLOR_SCENARIO } from "./plotKindBgColor.scenario.js";
 import { PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO } from "./plotKindBgColorDynamic.scenario.js";
 import { PLOT_KIND_BG_COLOR_GATED_SCENARIO } from "./plotKindBgColorGated.scenario.js";
+import { PLOT_KIND_CANDLE_SCENARIO } from "./plotKindCandle.scenario.js";
 import { PLOT_KIND_CANDLE_OVERRIDE_SCENARIO } from "./plotKindCandleOverride.scenario.js";
 import { PLOT_KIND_CANDLE_OVERRIDE_GATED_SCENARIO } from "./plotKindCandleOverrideGated.scenario.js";
 import { PLOT_KIND_CHARACTER_SCENARIO } from "./plotKindCharacter.scenario.js";
@@ -136,6 +137,7 @@ import { PLOT_KIND_CHARACTER_GATED_SCENARIO } from "./plotKindCharacterGated.sce
 import { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario.js";
 import { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHistogram.scenario.js";
 import { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
+import { PLOT_KIND_OHLC_BAR_SCENARIO } from "./plotKindOhlcBar.scenario.js";
 import { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 import { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
 import { PLOT_OFFSET_XSHIFT_SCENARIO } from "./plotOffsetXshift.scenario.js";
@@ -180,8 +182,10 @@ import { TA_CMF_SCENARIO } from "./taCmf.scenario.js";
 import { TA_CMO_SCENARIO } from "./taCmo.scenario.js";
 import { TA_CONNORS_RSI_SCENARIO } from "./taConnorsRsi.scenario.js";
 import { TA_COPPOCK_SCENARIO } from "./taCoppock.scenario.js";
+import { TA_CROSS_SCENARIO } from "./taCross.scenario.js";
 import { TA_CROSSOVER_SCENARIO } from "./taCrossover.scenario.js";
 import { TA_CROSSUNDER_SCENARIO } from "./taCrossunder.scenario.js";
+import { TA_CUM_SCENARIO } from "./taCum.scenario.js";
 import { TA_DEMA_SCENARIO } from "./taDema.scenario.js";
 import { TA_DMI_SCENARIO } from "./taDmi.scenario.js";
 import { TA_DONCHIAN_SCENARIO } from "./taDonchian.scenario.js";
@@ -189,6 +193,7 @@ import { TA_DPO_SCENARIO } from "./taDpo.scenario.js";
 import { TA_EMA_SCENARIO } from "./taEma.scenario.js";
 import { TA_ENVELOPE_SCENARIO } from "./taEnvelope.scenario.js";
 import { TA_EOM_SCENARIO } from "./taEom.scenario.js";
+import { TA_FALLING_SCENARIO } from "./taFalling.scenario.js";
 import { TA_FISHER_SCENARIO } from "./taFisher.scenario.js";
 import { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProfile.scenario.js";
 import { TA_FIXED_RANGE_VOLUME_PROFILE_GATED_SCENARIO } from "./taFixedRangeVolumeProfileGated.scenario.js";
@@ -223,6 +228,7 @@ import { TA_PSAR_SCENARIO } from "./taPsar.scenario.js";
 import { TA_PVI_SCENARIO } from "./taPvi.scenario.js";
 import { TA_PVO_SCENARIO } from "./taPvo.scenario.js";
 import { TA_PVT_SCENARIO } from "./taPvt.scenario.js";
+import { TA_RISING_SCENARIO } from "./taRising.scenario.js";
 import { TA_ROC_SCENARIO } from "./taRoc.scenario.js";
 import { TA_RSI_SCENARIO } from "./taRsi.scenario.js";
 import { TA_RVGI_SCENARIO } from "./taRvgi.scenario.js";
@@ -382,6 +388,7 @@ export { PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO } from "./plotKindBarOverrideGate
 export { PLOT_KIND_BG_COLOR_SCENARIO } from "./plotKindBgColor.scenario.js";
 export { PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO } from "./plotKindBgColorDynamic.scenario.js";
 export { PLOT_KIND_BG_COLOR_GATED_SCENARIO } from "./plotKindBgColorGated.scenario.js";
+export { PLOT_KIND_CANDLE_SCENARIO } from "./plotKindCandle.scenario.js";
 export { PLOT_KIND_CANDLE_OVERRIDE_SCENARIO } from "./plotKindCandleOverride.scenario.js";
 export { PLOT_KIND_CANDLE_OVERRIDE_GATED_SCENARIO } from "./plotKindCandleOverrideGated.scenario.js";
 export { PLOT_KIND_CHARACTER_SCENARIO } from "./plotKindCharacter.scenario.js";
@@ -389,6 +396,7 @@ export { PLOT_KIND_CHARACTER_GATED_SCENARIO } from "./plotKindCharacterGated.sce
 export { PLOT_KIND_COVERAGE_SCENARIO } from "./plotKindCoverage.scenario.js";
 export { PLOT_KIND_HORIZONTAL_HISTOGRAM_SCENARIO } from "./plotKindHorizontalHistogram.scenario.js";
 export { PLOT_KIND_HORIZONTAL_HISTOGRAM_GATED_SCENARIO } from "./plotKindHorizontalHistogramGated.scenario.js";
+export { PLOT_KIND_OHLC_BAR_SCENARIO } from "./plotKindOhlcBar.scenario.js";
 export { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
@@ -438,8 +446,10 @@ export { TA_CMF_SCENARIO } from "./taCmf.scenario.js";
 export { TA_CMO_SCENARIO } from "./taCmo.scenario.js";
 export { TA_CONNORS_RSI_SCENARIO } from "./taConnorsRsi.scenario.js";
 export { TA_COPPOCK_SCENARIO } from "./taCoppock.scenario.js";
+export { TA_CROSS_SCENARIO } from "./taCross.scenario.js";
 export { TA_CROSSOVER_SCENARIO } from "./taCrossover.scenario.js";
 export { TA_CROSSUNDER_SCENARIO } from "./taCrossunder.scenario.js";
+export { TA_CUM_SCENARIO } from "./taCum.scenario.js";
 export { TA_DEMA_SCENARIO } from "./taDema.scenario.js";
 export { TA_DMI_SCENARIO } from "./taDmi.scenario.js";
 export { TA_DONCHIAN_SCENARIO } from "./taDonchian.scenario.js";
@@ -447,6 +457,7 @@ export { TA_DPO_SCENARIO } from "./taDpo.scenario.js";
 export { TA_EMA_SCENARIO } from "./taEma.scenario.js";
 export { TA_ENVELOPE_SCENARIO } from "./taEnvelope.scenario.js";
 export { TA_EOM_SCENARIO } from "./taEom.scenario.js";
+export { TA_FALLING_SCENARIO } from "./taFalling.scenario.js";
 export { TA_FISHER_SCENARIO } from "./taFisher.scenario.js";
 export { TA_FIXED_RANGE_VOLUME_PROFILE_SCENARIO } from "./taFixedRangeVolumeProfile.scenario.js";
 export { TA_FIXED_RANGE_VOLUME_PROFILE_GATED_SCENARIO } from "./taFixedRangeVolumeProfileGated.scenario.js";
@@ -481,6 +492,7 @@ export { TA_PSAR_SCENARIO } from "./taPsar.scenario.js";
 export { TA_PVI_SCENARIO } from "./taPvi.scenario.js";
 export { TA_PVO_SCENARIO } from "./taPvo.scenario.js";
 export { TA_PVT_SCENARIO } from "./taPvt.scenario.js";
+export { TA_RISING_SCENARIO } from "./taRising.scenario.js";
 export { TA_ROC_SCENARIO } from "./taRoc.scenario.js";
 export { TA_RSI_SCENARIO } from "./taRsi.scenario.js";
 export { TA_RVGI_SCENARIO } from "./taRvgi.scenario.js";
@@ -573,6 +585,8 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     PLOT_KIND_ARROW_GATED_SCENARIO,
     PLOT_KIND_CANDLE_OVERRIDE_SCENARIO,
     PLOT_KIND_CANDLE_OVERRIDE_GATED_SCENARIO,
+    PLOT_KIND_CANDLE_SCENARIO,
+    PLOT_KIND_OHLC_BAR_SCENARIO,
     PLOT_KIND_BAR_OVERRIDE_SCENARIO,
     PLOT_KIND_BAR_OVERRIDE_GATED_SCENARIO,
     PLOT_KIND_BG_COLOR_SCENARIO,
@@ -594,6 +608,10 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     TA_LOWEST_SCENARIO,
     TA_HIGHEST_LOWEST_BARS_SCENARIO,
     TA_CHANGE_SCENARIO,
+    TA_RISING_SCENARIO,
+    TA_FALLING_SCENARIO,
+    TA_CROSS_SCENARIO,
+    TA_CUM_SCENARIO,
     TA_VALUEWHEN_SCENARIO,
     TA_BARSSINCE_SCENARIO,
     // §22.10 contract — one dedicated scenario per ta.* primitive.

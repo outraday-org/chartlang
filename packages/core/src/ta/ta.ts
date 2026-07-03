@@ -197,6 +197,51 @@ export type LowestbarsOpts = Readonly<{ offset?: number }>;
 export type ChangeOpts = Readonly<{ length?: number; offset?: number }>;
 
 /**
+ * Options bag for `ta.rising`. Empty in v1 — reserved so a later option is
+ * additive within `apiVersion: 1`.
+ *
+ * @formula  N/A — see `ta.rising` JSDoc
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: RisingOpts = {};
+ */
+export type RisingOpts = Readonly<Record<string, never>>;
+
+/**
+ * Options bag for `ta.falling`. Mirrors {@link RisingOpts}.
+ *
+ * @formula  N/A — see `ta.falling` JSDoc
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: FallingOpts = {};
+ */
+export type FallingOpts = Readonly<Record<string, never>>;
+
+/**
+ * Options bag for `ta.cross`. Mirrors {@link RisingOpts}.
+ *
+ * @formula  N/A — see `ta.cross` JSDoc
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: CrossOpts = {};
+ */
+export type CrossOpts = Readonly<Record<string, never>>;
+
+/**
+ * Options bag for `ta.cum`. Mirrors {@link RisingOpts}.
+ *
+ * @formula  N/A — see `ta.cum` JSDoc
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: CumOpts = {};
+ */
+export type CumOpts = Readonly<Record<string, never>>;
+
+/**
  * Options bag for `ta.valuewhen`. `offset` shifts the emitted series after the
  * occurrence lookup has been evaluated.
  *
@@ -2396,6 +2441,10 @@ export type TaNamespace = {
     atr(length: number, opts?: AtrOpts): Series<number>;
     crossover(a: TaSource, b: TaSource, opts?: CrossoverOpts): Series<boolean>;
     crossunder(a: TaSource, b: TaSource, opts?: CrossunderOpts): Series<boolean>;
+    rising(source: TaSource, length: number, opts?: RisingOpts): Series<boolean>;
+    falling(source: TaSource, length: number, opts?: FallingOpts): Series<boolean>;
+    cross(a: TaSource, b: TaSource, opts?: CrossOpts): Series<boolean>;
+    cum(source: TaSource, opts?: CumOpts): Series<number>;
     nz(value: number, replacement?: number): number;
     highest(source: TaSource, length: number, opts?: HighestOpts): Series<number>;
     lowest(source: TaSource, length: number, opts?: LowestOpts): Series<number>;
@@ -2548,6 +2597,68 @@ export const ta: TaNamespace = /* @__PURE__ */ Object.freeze({
     },
     crossunder: () => {
         throw new Error("ta.crossunder called outside compiled runtime");
+    },
+    /**
+     * `true` when `source` rose on each of the trailing `length` bars — every
+     * one of the last `length` consecutive first-differences is strictly
+     * positive. A `NaN` anywhere in the window yields `false` (the
+     * boolean-series convention shared with `ta.crossover`).
+     *
+     * @formula  out[t] = ⋀_{k=1..length} src[t−k+1] > src[t−k]
+     * @warmup   length
+     * @since 1.8
+     * @stable
+     * @example
+     *     // const up = ta.rising(bar.close, 3);
+     */
+    rising: () => {
+        throw new Error("ta.rising called outside compiled runtime");
+    },
+    /**
+     * `true` when `source` fell on each of the trailing `length` bars — every
+     * one of the last `length` consecutive first-differences is strictly
+     * negative. A `NaN` anywhere in the window yields `false` (the
+     * boolean-series convention shared with `ta.crossunder`).
+     *
+     * @formula  out[t] = ⋀_{k=1..length} src[t−k+1] < src[t−k]
+     * @warmup   length
+     * @since 1.8
+     * @stable
+     * @example
+     *     // const down = ta.falling(bar.close, 3);
+     */
+    falling: () => {
+        throw new Error("ta.falling called outside compiled runtime");
+    },
+    /**
+     * `true` on the bar where `a` crosses `b` in either direction — the union
+     * of `ta.crossover(a, b)` and `ta.crossunder(a, b)`. A `NaN` operand in
+     * the one-bar window yields `false`.
+     *
+     * @formula  out[t] = crossover(a,b)[t] ∨ crossunder(a,b)[t]
+     * @warmup   1
+     * @since 1.8
+     * @stable
+     * @example
+     *     // const touched = ta.cross(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
+     */
+    cross: () => {
+        throw new Error("ta.cross called outside compiled runtime");
+    },
+    /**
+     * Running (cumulative) sum of `source` from the first bar. A `NaN` sample
+     * contributes `0`, carrying the total forward without polluting it
+     * (matching Pine `ta.cum` and the `obv` / `adl` accumulator convention).
+     *
+     * @formula  out[t] = Σ_{u=0..t} (isFinite(src[u]) ? src[u] : 0)
+     * @warmup   0
+     * @since 1.8
+     * @stable
+     * @example
+     *     // const cumVol = ta.cum(bar.volume);
+     */
+    cum: () => {
+        throw new Error("ta.cum called outside compiled runtime");
     },
     nz: () => {
         throw new Error("ta.nz called outside compiled runtime");

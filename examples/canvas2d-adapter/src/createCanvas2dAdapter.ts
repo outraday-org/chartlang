@@ -50,6 +50,7 @@ import {
     drawBarColor,
     drawBarOverride,
     drawBgColor,
+    drawCandle,
     drawCandleOverride,
     drawCandles,
     drawCharacter,
@@ -61,6 +62,7 @@ import {
     drawLine,
     drawLogPane,
     drawMarker,
+    drawOhlcBar,
     drawPaneSeparator,
     drawShape,
     drawYAxis,
@@ -287,6 +289,16 @@ function computeYRange(
             }
             if (point.lower != null) {
                 candidates.push({ x: point.time, lo: point.lower, hi: point.lower });
+            }
+            // A `candle` / `ohlc-bar` point carries its bar's wick extent;
+            // fold each finite edge in so the wick span stretches the auto
+            // price scale (and the series projects even with no primary
+            // candles pushed), mirroring the band edges above.
+            if (point.high != null) {
+                candidates.push({ x: point.time, lo: point.high, hi: point.high });
+            }
+            if (point.low != null) {
+                candidates.push({ x: point.time, lo: point.low, hi: point.low });
             }
         }
     }
@@ -577,6 +589,86 @@ function renderFilledBandSeries(
     drawFilledBand(ctx, { upper, lower, color, alpha: style.alpha }, palette);
 }
 
+// Map an accumulated `candle` (`plotcandle`) series to `drawCandle`. Each
+// point carries its bar's OHLC quad (all-finite or all-null); the per-series
+// body colors live on the style (like `renderFilledBandSeries` reads
+// `style.alpha`). Candles are drawn per bar — no connected polygon — so this
+// simply projects each bar's x and hands the world OHLC + colors to
+// `drawCandle`, which skips an all-null gap and projects the prices itself.
+function renderCandleSeries(
+    ctx: RenderCtx,
+    series: ReadonlyArray<PlotPoint>,
+    style: Extract<PlotStyle, { kind: "candle" }>,
+    world: { readonly bars: ReadonlyArray<Bar>; readonly spacing: number },
+    viewport: Viewport,
+): void {
+    const barCount = world.bars.length;
+    for (const point of series) {
+        drawCandle(
+            ctx,
+            {
+                x: projectShiftedX(
+                    {
+                        bars: world.bars,
+                        bar: point.bar,
+                        xShift: point.xShift,
+                        spacing: world.spacing,
+                    },
+                    viewport,
+                ),
+                open: point.open ?? null,
+                high: point.high ?? null,
+                low: point.low ?? null,
+                close: point.close ?? null,
+                bull: style.bull,
+                bear: style.bear,
+                ...(style.doji === undefined ? {} : { doji: style.doji }),
+                ...(style.wickColor === undefined ? {} : { wickColor: style.wickColor }),
+                ...(style.borderColor === undefined ? {} : { borderColor: style.borderColor }),
+                barCount,
+            },
+            viewport,
+        );
+    }
+}
+
+// Map an accumulated `ohlc-bar` (`plotbar`) series to `drawOhlcBar` — the same
+// per-bar draw as `renderCandleSeries`, with the up/down colors on the style.
+function renderOhlcBarSeries(
+    ctx: RenderCtx,
+    series: ReadonlyArray<PlotPoint>,
+    style: Extract<PlotStyle, { kind: "ohlc-bar" }>,
+    world: { readonly bars: ReadonlyArray<Bar>; readonly spacing: number },
+    viewport: Viewport,
+): void {
+    const barCount = world.bars.length;
+    for (const point of series) {
+        drawOhlcBar(
+            ctx,
+            {
+                x: projectShiftedX(
+                    {
+                        bars: world.bars,
+                        bar: point.bar,
+                        xShift: point.xShift,
+                        spacing: world.spacing,
+                    },
+                    viewport,
+                ),
+                open: point.open ?? null,
+                high: point.high ?? null,
+                low: point.low ?? null,
+                close: point.close ?? null,
+                color: style.color,
+                ...(style.upColor === undefined ? {} : { upColor: style.upColor }),
+                ...(style.downColor === undefined ? {} : { downColor: style.downColor }),
+                barCount,
+            },
+            viewport,
+        );
+    }
+}
+
 function renderBackgroundOverlays(state: AdapterState, viewport: Viewport): void {
     for (const plot of state.plotOverlays.values()) {
         if (plot.style.kind !== "bg-color") continue;
@@ -818,6 +910,14 @@ function paintSeries(
         renderFilledBandSeries(state.ctx, series, style, world, viewport, state.palette);
         return;
     }
+    if (style !== undefined && style.kind === "candle") {
+        renderCandleSeries(state.ctx, series, style, world, viewport);
+        return;
+    }
+    if (style !== undefined && style.kind === "ohlc-bar") {
+        renderOhlcBarSeries(state.ctx, series, style, world, viewport);
+        return;
+    }
     // Plain `line` plots (and the default, undefined style) render as a smooth
     // monotone-cubic curve; `step-line` paints a horizontal-then-vertical
     // staircase; neither flag set keeps straight segments.
@@ -1002,7 +1102,9 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
         plot.style.kind === "step-line" ||
         plot.style.kind === "histogram" ||
         plot.style.kind === "area" ||
-        plot.style.kind === "filled-band"
+        plot.style.kind === "filled-band" ||
+        plot.style.kind === "candle" ||
+        plot.style.kind === "ohlc-bar"
     ) {
         const key = paneSlotKey(paneKey, plot.slotId);
         const series = state.plotSeries.get(key) ?? [];
@@ -1021,6 +1123,18 @@ function applyPlot(state: AdapterState, plot: PlotEmission): void {
             // them and reads `value` only.
             ...(plot.style.kind === "filled-band"
                 ? { upper: plot.style.upper, lower: plot.style.lower }
+                : {}),
+            // A `candle` / `ohlc-bar` carries its per-bar OHLC quad on the
+            // point (the series geometry IS the quad); the per-series body
+            // colors ride the stored style. Every other series style omits
+            // these and reads `value` only.
+            ...(plot.style.kind === "candle" || plot.style.kind === "ohlc-bar"
+                ? {
+                      open: plot.style.open,
+                      high: plot.style.high,
+                      low: plot.style.low,
+                      close: plot.style.close,
+                  }
                 : {}),
             // Per-bar dynamic color (`PlotEmission.colorValue`). Omit it when
             // absent so a no-`colorValue` point is byte-identical to the

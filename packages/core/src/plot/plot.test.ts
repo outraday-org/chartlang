@@ -3,11 +3,14 @@
 
 import { describe, expect, it } from "vitest";
 
-import { barcolor, bgcolor, hline, plot } from "./plot.js";
+import { barcolor, bgcolor, hline, plot, plotbar, plotcandle } from "./plot.js";
+import type { Series } from "../types.js";
 import type {
     BarColorOpts,
     BgColorOpts,
     HLineOpts,
+    PlotBarOpts,
+    PlotCandleOpts,
     PlotKind,
     PlotOpts,
     PlotOptsStyle,
@@ -42,6 +45,83 @@ describe("plot callable hole", () => {
         expect(() => barcolor("#a855f7", { title: "trend tint" })).toThrow(
             "barcolor called outside compiled runtime",
         );
+    });
+
+    it("plotcandle throws outside-runtime sentinel", () => {
+        expect(() => plotcandle(1, 2, 0, 1.5)).toThrow(
+            "plotcandle called outside compiled runtime",
+        );
+        expect(() =>
+            plotcandle(1, 2, 0, 1.5, { bull: "#26a69a", bear: "#ef5350", doji: "#999999" }),
+        ).toThrow("plotcandle called outside compiled runtime");
+    });
+
+    it("plotbar throws outside-runtime sentinel", () => {
+        expect(() => plotbar(1, 2, 0, 1.5)).toThrow("plotbar called outside compiled runtime");
+        expect(() => plotbar(1, 2, 0, 1.5, { color: "#f59e0b" })).toThrow(
+            "plotbar called outside compiled runtime",
+        );
+    });
+});
+
+describe("PlotCandleOpts and PlotBarOpts types", () => {
+    it("plotcandle accepts scalar and series OHLC args plus a candle opts bag", () => {
+        const series: Series<number> = { current: 1, length: 1 };
+        const opts: PlotCandleOpts = {
+            bull: "#26a69a",
+            bear: "#ef5350",
+            doji: "#999999",
+            wickColor: "#777777",
+            borderColor: "#111111",
+            title: "HA",
+            visible: true,
+            z: -1,
+            pane: "overlay",
+        };
+        const empty: PlotCandleOpts = {};
+        // @ts-expect-error bull is a Color string, not a number
+        const bad: PlotCandleOpts = { bull: 5 };
+        expect(() => plotcandle(1, 2, 0, series, opts)).toThrow(
+            "plotcandle called outside compiled runtime",
+        );
+        void empty;
+        void bad;
+    });
+
+    it("plotbar accepts scalar and series OHLC args plus a bar opts bag", () => {
+        const series: Series<number> = { current: 1, length: 1 };
+        const opts: PlotBarOpts = {
+            color: "#f59e0b",
+            upColor: "#26a69a",
+            downColor: "#ef5350",
+            title: "bars",
+            visible: false,
+            z: 2,
+            pane: "new",
+        };
+        const empty: PlotBarOpts = {};
+        // @ts-expect-error color is a Color string, not a boolean
+        const bad: PlotBarOpts = { color: true };
+        expect(() => plotbar(series, 2, 0, 1.5, opts)).toThrow(
+            "plotbar called outside compiled runtime",
+        );
+        void empty;
+        void bad;
+    });
+
+    it("requires all four OHLC arguments", () => {
+        const call: (
+            open: number,
+            high: number,
+            low: number,
+            close: number,
+            opts?: PlotCandleOpts,
+        ) => void = plotcandle;
+        expect(() =>
+            // @ts-expect-error close (the fourth OHLC arg) is required
+            plotcandle(1, 2, 0),
+        ).toThrow("plotcandle called outside compiled runtime");
+        void call;
     });
 });
 

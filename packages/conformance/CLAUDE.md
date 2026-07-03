@@ -200,6 +200,32 @@ plot hashes, alert counts, and diagnostic codes.
   Re-pin via the runner's "expected vs actual" message only when the
   golden bars change.
 
+## Value-carrying candle scenario invariants
+
+- **`plot-kind-candle` / `plot-kind-ohlc-bar` INJECT their plot capability
+  via `capabilitiesOverride`, unlike every other `plotKind*` scenario.**
+  `plotcandle` / `plotbar` lower to the `candle` / `ohlc-bar` wire kinds,
+  which ONLY the canvas2d reference adapter declares — the other five
+  conformance adapters build `plots` from the frozen `PHASE_5_PLOT_KINDS`
+  (or webgl's explicit list), neither of which includes the two new kinds.
+  Because `pnpm conformance` runs `ALL_SCENARIOS` against all six adapters, a
+  no-override scenario would emit `unsupported-plot-kind` + no-op the plot on
+  five of them, breaking BOTH the `diagnostic-code-absent: unsupported-plot-kind`
+  assertion AND the single pinned `plot-hash`. So each scenario sets
+  `capabilitiesOverride: { plots: new Set(["candle"]) }` /
+  `new Set(["ohlc-bar"])` — the same lever the `*Gated` scenarios use to
+  NARROW `plots`, here forcing the kind PRESENT so the value-carrying happy
+  path is deterministic on every adapter. Do NOT drop the override to "match
+  the other plotKind scenarios" — it will silently pass canvas2d and fail the
+  other five.
+- **Both scenarios pin the SAME `plot-hash` as the `bar.close` control
+  (`5fbfff9c…`).** `PlotEmission.value` is single-channel `close ?? null`
+  (the OHLC quad rides INSIDE `style`, which `plot-hash` does not cover), and
+  both scenarios feed `bar.close` as their close source over the first 5
+  golden bars — byte-identical to `plotKindCandleOverride` /
+  `plotKindBgColor`. This is expected, not a copy-paste bug; re-pin via the
+  runner's "expected vs actual" message only when the golden bars change.
+
 ## Pine round-trip invariants
 
 - **The `pine-converter-round-trip-*` scenarios convert a committed

@@ -86,8 +86,10 @@ export type {
     CmoOpts,
     ConnorsRsiOpts,
     CoppockOpts,
+    CrossOpts,
     CrossoverOpts,
     CrossunderOpts,
+    CumOpts,
     DemaOpts,
     DmiOpts,
     DmiResult,
@@ -98,6 +100,7 @@ export type {
     EomOpts,
     EnvelopeOpts,
     EnvelopeResult,
+    FallingOpts,
     FisherOpts,
     FisherResult,
     FixedRangeVolumeProfileOpts,
@@ -146,6 +149,7 @@ export type {
     PvoOpts,
     PvoResult,
     PvtOpts,
+    RisingOpts,
     RocOpts,
     RsiOpts,
     RvgiOpts,
@@ -262,11 +266,13 @@ export { applyFormat, formatNumber, str } from "./str/index.js";
 export type { StrNamespace } from "./str/index.js";
 export { array } from "./array/index.js";
 export type { ArrayNamespace } from "./array/index.js";
-export { barcolor, bgcolor, hline, plot } from "./plot/index.js";
+export { barcolor, bgcolor, hline, plot, plotbar, plotcandle } from "./plot/index.js";
 export type {
     BarColorOpts,
     BgColorOpts,
     HLineOpts,
+    PlotBarOpts,
+    PlotCandleOpts,
     PlotKind,
     PlotOpts,
     PlotOptsStyle,

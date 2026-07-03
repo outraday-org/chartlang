@@ -262,13 +262,55 @@ Reference adapter package — **not published to npm**.
   byte-stable; the EMA-cross `PINNED_HASH` (line plots only) is
   untouched.
 
+## Value-carrying candle series (`candle` / `ohlc-bar`, pine-parity Task 7)
+
+- **`candle` (`plotcandle`) / `ohlc-bar` (`plotbar`) are series-shaped, drawn
+  per bar — NOT connected.** `applyPlot` routes both into `plotSeries` (like
+  `area` / `filled-band`), so they join the per-pane z-sorted pass and honour
+  `visible:false` + z/seq. Each point accumulates ONLY its per-bar OHLC quad
+  (`open` / `high` / `low` / `close` on the `PlotPoint`, the `filled-band`
+  `upper` / `lower` precedent); the **per-series body colors live on the stored
+  `PlotStyle`** (`renderCandleSeries` / `renderOhlcBarSeries` read `style.bull`
+  / `style.color` the same way `renderFilledBandSeries` reads `style.alpha`).
+  Colors were deliberately NOT put on the point: they are constant per series
+  (from the `opts`), and carrying required colors as optional point fields
+  would force an unreachable `?? fallback` — a 100%-branch-coverage hazard. As
+  a consequence the style is **last-write-wins per slot** (a script that varies
+  candle colors mid-series keeps only the final style — matching how a real
+  `plotcandle` script passes constant `opts`).
+- **`drawCandle` / `drawOhlcBar` (`render/candle.ts` / `render/ohlcBar.ts`)
+  receive WORLD OHLC prices + a pre-projected pixel `x`, and project the prices
+  themselves via the shared `priceToY` (mirroring `candleOverride.ts` /
+  `barOverride.ts`).** `x` is pre-shifted by the series renderer through
+  `projectShiftedX` (the helpers have no `bars` / `spacing`). Body/tick width
+  = `Math.max(MIN_BODY_WIDTH_PX, (pxWidth / max(1, barCount)) *
+  BODY_WIDTH_RATIO)`; body height floors at `Math.max(1, …)`; `candle`'s wick
+  color falls back to the body color and its border strokes only when
+  `borderColor` is set (`beginPath` + `rect` + `stroke` — the mock has no
+  `strokeRect`); `ohlc-bar` colors by `close ≥ open` (`upColor ?? color` /
+  `downColor ?? color`).
+- **The all-null gap is `drawCandle`/`drawOhlcBar`'s guard.** OHLC args are
+  `number | null`; the helper returns with no draw calls when any field is
+  `null`. Task 4's `validateEmission` guarantees all-four-or-none upstream, so
+  the adapter only ever sees all-finite or all-null; the four guard clauses are
+  covered by the helpers' DIRECT unit tests (all-null + one-null-per-field),
+  not an unreachable adapter path. `computeYRange` folds finite `high` / `low`
+  so the wick span stretches the auto price scale (and the series projects even
+  with no primary candles), mirroring the band-edge fold.
+- **Capability opt-in.** `capabilities.ts:CANVAS2D_PLOT_KINDS` lists `"candle"`
+  / `"ohlc-bar"`; without them Task 6's runtime gate no-ops the plot
+  (`unsupported-plot-kind`). Editing this src requires `pnpm adapters:generate`
+  (the CLI embeds a generated copy; `adapters:gate` byte-diffs it).
+
 ## Plot x-shift invariants
 
 - **Shifted-series plot styles render through `projectShiftedX`
   (`render/coords.ts`).** A `PlotEmission.xShift` (signed integer bars;
   `+n` right / future, `−n` left / past) displaces where a series draws,
-  not its value. Line / step-line / histogram / area / filled-band store
-  `bar` + `xShift` on each `PlotPoint`; shape / character / arrow / marker
+  not its value. Line / step-line / histogram / area / filled-band / candle /
+  ohlc-bar store `bar` + `xShift` on each `PlotPoint` (the value-carrying
+  `candle` / `ohlc-bar` are shifted series, unlike the color-only
+  `candle-override` / `bar-override` state below); shape / character / arrow / marker
   / label glyphs read `bar` + `xShift` off the stored `PlotEmission` in
   `plotOverlays` (marker + label shift like shape/character for parity —
   `extendXMaxForShifts` widens `xMax` for a `+k` marker/label too). Every shifted-series

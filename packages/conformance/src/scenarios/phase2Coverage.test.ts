@@ -106,6 +106,18 @@ const BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS: ReadonlyArray<
     { name: "barcolor", slot: true },
 ] as const);
 
+// `plotcandle` / `plotbar` — derived candle / OHLC-bar series (Pine
+// `plotcandle` / `plotbar`) lowering to the value-carrying `candle` /
+// `ohlc-bar` plot styles. Each callsite is slot-injected (a stable slotId +
+// a `manifest.plots` entry) like `plot` / `hline`, so both are
+// STATEFUL_PRIMITIVES entries.
+const PLOTCANDLE_PLOTBAR_STATEFUL_ADDITIONS: ReadonlyArray<
+    Readonly<{ name: string; slot: boolean }>
+> = Object.freeze([
+    { name: "plotcandle", slot: true },
+    { name: "plotbar", slot: true },
+] as const);
+
 // `time.*` calendar accessors + `session.isOpen` — stateless `slot: false`
 // namespaces (like `ta.nz`): pure functions of an explicit `Time` + optional
 // `tz`, so no callsite-id injection. `time.timeClose` is the one that closes
@@ -132,6 +144,35 @@ const CALENDAR_SESSION_STATEFUL_ADDITIONS: ReadonlyArray<
 const TIME_NOW_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([{ name: "time.now", slot: false }] as const);
 
+// `ta.cross` / `ta.cum` — the pine-parity bidirectional cross (composed from
+// `crossover` / `crossunder`) and generic running sum. Both are `ta.*`
+// registry primitives AND slot-injected STATEFUL_PRIMITIVES entries.
+const CROSS_CUM_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze([
+    "cross",
+    "cum",
+] as const);
+
+const CROSS_CUM_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([
+        { name: "ta.cross", slot: true },
+        { name: "ta.cum", slot: true },
+    ] as const);
+
+// `ta.rising` / `ta.falling` — the pine-parity strict-monotonic direction
+// booleans (each trailing `length` first-difference strictly positive /
+// negative). Both are `ta.*` registry primitives AND slot-injected
+// STATEFUL_PRIMITIVES entries.
+const RISING_FALLING_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze([
+    "rising",
+    "falling",
+] as const);
+
+const RISING_FALLING_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([
+        { name: "ta.rising", slot: true },
+        { name: "ta.falling", slot: true },
+    ] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -150,13 +191,20 @@ describe("Phase 2 surface", () => {
 
     it("TA_REGISTRY keeps the 90-entry Phase-2 baseline plus explicit Phase-5 VP + highest/lowest-bars additions", () => {
         expect(PHASE_2_TA_CARDINALITY).toBe(90);
-        for (const id of [...PHASE_5_TA_ADDITIONS, ...HIGHEST_LOWEST_BARS_TA_ADDITIONS]) {
+        for (const id of [
+            ...PHASE_5_TA_ADDITIONS,
+            ...HIGHEST_LOWEST_BARS_TA_ADDITIONS,
+            ...CROSS_CUM_TA_ADDITIONS,
+            ...RISING_FALLING_TA_ADDITIONS,
+        ]) {
             expect(TA_REGISTRY).toHaveProperty(id);
         }
         expect(Object.keys(TA_REGISTRY).length).toBe(
             PHASE_2_TA_CARDINALITY +
                 PHASE_5_TA_ADDITIONS.length +
-                HIGHEST_LOWEST_BARS_TA_ADDITIONS.length,
+                HIGHEST_LOWEST_BARS_TA_ADDITIONS.length +
+                CROSS_CUM_TA_ADDITIONS.length +
+                RISING_FALLING_TA_ADDITIONS.length,
         );
     });
 
@@ -172,6 +220,9 @@ describe("Phase 2 surface", () => {
                 STATE_MAP_STATEFUL_ADDITIONS.length +
                 STATE_NONNUMERIC_STATEFUL_ADDITIONS.length +
                 BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS.length +
+                PLOTCANDLE_PLOTBAR_STATEFUL_ADDITIONS.length +
+                CROSS_CUM_STATEFUL_ADDITIONS.length +
+                RISING_FALLING_STATEFUL_ADDITIONS.length +
                 CALENDAR_SESSION_STATEFUL_ADDITIONS.length +
                 TIME_NOW_STATEFUL_ADDITIONS.length,
         );
@@ -185,6 +236,9 @@ describe("Phase 2 surface", () => {
             ...STATE_MAP_STATEFUL_ADDITIONS,
             ...STATE_NONNUMERIC_STATEFUL_ADDITIONS,
             ...BGCOLOR_BARCOLOR_STATEFUL_ADDITIONS,
+            ...PLOTCANDLE_PLOTBAR_STATEFUL_ADDITIONS,
+            ...CROSS_CUM_STATEFUL_ADDITIONS,
+            ...RISING_FALLING_STATEFUL_ADDITIONS,
             ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
             ...TIME_NOW_STATEFUL_ADDITIONS,
         ]) {
@@ -222,6 +276,8 @@ describe("Phase 2 surface", () => {
             ...PHASE_2_INDICATORS,
             ...PHASE_5_TA_ADDITIONS,
             ...HIGHEST_LOWEST_BARS_TA_ADDITIONS,
+            ...CROSS_CUM_TA_ADDITIONS,
+            ...RISING_FALLING_TA_ADDITIONS,
         ]);
         const extras = Object.keys(TA_REGISTRY).filter((k) => !known.has(k));
         expect(extras).toEqual([]);

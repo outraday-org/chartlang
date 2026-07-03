@@ -58,6 +58,22 @@ describe("ta callable holes", () => {
         );
     });
 
+    it("ta.rising throws outside-runtime sentinel", () => {
+        expect(() => ta.rising(0, 3)).toThrow("ta.rising called outside compiled runtime");
+    });
+
+    it("ta.falling throws outside-runtime sentinel", () => {
+        expect(() => ta.falling(0, 3)).toThrow("ta.falling called outside compiled runtime");
+    });
+
+    it("ta.cross throws outside-runtime sentinel", () => {
+        expect(() => ta.cross(0, 0)).toThrow("ta.cross called outside compiled runtime");
+    });
+
+    it("ta.cum throws outside-runtime sentinel", () => {
+        expect(() => ta.cum(0)).toThrow("ta.cum called outside compiled runtime");
+    });
+
     it("ta.nz throws outside-runtime sentinel", () => {
         expect(() => ta.nz(Number.NaN, 0)).toThrow("ta.nz called outside compiled runtime");
     });

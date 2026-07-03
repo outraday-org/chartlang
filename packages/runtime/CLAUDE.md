@@ -599,6 +599,29 @@
   gap a future producer may emit, not something the aliases manufacture.
   Render-time precedence (`colorValue` over `style.color`) is the adapters'
   job (Task 6).
+- **`plotcandle` / `plotbar` (`emit/plotCandle.ts`) build a value-carrying
+  `candle` / `ohlc-bar` wire style and reuse the shared plot-emit machinery —
+  they do NOT fork the gate, reader, or emission assembly.** Each resolves its
+  four OHLC sources via `emit/plot.ts:resolveValue` (the ONE reader — number →
+  self, `Series<number>` → `.current`, non-finite → `null`), builds the wire
+  style with the OHLC quad + colors INSIDE the style object (the `filled-band`
+  multi-value precedent — `PlotEmission.value` stays single-channel
+  `close ?? null` for the conformance `plot-hash`), and delegates to the
+  shared `emit/plot.ts:emitPlot(ctx, slotId, style, fields)` (extracted from
+  `plotImpl`) for the `unsupported-plot-kind` gate → pane resolution → the
+  omit-when-default `visible`/`xShift`/`z`/`colorValue` spreads → deduped,
+  override-applied `pushPlot`. **Quad coherence is `validateEmission`'s job,
+  never re-checked in the emit:** an all-null quad is a legit gap emission, a
+  partial (mixed finite/null) quad is dropped by `pushPlot` as
+  `malformed-emission`. `candle` fills the required `bull`/`bear` from
+  `DEFAULT_CANDLE_BULL` (`#26a69a`) / `DEFAULT_CANDLE_BEAR` (`#ef5350`) (the
+  ONE place those constants live); `ohlc-bar` resolves its required `color` by
+  `close ≥ open` selection (`upColor ?? color ?? bull` up, `downColor ?? color
+  ?? bear` down; a fully-null bar counts as up). There is NO tick-specific
+  branch — tick/close reconciliation is the downstream `(slotId, bar)`
+  last-write-wins dedup, exactly like `plot`. `capabilities.allPhase5Plots()`
+  does NOT include `candle`/`ohlc-bar` (frozen `PHASE_5_PLOT_KINDS`), so a
+  test emitting them must ADD the two kinds to the cap set.
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

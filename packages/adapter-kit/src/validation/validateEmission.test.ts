@@ -747,6 +747,175 @@ describe("validateEmission — Phase-5 plot kinds", () => {
     });
 });
 
+describe("validateEmission — value-carrying candle / ohlc-bar kinds", () => {
+    it("accepts candle with an all-finite quad + full colors", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "candle",
+                    open: 1,
+                    high: 2,
+                    low: 0.5,
+                    close: 1.5,
+                    bull: "#26a69a",
+                    bear: "#ef5350",
+                    doji: "#999999",
+                    wickColor: "#111111",
+                    borderColor: "#222222",
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts candle with an all-null quad (gap bar) + no optional colors", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "candle",
+                    open: null,
+                    high: null,
+                    low: null,
+                    close: null,
+                    bull: "#26a69a",
+                    bear: "#ef5350",
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts ohlc-bar with an all-finite quad + up/down colors", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "ohlc-bar",
+                    open: 1,
+                    high: 2,
+                    low: 0.5,
+                    close: 1.5,
+                    color: "#f59e0b",
+                    upColor: "#26a69a",
+                    downColor: "#ef5350",
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("accepts ohlc-bar with an all-null quad (gap bar)", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "ohlc-bar",
+                    open: null,
+                    high: null,
+                    low: null,
+                    close: null,
+                    color: "#f59e0b",
+                },
+            }),
+        ).toEqual({ ok: true });
+    });
+
+    it("rejects a partial-null quad (a mix of finite and null)", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "candle",
+                    open: 1,
+                    high: null,
+                    low: 0.5,
+                    close: 1.5,
+                    bull: "#26a69a",
+                    bear: "#ef5350",
+                },
+            }),
+        ).toMatchObject({
+            ok: false,
+            code: "malformed-emission",
+            message: expect.stringContaining("all four must be finite together or all null"),
+        });
+    });
+
+    it("rejects a non-finite quad value", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "ohlc-bar",
+                    open: 1,
+                    high: Number.POSITIVE_INFINITY,
+                    low: 0.5,
+                    close: 1.5,
+                    color: "#f59e0b",
+                },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("high") });
+    });
+
+    it("rejects candle / ohlc-bar with a bad color", () => {
+        const invalid = [
+            { kind: "candle", open: 1, high: 2, low: 0.5, close: 1.5, bull: "", bear: "#ef5350" },
+            { kind: "candle", open: 1, high: 2, low: 0.5, close: 1.5, bull: "#26a69a", bear: "" },
+            {
+                kind: "candle",
+                open: 1,
+                high: 2,
+                low: 0.5,
+                close: 1.5,
+                bull: "#26a69a",
+                bear: "#ef5350",
+                doji: "",
+            },
+            {
+                kind: "candle",
+                open: 1,
+                high: 2,
+                low: 0.5,
+                close: 1.5,
+                bull: "#26a69a",
+                bear: "#ef5350",
+                wickColor: "",
+            },
+            {
+                kind: "candle",
+                open: 1,
+                high: 2,
+                low: 0.5,
+                close: 1.5,
+                bull: "#26a69a",
+                bear: "#ef5350",
+                borderColor: "",
+            },
+            { kind: "ohlc-bar", open: 1, high: 2, low: 0.5, close: 1.5, color: "" },
+            {
+                kind: "ohlc-bar",
+                open: 1,
+                high: 2,
+                low: 0.5,
+                close: 1.5,
+                color: "#f59e0b",
+                upColor: "",
+            },
+            {
+                kind: "ohlc-bar",
+                open: 1,
+                high: 2,
+                low: 0.5,
+                close: 1.5,
+                color: "#f59e0b",
+                downColor: "",
+            },
+        ];
+        for (const style of invalid) {
+            expect(validateEmission({ ...validPlot, style })).toMatchObject({ ok: false });
+        }
+    });
+});
+
 describe("validateEmission — meta walker", () => {
     it("accepts plain JSON-friendly nesting", () => {
         expect(

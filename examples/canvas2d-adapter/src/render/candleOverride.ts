@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { RenderCtx } from "./clear.js";
-import { priceToY, timeToX, type Viewport } from "./coords.js";
+import { BODY_WIDTH_RATIO, priceToY, timeToX, type Viewport } from "./coords.js";
 
 /**
  * OHLC bar and palette inputs for a Phase 5 `candle-override` body.
@@ -23,8 +23,6 @@ export type CandleOverrideArgs = {
     readonly doji?: string;
     readonly barCount: number;
 };
-
-const BODY_WIDTH_RATIO = 0.6;
 
 /**
  * Paint a candle body with Phase-5 `candle-override` colors.

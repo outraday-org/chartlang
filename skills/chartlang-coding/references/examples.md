@@ -189,6 +189,49 @@ The compiled sidecar is a `ReadonlyArray<ScriptManifest>` because the
 file has more than one drawn indicator. The host runs
 `Array.isArray(manifest)` to branch on single vs multi-export shape.
 
+## 5. Heikin-Ashi candles (`plotcandle`)
+
+A derived candle series. Each bar's Heikin-Ashi open folds the prior HA
+open/close, so the two feed forward through `state.series`; the result is
+drawn with `plotcandle` (its own OHLC quad, not a recolor of the chart
+candles). On the first bar the HA open seeds to `(open + close) / 2`.
+
+```ts
+import { defineIndicator, plotcandle, state } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Heikin-Ashi",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, plotcandle, state }) {
+        const haOpenSeries = state.series(NaN);
+        const haCloseSeries = state.series(NaN);
+
+        const o = bar.open.current;
+        const h = bar.high.current;
+        const l = bar.low.current;
+        const c = bar.close.current;
+
+        const haClose = (o + h + l + c) / 4;
+        const prevOpen = haOpenSeries[1];
+        const prevClose = haCloseSeries[1];
+        const haOpen = Number.isNaN(prevOpen) ? (o + c) / 2 : (prevOpen + prevClose) / 2;
+        const haHigh = Math.max(h, haOpen, haClose);
+        const haLow = Math.min(l, haOpen, haClose);
+
+        haOpenSeries.value = haOpen;
+        haCloseSeries.value = haClose;
+
+        plotcandle(haOpen, haHigh, haLow, haClose, { bull: "#26a69a", bear: "#ef5350" });
+    },
+});
+```
+
+`haOpenSeries[1]` reads the prior bar's committed HA open (`NaN` on the
+first bar, which selects the seed branch); `haOpenSeries.value = …` writes
+this bar's head so the next bar can read it back. Adapters that do not
+declare the `candle` capability drop the emission silently.
+
 ## Cross-links
 
 - `references/forbidden.md` — the constructs the compiler rejects.

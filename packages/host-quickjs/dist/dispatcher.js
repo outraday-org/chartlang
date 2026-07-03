@@ -1235,11 +1235,15 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.atr", slot: true },
   { name: "ta.crossover", slot: true },
   { name: "ta.crossunder", slot: true },
+  { name: "ta.cross", slot: true },
+  { name: "ta.cum", slot: true },
   { name: "ta.highest", slot: true },
   { name: "ta.lowest", slot: true },
   { name: "ta.highestbars", slot: true },
   { name: "ta.lowestbars", slot: true },
   { name: "ta.change", slot: true },
+  { name: "ta.rising", slot: true },
+  { name: "ta.falling", slot: true },
   { name: "ta.valuewhen", slot: true },
   { name: "ta.barssince", slot: true },
   { name: "ta.wma", slot: true },
@@ -1329,6 +1333,12 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   // stable slot id and is listed in `manifest.plots` with its kind.
   { name: "bgcolor", slot: true },
   { name: "barcolor", slot: true },
+  // Derived candle / OHLC-bar series (Pine `plotcandle` / `plotbar`),
+  // lowering to the value-carrying `candle` / `ohlc-bar` plot styles.
+  // Slot-injected like `plot`/`hline` so each callsite owns a per-bar
+  // accumulator on the adapter side and a stable slot id.
+  { name: "plotcandle", slot: true },
+  { name: "plotbar", slot: true },
   { name: "alert", slot: true },
   // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
   // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
@@ -3765,7 +3775,9 @@ var VALID_PLOT_STYLE_KINDS = /* @__PURE__ */ new Set([
   "bar-override",
   "bg-color",
   "bar-color",
-  "horizontal-histogram"
+  "horizontal-histogram",
+  "candle",
+  "ohlc-bar"
 ]);
 var VALID_LINE_STYLES = /* @__PURE__ */ new Set(["solid", "dashed", "dotted"]);
 var VALID_MARKER_SHAPES = /* @__PURE__ */ new Set([
@@ -4031,6 +4043,60 @@ function validateCandleOverrideStyle(style) {
 function validateSingleColorStyle(style, path2) {
   return validateColor(style.color, path2);
 }
+function validateOptionalColor(value, path2) {
+  if (value === void 0)
+    return { ok: true };
+  return validateColor(value, path2);
+}
+var OHLC_QUAD_FIELDS = ["open", "high", "low", "close"];
+function validateOhlcQuad(style) {
+  let finiteCount = 0;
+  let nullCount = 0;
+  for (const name of OHLC_QUAD_FIELDS) {
+    const value = style[name];
+    if (value === null) {
+      nullCount += 1;
+    } else if (isFiniteNumber(value)) {
+      finiteCount += 1;
+    } else {
+      return bad(`style.${name}: must be a finite number or null`);
+    }
+  }
+  if (nullCount > 0 && finiteCount > 0) {
+    return bad("style.{open,high,low,close}: all four must be finite together or all null");
+  }
+  return { ok: true };
+}
+function validateCandleStyle(style) {
+  const quad = validateOhlcQuad(style);
+  if (!quad.ok)
+    return quad;
+  const bull = validateColor(style.bull, "style.bull");
+  if (!bull.ok)
+    return bull;
+  const bear = validateColor(style.bear, "style.bear");
+  if (!bear.ok)
+    return bear;
+  const doji = validateOptionalColor(style.doji, "style.doji");
+  if (!doji.ok)
+    return doji;
+  const wick = validateOptionalColor(style.wickColor, "style.wickColor");
+  if (!wick.ok)
+    return wick;
+  return validateOptionalColor(style.borderColor, "style.borderColor");
+}
+function validateOhlcBarStyle(style) {
+  const quad = validateOhlcQuad(style);
+  if (!quad.ok)
+    return quad;
+  const color2 = validateColor(style.color, "style.color");
+  if (!color2.ok)
+    return color2;
+  const upColor = validateOptionalColor(style.upColor, "style.upColor");
+  if (!upColor.ok)
+    return upColor;
+  return validateOptionalColor(style.downColor, "style.downColor");
+}
 function validateBgColorStyle(style) {
   const color2 = validateSingleColorStyle(style, "style.color");
   if (!color2.ok)
@@ -4095,6 +4161,10 @@ function validatePlotStyle(style) {
       return validateArrowStyle(style);
     case "candle-override":
       return validateCandleOverrideStyle(style);
+    case "candle":
+      return validateCandleStyle(style);
+    case "ohlc-bar":
+      return validateOhlcBarStyle(style);
     case "bar-override":
     case "bar-color":
       return validateSingleColorStyle(style, "style.color");
@@ -6569,8 +6639,7 @@ function buildStyle(opts) {
       };
   }
 }
-function plotImpl(ctx, slotId, value, opts, dynamicColor) {
-  const style = buildStyle(opts);
+function emitPlot(ctx, slotId, style, fields) {
   if (!ctx.capabilities.plots.has(style.kind)) {
     pushDiagnostic(ctx.emissions, {
       kind: "diagnostic",
@@ -6582,28 +6651,38 @@ function plotImpl(ctx, slotId, value, opts, dynamicColor) {
     });
     return;
   }
-  const pane = resolvePane(opts.pane, ctx, slotId);
-  const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
-  const z = opts.z ?? 0;
-  const colorValue = dynamicColor;
-  const visible = opts.visible;
+  const pane = resolvePane(fields.paneOpt, ctx, slotId);
   const emission = {
     kind: "plot",
     slotId,
-    title: opts.title ?? "",
+    title: fields.title,
     style,
     bar: ctx.barIndex(),
     time: ctx.stream.bar.time,
-    value: resolveValue(value),
-    color: opts.color ?? null,
+    value: fields.value,
+    color: fields.color,
     meta: {},
     pane,
-    ...visible === false ? { visible: false } : {},
-    ...xShift === 0 ? {} : { xShift },
-    ...z === 0 ? {} : { z },
-    ...colorValue === void 0 ? {} : { colorValue }
+    ...fields.visible === false ? { visible: false } : {},
+    ...fields.xShift === 0 ? {} : { xShift: fields.xShift },
+    ...fields.z === 0 ? {} : { z: fields.z },
+    ...fields.colorValue === void 0 ? {} : { colorValue: fields.colorValue }
   };
   pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
+}
+function plotImpl(ctx, slotId, value, opts, dynamicColor) {
+  const style = buildStyle(opts);
+  const xShift = typeof value === "number" ? 0 : seriesOffsetOf(value);
+  emitPlot(ctx, slotId, style, {
+    title: opts.title ?? "",
+    value: resolveValue(value),
+    color: opts.color ?? null,
+    paneOpt: opts.pane,
+    visible: opts.visible,
+    xShift,
+    z: opts.z ?? 0,
+    colorValue: dynamicColor
+  });
 }
 function plot2(arg1, arg2, arg3) {
   if (typeof arg1 !== "string") {
@@ -8133,6 +8212,81 @@ function hline2(arg1, arg2, arg3) {
     throw new Error(OUTSIDE_CTX_MESSAGE69);
   }
   hlineImpl(ctx, arg1, arg2, arg3 ?? {});
+}
+
+// ../runtime/dist/emit/plotCandle.js
+var CANDLE_OUTSIDE_CTX_MESSAGE = "plotcandle called outside an active script step";
+var BAR_OUTSIDE_CTX_MESSAGE = "plotbar called outside an active script step";
+var DEFAULT_CANDLE_BULL = "#26a69a";
+var DEFAULT_CANDLE_BEAR = "#ef5350";
+function plotcandleImpl(ctx, slotId, open, high, low, close, opts) {
+  const resolvedClose = resolveValue(close);
+  const style = {
+    kind: "candle",
+    open: resolveValue(open),
+    high: resolveValue(high),
+    low: resolveValue(low),
+    close: resolvedClose,
+    bull: opts.bull ?? DEFAULT_CANDLE_BULL,
+    bear: opts.bear ?? DEFAULT_CANDLE_BEAR,
+    ...opts.doji === void 0 ? {} : { doji: opts.doji },
+    ...opts.wickColor === void 0 ? {} : { wickColor: opts.wickColor },
+    ...opts.borderColor === void 0 ? {} : { borderColor: opts.borderColor }
+  };
+  emitPlot(ctx, slotId, style, {
+    title: opts.title ?? "",
+    value: resolvedClose,
+    color: null,
+    paneOpt: opts.pane,
+    visible: opts.visible,
+    xShift: 0,
+    z: opts.z ?? 0,
+    colorValue: void 0
+  });
+}
+function plotbarImpl(ctx, slotId, open, high, low, close, opts) {
+  const resolvedOpen = resolveValue(open);
+  const resolvedClose = resolveValue(close);
+  const up = resolvedClose === null || resolvedOpen === null || resolvedClose >= resolvedOpen;
+  const color2 = up ? opts.upColor ?? opts.color ?? DEFAULT_CANDLE_BULL : opts.downColor ?? opts.color ?? DEFAULT_CANDLE_BEAR;
+  const style = {
+    kind: "ohlc-bar",
+    open: resolvedOpen,
+    high: resolveValue(high),
+    low: resolveValue(low),
+    close: resolvedClose,
+    color: color2,
+    ...opts.upColor === void 0 ? {} : { upColor: opts.upColor },
+    ...opts.downColor === void 0 ? {} : { downColor: opts.downColor }
+  };
+  emitPlot(ctx, slotId, style, {
+    title: opts.title ?? "",
+    value: resolvedClose,
+    color: null,
+    paneOpt: opts.pane,
+    visible: opts.visible,
+    xShift: 0,
+    z: opts.z ?? 0,
+    colorValue: void 0
+  });
+}
+function plotcandle2(arg1, arg2, arg3, arg4, arg5, arg6) {
+  if (typeof arg1 !== "string" || !isNumberOrSeries(arg5)) {
+    throw new Error(CANDLE_OUTSIDE_CTX_MESSAGE);
+  }
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (!ctx)
+    throw new Error(CANDLE_OUTSIDE_CTX_MESSAGE);
+  plotcandleImpl(ctx, arg1, arg2, arg3, arg4, arg5, arg6 ?? {});
+}
+function plotbar2(arg1, arg2, arg3, arg4, arg5, arg6) {
+  if (typeof arg1 !== "string" || !isNumberOrSeries(arg5)) {
+    throw new Error(BAR_OUTSIDE_CTX_MESSAGE);
+  }
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (!ctx)
+    throw new Error(BAR_OUTSIDE_CTX_MESSAGE);
+  plotbarImpl(ctx, arg1, arg2, arg3, arg4, arg5, arg6 ?? {});
 }
 
 // ../runtime/dist/ta/lib/volume-profile/scaffold.js
@@ -10504,15 +10658,84 @@ function crossunder(slotId, a, b, opts) {
   return viewForOffset11(slot, offset);
 }
 
-// ../runtime/dist/ta/dema.js
+// ../runtime/dist/ta/cross.js
 function getCtx36() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.cross called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot34(capacity) {
+  const outBuffer = new RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer)
+  };
+}
+function cross(slotId, a, b) {
+  const ctx = getCtx36();
+  const over = crossover(`${slotId}/over`, a, b);
+  const under = crossunder(`${slotId}/under`, a, b);
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot34(ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const out = over.current || under.current;
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(out);
+  } else {
+    slot.outBuffer.append(out);
+  }
+  return slot.series;
+}
+
+// ../runtime/dist/ta/cum.js
+function getCtx37() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.cum called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot35(capacity) {
+  const outBuffer = new Float64RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    cum: 0,
+    prevClosedCum: 0
+  };
+}
+function cum(slotId, source) {
+  const ctx = getCtx37();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot35(ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const src = readSourceValue(source);
+  const contribution2 = Number.isFinite(src) ? src : 0;
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(slot.prevClosedCum + contribution2);
+    return slot.series;
+  }
+  slot.prevClosedCum = slot.cum;
+  slot.cum += contribution2;
+  slot.outBuffer.append(slot.cum);
+  return slot.series;
+}
+
+// ../runtime/dist/ta/dema.js
+function getCtx38() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.dema called outside an active script step");
   }
   return ctx;
 }
-function initSlot34(length, capacity) {
+function initSlot36(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -10521,7 +10744,7 @@ function initSlot34(length, capacity) {
   };
 }
 function dema(slotId, source, length, _opts) {
-  const ctx = getCtx36();
+  const ctx = getCtx38();
   const src = readSourceValue(source);
   const ema1Series = ema(`${slotId}/ema1`, src, length);
   const e1 = ema1Series.current;
@@ -10530,7 +10753,7 @@ function dema(slotId, source, length, _opts) {
   const value = Number.isFinite(e1) && Number.isFinite(e2) ? 2 * e1 - e2 : Number.NaN;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot34(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot36(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   if (ctx.isTick)
@@ -10541,14 +10764,14 @@ function dema(slotId, source, length, _opts) {
 }
 
 // ../runtime/dist/ta/dmi.js
-function getCtx37() {
+function getCtx39() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.dmi called outside an active script step");
   }
   return ctx;
 }
-function initSlot35(length, capacity) {
+function initSlot37(length, capacity) {
   const plusDiBuffer = new Float64RingBuffer(capacity);
   const minusDiBuffer = new Float64RingBuffer(capacity);
   return {
@@ -10576,10 +10799,10 @@ function resultForOffset3(slot, offset) {
   return cached;
 }
 function dmi(slotId, length, opts) {
-  const ctx = getCtx37();
+  const ctx = getCtx39();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot35(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot37(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -10599,14 +10822,14 @@ function dmi(slotId, length, opts) {
 }
 
 // ../runtime/dist/ta/donchian.js
-function getCtx38() {
+function getCtx40() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.donchian called outside an active script step");
   }
   return ctx;
 }
-function initSlot36(length, capacity) {
+function initSlot38(length, capacity) {
   return {
     middleBuffer: new Float64RingBuffer(capacity),
     length,
@@ -10619,10 +10842,10 @@ function middleValue(upper, lower) {
   return (upper + lower) / 2;
 }
 function donchian(slotId, length, _opts) {
-  const ctx = getCtx38();
+  const ctx = getCtx40();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot36(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot38(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const upperSeries = highest(`${slotId}/highest`, ctx.stream.bar.high, length);
@@ -10644,14 +10867,14 @@ function donchian(slotId, length, _opts) {
 }
 
 // ../runtime/dist/ta/dpo.js
-function getCtx39() {
+function getCtx41() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.dpo called outside an active script step");
   }
   return ctx;
 }
-function initSlot37(length, capacity) {
+function initSlot39(length, capacity) {
   const displacement = Math.floor(length / 2) + 1;
   const outBuffer = new Float64RingBuffer(capacity);
   return {
@@ -10685,10 +10908,10 @@ function computeDpo(slot, smaCurrent) {
   return shifted - smaCurrent;
 }
 function dpo(slotId, source, length, opts) {
-  const ctx = getCtx39();
+  const ctx = getCtx41();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot37(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot39(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -10706,14 +10929,14 @@ function dpo(slotId, source, length, opts) {
 }
 
 // ../runtime/dist/ta/smma.js
-function getCtx40() {
+function getCtx42() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.smma called outside an active script step");
   }
   return ctx;
 }
-function initSlot38(length, capacity) {
+function initSlot40(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -10758,10 +10981,10 @@ function compute3(slot, src, isTick) {
   return next;
 }
 function smma(slotId, source, length, _opts) {
-  const ctx = getCtx40();
+  const ctx = getCtx42();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot38(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot40(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const value = compute3(slot, readSourceValue(source), ctx.isTick);
@@ -10773,14 +10996,14 @@ function smma(slotId, source, length, _opts) {
 }
 
 // ../runtime/dist/ta/wma.js
-function getCtx41() {
+function getCtx43() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.wma called outside an active script step");
   }
   return ctx;
 }
-function initSlot39(length, capacity) {
+function initSlot41(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -10821,10 +11044,10 @@ function tickValue15(slot, src) {
   return sum2 / slot.denom;
 }
 function wma(slotId, source, length, _opts) {
-  const ctx = getCtx41();
+  const ctx = getCtx43();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot39(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot41(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -10840,14 +11063,14 @@ function wma(slotId, source, length, _opts) {
 var DEFAULT_LENGTH4 = 20;
 var DEFAULT_PERCENT = 10;
 var DEFAULT_MA_TYPE = "sma";
-function getCtx42() {
+function getCtx44() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.envelope called outside an active script step");
   }
   return ctx;
 }
-function initSlot40(length, percent, maType, capacity) {
+function initSlot42(length, percent, maType, capacity) {
   return {
     upperBuffer: new Float64RingBuffer(capacity),
     lowerBuffer: new Float64RingBuffer(capacity),
@@ -10870,13 +11093,13 @@ function dispatchMa(maType, subSlotId, source, length) {
   }
 }
 function envelope(slotId, source, opts) {
-  const ctx = getCtx42();
+  const ctx = getCtx44();
   const length = opts?.length ?? DEFAULT_LENGTH4;
   const percent = opts?.percent ?? DEFAULT_PERCENT;
   const maType = opts?.maType ?? DEFAULT_MA_TYPE;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot40(length, percent, maType, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot42(length, percent, maType, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -10911,14 +11134,14 @@ function envelope(slotId, source, opts) {
 
 // ../runtime/dist/ta/eom.js
 var DIVISOR = 1e4;
-function getCtx43() {
+function getCtx45() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.eom called outside an active script step");
   }
   return ctx;
 }
-function initSlot41(length, capacity) {
+function initSlot43(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -10964,10 +11187,10 @@ function emit4(slot, ready) {
   return slot.sumRawEom / slot.length;
 }
 function eom(slotId, length, opts) {
-  const ctx = getCtx43();
+  const ctx = getCtx45();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot41(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot43(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -11014,15 +11237,85 @@ function eom(slotId, length, opts) {
   return viewForOffset13(slot, offset);
 }
 
+// ../runtime/dist/ta/lib/monotonic.js
+function monotonic(window, length, dir) {
+  if (length < 1 || window.length < length + 1)
+    return false;
+  const start = window.length - length - 1;
+  for (let i = start; i < window.length - 1; i += 1) {
+    const a = window[i];
+    const b = window[i + 1];
+    if (!Number.isFinite(a) || !Number.isFinite(b))
+      return false;
+    const delta = b - a;
+    if (dir === 1 ? delta <= 0 : delta >= 0)
+      return false;
+  }
+  return true;
+}
+
+// ../runtime/dist/ta/falling.js
+function getCtx46() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.falling called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot44(length, capacity) {
+  const outBuffer = new RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    length,
+    sourceWindow: new Float64RingBuffer(length + 1),
+    scratch: new Float64Array(length + 1)
+  };
+}
+function monotonicOverWindow(slot, head) {
+  const n = slot.length;
+  for (let k = 0; k < n; k += 1) {
+    slot.scratch[k] = slot.sourceWindow.at(n - k);
+  }
+  slot.scratch[n] = head;
+  return monotonic(slot.scratch, n, -1);
+}
+function closeValue16(slot, src) {
+  slot.sourceWindow.append(src);
+  if (slot.sourceWindow.length <= slot.length)
+    return false;
+  return monotonicOverWindow(slot, src);
+}
+function tickValue16(slot, src) {
+  if (slot.sourceWindow.length <= slot.length)
+    return false;
+  return monotonicOverWindow(slot, src);
+}
+function falling(slotId, source, length) {
+  const ctx = getCtx46();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot44(length, ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const src = readSourceValue(source);
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(tickValue16(slot, src));
+  } else {
+    slot.outBuffer.append(closeValue16(slot, src));
+  }
+  return slot.series;
+}
+
 // ../runtime/dist/ta/fisher.js
-function getCtx44() {
+function getCtx47() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.fisher called outside an active script step");
   }
   return ctx;
 }
-function initSlot42(length, capacity) {
+function initSlot45(length, capacity) {
   const fisherBuf = new Float64RingBuffer(capacity);
   const triggerBuf = new Float64RingBuffer(capacity);
   return {
@@ -11053,10 +11346,10 @@ function computeStep(normalised, baseX, baseFisher) {
   return { fisherValue, triggerValue: baseFisher, nextX: x, nextFisher: fisherValue };
 }
 function fisher(slotId, length, _opts) {
-  const ctx = getCtx44();
+  const ctx = getCtx47();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot42(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot45(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const mid = ctx.stream.bar.hl2;
@@ -11112,14 +11405,14 @@ function fisher(slotId, length, _opts) {
 }
 
 // ../runtime/dist/ta/fixedRangeVolumeProfile.js
-function getCtx45() {
+function getCtx48() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.fixedRangeVolumeProfile called outside an active script step");
   }
   return ctx;
 }
-function initSlot43(capacity) {
+function initSlot46(capacity) {
   const core = createVolumeProfileCore(capacity);
   const slot = {
     ...core,
@@ -11186,10 +11479,10 @@ function diagnoseInvertedRange(ctx, slotId) {
   });
 }
 function fixedRangeVolumeProfile(slotId, opts) {
-  const ctx = getCtx45();
+  const ctx = getCtx48();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot43(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot46(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   let snapshot6 = emptyVolumeProfileSnapshot();
@@ -11215,14 +11508,14 @@ function fixedRangeVolumeProfile(slotId, opts) {
 }
 
 // ../runtime/dist/ta/highestbars.js
-function getCtx46() {
+function getCtx49() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.highestbars called outside an active script step");
   }
   return ctx;
 }
-function initSlot44(length, capacity) {
+function initSlot47(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -11245,44 +11538,44 @@ function offsetToMax(slot, headValue) {
   }
   return bestOffset;
 }
-function closeValue16(slot, src) {
+function closeValue17(slot, src) {
   slot.barCount += 1;
   slot.sourceWindow.append(src);
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMax(slot, void 0);
 }
-function tickValue16(slot, src) {
+function tickValue17(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMax(slot, src);
 }
 function highestbars(slotId, source, length, _opts) {
-  const ctx = getCtx46();
+  const ctx = getCtx49();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot44(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot47(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue16(slot, src));
+    slot.outBuffer.replaceHead(tickValue17(slot, src));
   } else {
-    slot.outBuffer.append(closeValue16(slot, src));
+    slot.outBuffer.append(closeValue17(slot, src));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/historicalVolatility.js
 var DEFAULT_ANNUALISATION_FACTOR = 365;
-function getCtx47() {
+function getCtx50() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.historicalVolatility called outside an active script step");
   }
   return ctx;
 }
-function initSlot45(length, annualisationFactor, capacity) {
+function initSlot48(length, annualisationFactor, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -11341,7 +11634,7 @@ function recomputeSums(slot) {
     slot.sumX2 = sumX2;
   }
 }
-function closeValue17(slot, src) {
+function closeValue18(slot, src) {
   const lr = logReturn(slot.prevSrc, src);
   if (slot.logReturnsWindow.length < slot.logReturnsWindow.capacity) {
     slot.logReturnsWindow.append(lr);
@@ -11373,7 +11666,7 @@ function closeValue17(slot, src) {
   const sd = windowStdDev(slot.logReturnsWindow, slot.sumX, slot.sumX2);
   return sd * Math.sqrt(slot.annualisationFactor) * 100;
 }
-function tickValue17(slot, src) {
+function tickValue18(slot, src) {
   if (slot.logReturnsWindow.length < slot.logReturnsWindow.capacity)
     return Number.NaN;
   const lr = logReturn(slot.prevSrc, src);
@@ -11390,24 +11683,24 @@ function tickValue17(slot, src) {
   return Math.sqrt(Math.max(0, variance)) * Math.sqrt(slot.annualisationFactor) * 100;
 }
 function historicalVolatility(slotId, source, length, opts) {
-  const ctx = getCtx47();
+  const ctx = getCtx50();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const annualisationFactor = opts?.annualisationFactor ?? DEFAULT_ANNUALISATION_FACTOR;
-    slot = initSlot45(length, annualisationFactor, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot48(length, annualisationFactor, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue17(slot, src));
+    slot.outBuffer.replaceHead(tickValue18(slot, src));
   } else {
-    slot.outBuffer.append(closeValue17(slot, src));
+    slot.outBuffer.append(closeValue18(slot, src));
   }
   return viewForOffset14(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/hma.js
-function getCtx48() {
+function getCtx51() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.hma called outside an active script step");
@@ -11415,7 +11708,7 @@ function getCtx48() {
   return ctx;
 }
 function hma(slotId, source, length, _opts) {
-  const ctx = getCtx48();
+  const ctx = getCtx51();
   const halfLen = Math.max(1, Math.floor(length / 2));
   const sqrtLen = Math.max(1, Math.round(Math.sqrt(length)));
   const src = readSourceValue(source);
@@ -11438,7 +11731,7 @@ var DEFAULT_CONVERSION_LENGTH = 9;
 var DEFAULT_BASE_LENGTH = 26;
 var DEFAULT_LEADING_SPAN_B_LENGTH = 52;
 var DEFAULT_DISPLACEMENT = 26;
-function getCtx49() {
+function getCtx52() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.ichimoku called outside an active script step");
@@ -11460,7 +11753,7 @@ function delayedValue(delay, displacement) {
     return Number.NaN;
   return delay.at(displacement);
 }
-function initSlot46(capacity, conversionLength, baseLength, leadingSpanBLength, displacement) {
+function initSlot49(capacity, conversionLength, baseLength, leadingSpanBLength, displacement) {
   const tenkanBuffer = new Float64RingBuffer(capacity);
   const kijunBuffer = new Float64RingBuffer(capacity);
   const senkouABuffer = new Float64RingBuffer(capacity);
@@ -11507,7 +11800,7 @@ function resultForOffset5(slot, offset) {
   return cached;
 }
 function ichimoku(slotId, opts) {
-  const ctx = getCtx49();
+  const ctx = getCtx52();
   const conversionLength = opts?.conversionLength ?? DEFAULT_CONVERSION_LENGTH;
   const baseLength = opts?.baseLength ?? DEFAULT_BASE_LENGTH;
   const leadingSpanBLength = opts?.leadingSpanBLength ?? DEFAULT_LEADING_SPAN_B_LENGTH;
@@ -11516,7 +11809,7 @@ function ichimoku(slotId, opts) {
   const bar = ctx.stream.bar;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot46(ctx.stream.ohlcv.close.capacity, conversionLength, baseLength, leadingSpanBLength, displacement);
+    slot = initSlot49(ctx.stream.ohlcv.close.capacity, conversionLength, baseLength, leadingSpanBLength, displacement);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const tenkanHi = highest(`${slotId}/tenkanHigh`, bar.high, conversionLength).current;
@@ -11555,14 +11848,14 @@ function ichimoku(slotId, opts) {
 var DEFAULT_LENGTH5 = 10;
 var DEFAULT_FAST2 = 2;
 var DEFAULT_SLOW2 = 30;
-function getCtx50() {
+function getCtx53() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.kama called outside an active script step");
   }
   return ctx;
 }
-function initSlot47(length, fastLength, slowLength, capacity) {
+function initSlot50(length, fastLength, slowLength, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -11606,13 +11899,13 @@ function computeKama(slot, headSrc, prev) {
   return prev + sc * (headSrc - prev);
 }
 function kama(slotId, source, opts) {
-  const ctx = getCtx50();
+  const ctx = getCtx53();
   const length = opts?.length ?? DEFAULT_LENGTH5;
   const fastLength = opts?.fastLength ?? DEFAULT_FAST2;
   const slowLength = opts?.slowLength ?? DEFAULT_SLOW2;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot47(length, fastLength, slowLength, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot50(length, fastLength, slowLength, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -11634,14 +11927,14 @@ function kama(slotId, source, opts) {
 var DEFAULT_LENGTH6 = 20;
 var DEFAULT_MULTIPLIER6 = 2;
 var DEFAULT_MA_TYPE2 = "ema";
-function getCtx51() {
+function getCtx54() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.keltner called outside an active script step");
   }
   return ctx;
 }
-function initSlot48(length, multiplier, maType, capacity) {
+function initSlot51(length, multiplier, maType, capacity) {
   return {
     upperBuffer: new Float64RingBuffer(capacity),
     lowerBuffer: new Float64RingBuffer(capacity),
@@ -11664,13 +11957,13 @@ function dispatchMa2(maType, subSlotId, source, length) {
   }
 }
 function keltner(slotId, opts) {
-  const ctx = getCtx51();
+  const ctx = getCtx54();
   const length = opts?.length ?? DEFAULT_LENGTH6;
   const multiplier = opts?.multiplier ?? DEFAULT_MULTIPLIER6;
   const maType = opts?.maType ?? DEFAULT_MA_TYPE2;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot48(length, multiplier, maType, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot51(length, multiplier, maType, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const close = ctx.stream.bar.close;
@@ -11708,14 +12001,14 @@ function keltner(slotId, opts) {
 var DEFAULT_FAST_LENGTH2 = 34;
 var DEFAULT_SLOW_LENGTH2 = 55;
 var DEFAULT_SIGNAL_LENGTH = 13;
-function getCtx52() {
+function getCtx55() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.klinger called outside an active script step");
   }
   return ctx;
 }
-function initSlot49(capacity) {
+function initSlot52(capacity) {
   const klingerBuf = new Float64RingBuffer(capacity);
   return {
     result: null,
@@ -11759,13 +12052,13 @@ function computeVf(high, low, close, volume, baseHlc, baseTrend, baseCm, baseDm)
   return { vf, hlc, trend, cm, dm };
 }
 function klinger(slotId, opts) {
-  const ctx = getCtx52();
+  const ctx = getCtx55();
   const fastLength = opts?.fastLength ?? DEFAULT_FAST_LENGTH2;
   const slowLength = opts?.slowLength ?? DEFAULT_SLOW_LENGTH2;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL_LENGTH;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot49(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot52(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -11819,7 +12112,7 @@ var DEFAULT_ROC2_SMOOTH = 10;
 var DEFAULT_ROC3_SMOOTH = 10;
 var DEFAULT_ROC4_SMOOTH = 15;
 var DEFAULT_SIGNAL_LENGTH2 = 9;
-function getCtx53() {
+function getCtx56() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.kst called outside an active script step");
@@ -11838,7 +12131,7 @@ function rocFromWindow(window, src, length) {
   return pctRoc2(src, window.at(length));
 }
 function kst(slotId, source, opts) {
-  const ctx = getCtx53();
+  const ctx = getCtx56();
   const roc1Length = opts?.roc1Length ?? DEFAULT_ROC1_LENGTH2;
   const roc2Length = opts?.roc2Length ?? DEFAULT_ROC2_LENGTH2;
   const roc3Length = opts?.roc3Length ?? DEFAULT_ROC3_LENGTH;
@@ -11900,14 +12193,14 @@ function kst(slotId, source, opts) {
 }
 
 // ../runtime/dist/ta/lowestbars.js
-function getCtx54() {
+function getCtx57() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.lowestbars called outside an active script step");
   }
   return ctx;
 }
-function initSlot50(length, capacity) {
+function initSlot53(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -11930,43 +12223,43 @@ function offsetToMin(slot, headValue) {
   }
   return bestOffset;
 }
-function closeValue18(slot, src) {
+function closeValue19(slot, src) {
   slot.barCount += 1;
   slot.sourceWindow.append(src);
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMin(slot, void 0);
 }
-function tickValue18(slot, src) {
+function tickValue19(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMin(slot, src);
 }
 function lowestbars(slotId, source, length, _opts) {
-  const ctx = getCtx54();
+  const ctx = getCtx57();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot50(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot53(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue18(slot, src));
+    slot.outBuffer.replaceHead(tickValue19(slot, src));
   } else {
-    slot.outBuffer.append(closeValue18(slot, src));
+    slot.outBuffer.append(closeValue19(slot, src));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/lsma.js
-function getCtx55() {
+function getCtx58() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.lsma called outside an active script step");
   }
   return ctx;
 }
-function initSlot51(length, capacity) {
+function initSlot54(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   const xMean = (length - 1) / 2;
   let sumXX = 0;
@@ -12003,13 +12296,13 @@ function lsmaFromWindow(slot, headOverride) {
   const intercept = yMean - slope * slot.xMean;
   return intercept + slope * (slot.length - 1);
 }
-function closeValue19(slot, src) {
+function closeValue20(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   return lsmaFromWindow(slot);
 }
-function tickValue19(slot, src) {
+function tickValue20(slot, src) {
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src))
@@ -12017,17 +12310,17 @@ function tickValue19(slot, src) {
   return lsmaFromWindow(slot, src);
 }
 function lsma(slotId, source, length, _opts) {
-  const ctx = getCtx55();
+  const ctx = getCtx58();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot51(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot54(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue19(slot, src));
+    slot.outBuffer.replaceHead(tickValue20(slot, src));
   } else {
-    slot.outBuffer.append(closeValue19(slot, src));
+    slot.outBuffer.append(closeValue20(slot, src));
   }
   return slot.series;
 }
@@ -12035,7 +12328,7 @@ function lsma(slotId, source, length, _opts) {
 // ../runtime/dist/ta/maRibbon.js
 var DEFAULT_LENGTHS = Object.freeze([10, 20, 30, 40, 50]);
 var DEFAULT_MA_TYPE3 = "sma";
-function getCtx56() {
+function getCtx59() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.maRibbon called outside an active script step");
@@ -12055,7 +12348,7 @@ function dispatchMa3(maType, subSlotId, source, length) {
   }
 }
 function maRibbon(slotId, source, opts) {
-  const ctx = getCtx56();
+  const ctx = getCtx59();
   const lengths = opts?.lengths ?? DEFAULT_LENGTHS;
   const maType = opts?.maType ?? DEFAULT_MA_TYPE3;
   const src = readSourceValue(source);
@@ -12085,14 +12378,14 @@ function maRibbon(slotId, source, opts) {
 var DEFAULT_FAST3 = 12;
 var DEFAULT_SLOW3 = 26;
 var DEFAULT_SIGNAL = 9;
-function getCtx57() {
+function getCtx60() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.macd called outside an active script step");
   }
   return ctx;
 }
-function initSlot52(capacity, signalSeries, signalBuf) {
+function initSlot55(capacity, signalSeries, signalBuf) {
   const macdBuf = new Float64RingBuffer(capacity);
   const histBuf = new Float64RingBuffer(capacity);
   return {
@@ -12122,7 +12415,7 @@ function resultForOffset6(slot, offset) {
   return cached;
 }
 function macd(slotId, source, opts) {
-  const ctx = getCtx57();
+  const ctx = getCtx60();
   const fastLength = opts?.fastLength ?? DEFAULT_FAST3;
   const slowLength = opts?.slowLength ?? DEFAULT_SLOW3;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL;
@@ -12138,7 +12431,7 @@ function macd(slotId, source, opts) {
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const emaSlot = ctx.stream.taSlots.get(signalSlotId);
-    slot = initSlot52(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
+    slot = initSlot55(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const sig = signalSeries.current;
@@ -12156,14 +12449,14 @@ function macd(slotId, source, opts) {
 // ../runtime/dist/ta/massIndex.js
 var DEFAULT_EMA_LENGTH = 9;
 var DEFAULT_SUM_LENGTH = 25;
-function getCtx58() {
+function getCtx61() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.massIndex called outside an active script step");
   }
   return ctx;
 }
-function initSlot53(emaLength, sumLength, capacity) {
+function initSlot56(emaLength, sumLength, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12203,7 +12496,7 @@ function recomputeSum(slot) {
   }
   slot.sumRatio = anyNaN ? Number.NaN : sum2;
 }
-function closeValue20(slot, ratio) {
+function closeValue21(slot, ratio) {
   if (slot.ratioWindow.length < slot.ratioWindow.capacity) {
     slot.ratioWindow.append(ratio);
     if (Number.isFinite(ratio)) {
@@ -12224,19 +12517,19 @@ function closeValue20(slot, ratio) {
   }
   return slot.sumRatio;
 }
-function tickValue20(slot, ratio) {
+function tickValue21(slot, ratio) {
   if (slot.ratioWindow.length < slot.ratioWindow.capacity)
     return Number.NaN;
   const oldestInHead = slot.ratioWindow.at(0);
   return slot.sumRatio - oldestInHead + ratio;
 }
 function massIndex(slotId, opts) {
-  const ctx = getCtx58();
+  const ctx = getCtx61();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const emaLength = opts?.emaLength ?? DEFAULT_EMA_LENGTH;
     const sumLength = opts?.sumLength ?? DEFAULT_SUM_LENGTH;
-    slot = initSlot53(emaLength, sumLength, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot56(emaLength, sumLength, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const range = ctx.stream.bar.high - ctx.stream.bar.low;
@@ -12246,22 +12539,22 @@ function massIndex(slotId, opts) {
   const e2 = ema2Series.current;
   const ratio = ratioValue(e1, e2);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue20(slot, ratio));
+    slot.outBuffer.replaceHead(tickValue21(slot, ratio));
   } else {
-    slot.outBuffer.append(closeValue20(slot, ratio));
+    slot.outBuffer.append(closeValue21(slot, ratio));
   }
   return viewForOffset15(slot, opts?.offset ?? 0);
 }
 
 // ../runtime/dist/ta/mcginley.js
-function getCtx59() {
+function getCtx62() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.mcginley called outside an active script step");
   }
   return ctx;
 }
-function initSlot54(length, capacity) {
+function initSlot57(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12308,10 +12601,10 @@ function compute4(slot, src, isTick) {
   return next;
 }
 function mcginley(slotId, source, length, _opts) {
-  const ctx = getCtx59();
+  const ctx = getCtx62();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot54(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot57(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const value = compute4(slot, readSourceValue(source), ctx.isTick);
@@ -12323,14 +12616,14 @@ function mcginley(slotId, source, length, _opts) {
 }
 
 // ../runtime/dist/ta/median.js
-function getCtx60() {
+function getCtx63() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.median called outside an active script step");
   }
   return ctx;
 }
-function initSlot55(length, capacity) {
+function initSlot58(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12359,42 +12652,42 @@ function medianOfWindow(slot, headOverride) {
     return view[k - 1 >> 1];
   return (view[(k >> 1) - 1] + view[k >> 1]) / 2;
 }
-function closeValue21(slot, src) {
+function closeValue22(slot, src) {
   slot.window.append(src);
   if (slot.window.length < slot.length)
     return Number.NaN;
   return medianOfWindow(slot, slot.window.at(0));
 }
-function tickValue21(slot, src) {
+function tickValue22(slot, src) {
   if (slot.window.length < slot.length)
     return Number.NaN;
   return medianOfWindow(slot, src);
 }
 function median(slotId, source, length, _opts) {
-  const ctx = getCtx60();
+  const ctx = getCtx63();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot55(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot58(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue21(slot, src));
+    slot.outBuffer.replaceHead(tickValue22(slot, src));
   } else {
-    slot.outBuffer.append(closeValue21(slot, src));
+    slot.outBuffer.append(closeValue22(slot, src));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/mfi.js
-function getCtx61() {
+function getCtx64() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.mfi called outside an active script step");
   }
   return ctx;
 }
-function initSlot56(length, capacity) {
+function initSlot59(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12439,10 +12732,10 @@ function emitMfi(sumPos, sumNeg, ready) {
   return 100 * sumPos / total;
 }
 function mfi(slotId, length, opts) {
-  const ctx = getCtx61();
+  const ctx = getCtx64();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot56(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot59(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -12484,7 +12777,7 @@ function mfi(slotId, length, opts) {
 }
 
 // ../runtime/dist/ta/momentum.js
-function getCtx62() {
+function getCtx65() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.momentum called outside an active script step");
@@ -12492,7 +12785,7 @@ function getCtx62() {
   return ctx;
 }
 function momentum(slotId, source, length, _opts) {
-  const ctx = getCtx62();
+  const ctx = getCtx65();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     slot = { series: null };
@@ -12505,14 +12798,14 @@ function momentum(slotId, source, length, _opts) {
 }
 
 // ../runtime/dist/ta/netVolume.js
-function getCtx63() {
+function getCtx66() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.netVolume called outside an active script step");
   }
   return ctx;
 }
-function initSlot57(capacity) {
+function initSlot60(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12555,10 +12848,10 @@ function fold2(inCum, inPrevClose, close, volume) {
   return { cum: inCum + direction * volume, prevClose: close };
 }
 function netVolume(slotId, opts) {
-  const ctx = getCtx63();
+  const ctx = getCtx66();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot57(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot60(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -12581,14 +12874,14 @@ function netVolume(slotId, opts) {
 
 // ../runtime/dist/ta/nvi.js
 var SEED_VALUE = 1e3;
-function getCtx64() {
+function getCtx67() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.nvi called outside an active script step");
   }
   return ctx;
 }
-function initSlot58(capacity) {
+function initSlot61(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12632,10 +12925,10 @@ function fold3(inValue, inPrevClose, inPrevVolume, close, volume) {
   return { value: next, prevClose: close, prevVolume: v };
 }
 function nvi(slotId, opts) {
-  const ctx = getCtx64();
+  const ctx = getCtx67();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot58(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot61(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -12666,14 +12959,14 @@ function nz2(value, replacement) {
 }
 
 // ../runtime/dist/ta/obv.js
-function getCtx65() {
+function getCtx68() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.obv called outside an active script step");
   }
   return ctx;
 }
-function initSlot59(capacity) {
+function initSlot62(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -12705,10 +12998,10 @@ function fold4(inCumObv, inPrevClose, close, volume) {
   return { cumObv: inCumObv + direction * volume, prevClose: close };
 }
 function obv(slotId, _opts) {
-  const ctx = getCtx65();
+  const ctx = getCtx68();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot59(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot62(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -12731,14 +13024,14 @@ function obv(slotId, _opts) {
 // ../runtime/dist/ta/pivotsHighLow.js
 var DEFAULT_LEFT = 4;
 var DEFAULT_RIGHT = 4;
-function getCtx66() {
+function getCtx69() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pivotsHighLow called outside an active script step");
   }
   return ctx;
 }
-function initSlot60(capacity, leftLength, rightLength) {
+function initSlot63(capacity, leftLength, rightLength) {
   const highBuffer = new Float64RingBuffer(capacity);
   const lowBuffer = new Float64RingBuffer(capacity);
   const windowSize = leftLength + rightLength + 1;
@@ -12799,12 +13092,12 @@ function scanDownPivot(lowWindow, headLow, leftLength, rightLength) {
   return centreLow;
 }
 function pivotsHighLow(slotId, opts) {
-  const ctx = getCtx66();
+  const ctx = getCtx69();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const leftLength = opts?.leftLength ?? DEFAULT_LEFT;
     const rightLength = opts?.rightLength ?? DEFAULT_RIGHT;
-    slot = initSlot60(ctx.stream.ohlcv.close.capacity, leftLength, rightLength);
+    slot = initSlot63(ctx.stream.ohlcv.close.capacity, leftLength, rightLength);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -12838,7 +13131,7 @@ function pivotsHighLow(slotId, opts) {
 var DEFAULT_SYSTEM = "classic";
 var MS_PER_DAY2 = 864e5;
 var NAN = Number.NaN;
-function getCtx67() {
+function getCtx70() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pivotsStandard called outside an active script step");
@@ -12915,7 +13208,7 @@ function computeLevelsFrom(prevHigh, prevLow, prevClose, system) {
   }
   return FORMULA_DISPATCH[system](prevHigh, prevLow, prevClose);
 }
-function initSlot61(capacity, system) {
+function initSlot64(capacity, system) {
   const ppBuffer = new Float64RingBuffer(capacity);
   const r1Buffer = new Float64RingBuffer(capacity);
   const s1Buffer = new Float64RingBuffer(capacity);
@@ -13045,11 +13338,11 @@ function tickStep2(slot, time2, _high, _low, _close) {
   return computeLevelsFrom(snapPrevHigh, snapPrevLow, snapPrevClose, slot.system);
 }
 function pivotsStandard(slotId, opts) {
-  const ctx = getCtx67();
+  const ctx = getCtx70();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const system = opts?.system ?? DEFAULT_SYSTEM;
-    slot = initSlot61(ctx.stream.ohlcv.close.capacity, system);
+    slot = initSlot64(ctx.stream.ohlcv.close.capacity, system);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -13111,7 +13404,7 @@ function swenlinTick(state2, src) {
   }
   return src * state2.alpha + state2.prevClosedEma * (1 - state2.alpha);
 }
-function getCtx68() {
+function getCtx71() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pmo called outside an active script step");
@@ -13138,7 +13431,7 @@ function computeRoc1(src, prevSrc) {
   return (src / prevSrc - 1) * 1e3;
 }
 function pmo(slotId, source, opts) {
-  const ctx = getCtx68();
+  const ctx = getCtx71();
   const firstSmoothing = opts?.firstSmoothing ?? DEFAULT_FIRST;
   const secondSmoothing = opts?.secondSmoothing ?? DEFAULT_SECOND;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL2;
@@ -13196,14 +13489,14 @@ function pmo(slotId, source, opts) {
 var DEFAULT_FAST4 = 12;
 var DEFAULT_SLOW4 = 26;
 var DEFAULT_SIGNAL3 = 9;
-function getCtx69() {
+function getCtx72() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.ppo called outside an active script step");
   }
   return ctx;
 }
-function initSlot62(capacity, signalSeries, signalBuf) {
+function initSlot65(capacity, signalSeries, signalBuf) {
   const ppoBuf = new Float64RingBuffer(capacity);
   const histBuf = new Float64RingBuffer(capacity);
   return {
@@ -13238,7 +13531,7 @@ function ppoValue(fast, slow) {
   return 100 * (fast - slow) / slow;
 }
 function ppo(slotId, source, opts) {
-  const ctx = getCtx69();
+  const ctx = getCtx72();
   const fastLength = opts?.fastLength ?? DEFAULT_FAST4;
   const slowLength = opts?.slowLength ?? DEFAULT_SLOW4;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL3;
@@ -13252,7 +13545,7 @@ function ppo(slotId, source, opts) {
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const emaSlot = ctx.stream.taSlots.get(signalSlotId);
-    slot = initSlot62(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
+    slot = initSlot65(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const sig = signalSeries.current;
@@ -13273,14 +13566,14 @@ var DEFAULT_ACC_STEP = 0.02;
 var DEFAULT_ACC_MAX = 0.2;
 var TREND_UP = 1;
 var TREND_DOWN = -1;
-function getCtx70() {
+function getCtx73() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.psar called outside an active script step");
   }
   return ctx;
 }
-function initSlot63(capacity, accStart, accStep, accMax) {
+function initSlot66(capacity, accStart, accStep, accMax) {
   const sarBuffer = new Float64RingBuffer(capacity);
   const directionBuffer = new Float64RingBuffer(capacity);
   return {
@@ -13438,13 +13731,13 @@ function tickStep3(slot, high, low, close) {
   return { sar: step2.sar, direction: step2.trend };
 }
 function psar(slotId, opts) {
-  const ctx = getCtx70();
+  const ctx = getCtx73();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const accStart = opts?.accelerationStart ?? DEFAULT_ACC_START;
     const accStep = opts?.accelerationStep ?? DEFAULT_ACC_STEP;
     const accMax = opts?.accelerationMax ?? DEFAULT_ACC_MAX;
-    slot = initSlot63(ctx.stream.ohlcv.close.capacity, accStart, accStep, accMax);
+    slot = initSlot66(ctx.stream.ohlcv.close.capacity, accStart, accStep, accMax);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const high = +ctx.stream.bar.high;
@@ -13464,14 +13757,14 @@ function psar(slotId, opts) {
 
 // ../runtime/dist/ta/pvi.js
 var SEED_VALUE2 = 1e3;
-function getCtx71() {
+function getCtx74() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pvi called outside an active script step");
   }
   return ctx;
 }
-function initSlot64(capacity) {
+function initSlot67(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -13515,10 +13808,10 @@ function fold5(inValue, inPrevClose, inPrevVolume, close, volume) {
   return { value: next, prevClose: close, prevVolume: v };
 }
 function pvi(slotId, opts) {
-  const ctx = getCtx71();
+  const ctx = getCtx74();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot64(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot67(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -13545,14 +13838,14 @@ function pvi(slotId, opts) {
 var DEFAULT_FAST5 = 12;
 var DEFAULT_SLOW5 = 26;
 var DEFAULT_SIGNAL4 = 9;
-function getCtx72() {
+function getCtx75() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pvo called outside an active script step");
   }
   return ctx;
 }
-function initSlot65(capacity, signalSeries, signalBuf) {
+function initSlot68(capacity, signalSeries, signalBuf) {
   const pvoBuf = new Float64RingBuffer(capacity);
   const histBuf = new Float64RingBuffer(capacity);
   return {
@@ -13587,7 +13880,7 @@ function pvoValue(fast, slow) {
   return 100 * (fast - slow) / slow;
 }
 function pvo(slotId, opts) {
-  const ctx = getCtx72();
+  const ctx = getCtx75();
   const fastLength = opts?.fastLength ?? DEFAULT_FAST5;
   const slowLength = opts?.slowLength ?? DEFAULT_SLOW5;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL4;
@@ -13601,7 +13894,7 @@ function pvo(slotId, opts) {
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const emaSlot = ctx.stream.taSlots.get(signalSlotId);
-    slot = initSlot65(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
+    slot = initSlot68(ctx.stream.ohlcv.close.capacity, signalSeries, emaSlot.outBuffer);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const sig = signalSeries.current;
@@ -13617,14 +13910,14 @@ function pvo(slotId, opts) {
 }
 
 // ../runtime/dist/ta/pvt.js
-function getCtx73() {
+function getCtx76() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.pvt called outside an active script step");
   }
   return ctx;
 }
-function initSlot66(capacity) {
+function initSlot69(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -13667,10 +13960,10 @@ function fold6(inCum, inPrevClose, close, volume) {
   return { cum: next, prevClose: close, emit: next };
 }
 function pvt(slotId, opts) {
-  const ctx = getCtx73();
+  const ctx = getCtx76();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot66(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot69(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const offset = opts?.offset ?? 0;
@@ -13691,15 +13984,68 @@ function pvt(slotId, opts) {
   return viewForOffset20(slot, offset);
 }
 
+// ../runtime/dist/ta/rising.js
+function getCtx77() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null) {
+    throw new Error("ta.rising called outside an active script step");
+  }
+  return ctx;
+}
+function initSlot70(length, capacity) {
+  const outBuffer = new RingBuffer(capacity);
+  return {
+    outBuffer,
+    series: makeSeriesView(outBuffer),
+    length,
+    sourceWindow: new Float64RingBuffer(length + 1),
+    scratch: new Float64Array(length + 1)
+  };
+}
+function monotonicOverWindow2(slot, head) {
+  const n = slot.length;
+  for (let k = 0; k < n; k += 1) {
+    slot.scratch[k] = slot.sourceWindow.at(n - k);
+  }
+  slot.scratch[n] = head;
+  return monotonic(slot.scratch, n, 1);
+}
+function closeValue23(slot, src) {
+  slot.sourceWindow.append(src);
+  if (slot.sourceWindow.length <= slot.length)
+    return false;
+  return monotonicOverWindow2(slot, src);
+}
+function tickValue23(slot, src) {
+  if (slot.sourceWindow.length <= slot.length)
+    return false;
+  return monotonicOverWindow2(slot, src);
+}
+function rising(slotId, source, length) {
+  const ctx = getCtx77();
+  let slot = ctx.stream.taSlots.get(slotId);
+  if (slot === void 0) {
+    slot = initSlot70(length, ctx.stream.ohlcv.close.capacity);
+    ctx.stream.taSlots.set(slotId, slot);
+  }
+  const src = readSourceValue(source);
+  if (ctx.isTick) {
+    slot.outBuffer.replaceHead(tickValue23(slot, src));
+  } else {
+    slot.outBuffer.append(closeValue23(slot, src));
+  }
+  return slot.series;
+}
+
 // ../runtime/dist/ta/roc.js
-function getCtx74() {
+function getCtx78() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.roc called outside an active script step");
   }
   return ctx;
 }
-function initSlot67(length, capacity) {
+function initSlot71(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -13713,7 +14059,7 @@ function rocValue(head, old) {
     return Number.NaN;
   return 100 * (head - old) / old;
 }
-function closeValue22(slot, src) {
+function closeValue24(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
@@ -13721,38 +14067,38 @@ function closeValue22(slot, src) {
   const old = slot.sourceWindow.at(slot.length);
   return rocValue(head, old);
 }
-function tickValue22(slot, src) {
+function tickValue24(slot, src) {
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
   const old = slot.sourceWindow.at(slot.length);
   return rocValue(src, old);
 }
 function roc(slotId, source, length, _opts) {
-  const ctx = getCtx74();
+  const ctx = getCtx78();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot67(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot71(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue22(slot, src));
+    slot.outBuffer.replaceHead(tickValue24(slot, src));
   } else {
-    slot.outBuffer.append(closeValue22(slot, src));
+    slot.outBuffer.append(closeValue24(slot, src));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/rvgi.js
 var DEFAULT_LENGTH7 = 10;
-function getCtx75() {
+function getCtx79() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.rvgi called outside an active script step");
   }
   return ctx;
 }
-function initSlot68(length, capacity) {
+function initSlot72(length, capacity) {
   const rvgiBuf = new Float64RingBuffer(capacity);
   const signalBuf = new Float64RingBuffer(capacity);
   return {
@@ -13780,11 +14126,11 @@ function weighted4(ring) {
   return (v0 + 2 * v1 + 2 * v2 + v3) / 6;
 }
 function rvgi(slotId, opts) {
-  const ctx = getCtx75();
+  const ctx = getCtx79();
   const length = opts?.length ?? DEFAULT_LENGTH7;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot68(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot72(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -13835,14 +14181,14 @@ function rvgi(slotId, opts) {
 }
 
 // ../runtime/dist/ta/rvi.js
-function getCtx76() {
+function getCtx80() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.rvi called outside an active script step");
   }
   return ctx;
 }
-function initSlot69(length, capacity) {
+function initSlot73(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -13942,10 +14288,10 @@ function rviValue(upEma, downEma) {
   return 100 * upEma / total;
 }
 function rvi(slotId, source, length, opts) {
-  const ctx = getCtx76();
+  const ctx = getCtx80();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot69(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot73(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -13992,14 +14338,14 @@ function parseSessionWindowMinutes(spec) {
 
 // ../runtime/dist/ta/sessionVolumeProfile.js
 var DAY_MS = 864e5;
-function getCtx77() {
+function getCtx81() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.sessionVolumeProfile called outside an active script step");
   }
   return ctx;
 }
-function initSlot70(capacity) {
+function initSlot74(capacity) {
   const core = createVolumeProfileCore(capacity);
   const slot = {
     ...core,
@@ -14091,10 +14437,10 @@ function collectBars3(ctx, sessionStart) {
   return bars;
 }
 function sessionVolumeProfile(slotId, opts) {
-  const ctx = getCtx77();
+  const ctx = getCtx81();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot70(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot74(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const sessionStart = resolveSessionStart(ctx, slotId, opts);
@@ -14114,7 +14460,7 @@ var DEFAULT_K_LENGTH = 10;
 var DEFAULT_FIRST2 = 3;
 var DEFAULT_SECOND2 = 5;
 var DEFAULT_D_LENGTH = 3;
-function getCtx78() {
+function getCtx82() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.smi called outside an active script step");
@@ -14141,7 +14487,7 @@ function smiValue(numSmoothed, denSmoothed) {
   return 100 * numSmoothed / denSmoothed;
 }
 function smi(slotId, opts) {
-  const ctx = getCtx78();
+  const ctx = getCtx82();
   const kLength = opts?.kLength ?? DEFAULT_K_LENGTH;
   const firstSmoothing = opts?.firstSmoothing ?? DEFAULT_FIRST2;
   const secondSmoothing = opts?.secondSmoothing ?? DEFAULT_SECOND2;
@@ -14195,7 +14541,7 @@ function smi(slotId, opts) {
 var DEFAULT_K_LENGTH2 = 14;
 var DEFAULT_K_SMOOTHING = 3;
 var DEFAULT_D_LENGTH2 = 3;
-function getCtx79() {
+function getCtx83() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.stoch called outside an active script step");
@@ -14203,7 +14549,7 @@ function getCtx79() {
   return ctx;
 }
 function stoch(slotId, opts) {
-  const ctx = getCtx79();
+  const ctx = getCtx83();
   const kLength = opts?.kLength ?? DEFAULT_K_LENGTH2;
   const kSmoothing = opts?.kSmoothing ?? DEFAULT_K_SMOOTHING;
   const dLength = opts?.dLength ?? DEFAULT_D_LENGTH2;
@@ -14237,7 +14583,7 @@ var DEFAULT_RSI_LENGTH2 = 14;
 var DEFAULT_STOCH_LENGTH = 14;
 var DEFAULT_K_SMOOTHING2 = 3;
 var DEFAULT_D_SMOOTHING = 3;
-function getCtx80() {
+function getCtx84() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.stochRsi called outside an active script step");
@@ -14245,7 +14591,7 @@ function getCtx80() {
   return ctx;
 }
 function stochRsi(slotId, source, opts) {
-  const ctx = getCtx80();
+  const ctx = getCtx84();
   const rsiLength = opts?.rsiLength ?? DEFAULT_RSI_LENGTH2;
   const stochLength = opts?.stochLength ?? DEFAULT_STOCH_LENGTH;
   const kSmoothing = opts?.kSmoothing ?? DEFAULT_K_SMOOTHING2;
@@ -14282,14 +14628,14 @@ var DEFAULT_LENGTH8 = 10;
 var DEFAULT_MULTIPLIER7 = 3;
 var TREND_UP2 = 1;
 var TREND_DOWN2 = -1;
-function getCtx81() {
+function getCtx85() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.supertrend called outside an active script step");
   }
   return ctx;
 }
-function initSlot71(capacity, length, multiplier) {
+function initSlot75(capacity, length, multiplier) {
   const lineBuffer = new Float64RingBuffer(capacity);
   const directionBuffer = new Float64RingBuffer(capacity);
   return {
@@ -14368,12 +14714,12 @@ function tickStep4(slot, mid, atrValue, close) {
   return { line: step2.line, direction: step2.direction };
 }
 function supertrend(slotId, opts) {
-  const ctx = getCtx81();
+  const ctx = getCtx85();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const length = opts?.length ?? DEFAULT_LENGTH8;
     const multiplier = opts?.multiplier ?? DEFAULT_MULTIPLIER7;
-    slot = initSlot71(ctx.stream.ohlcv.close.capacity, length, multiplier);
+    slot = initSlot75(ctx.stream.ohlcv.close.capacity, length, multiplier);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const atrSeries = atr(`${slotId}/atr`, slot.length);
@@ -14393,14 +14739,14 @@ function supertrend(slotId, opts) {
 }
 
 // ../runtime/dist/ta/tema.js
-function getCtx82() {
+function getCtx86() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.tema called outside an active script step");
   }
   return ctx;
 }
-function initSlot72(length, capacity) {
+function initSlot76(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -14409,7 +14755,7 @@ function initSlot72(length, capacity) {
   };
 }
 function tema(slotId, source, length, _opts) {
-  const ctx = getCtx82();
+  const ctx = getCtx86();
   const src = readSourceValue(source);
   const e1 = ema(`${slotId}/ema1`, src, length).current;
   const e2 = ema(`${slotId}/ema2`, e1, length).current;
@@ -14417,7 +14763,7 @@ function tema(slotId, source, length, _opts) {
   const value = Number.isFinite(e1) && Number.isFinite(e2) && Number.isFinite(e3) ? 3 * e1 - 3 * e2 + e3 : Number.NaN;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot72(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot76(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   if (ctx.isTick)
@@ -14428,14 +14774,14 @@ function tema(slotId, source, length, _opts) {
 }
 
 // ../runtime/dist/ta/trendStrengthIndex.js
-function getCtx83() {
+function getCtx87() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.trendStrengthIndex called outside an active script step");
   }
   return ctx;
 }
-function initSlot73(length, capacity) {
+function initSlot77(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -14523,10 +14869,10 @@ function tickStep5(slot, src) {
   return pearsonHead(slot.sourceWindow, slot.length, src);
 }
 function trendStrengthIndex(slotId, source, length, opts) {
-  const ctx = getCtx83();
+  const ctx = getCtx87();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot73(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot77(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
@@ -14540,14 +14886,14 @@ function trendStrengthIndex(slotId, source, length, opts) {
 
 // ../runtime/dist/ta/trix.js
 var DEFAULT_SIGNAL5 = 9;
-function getCtx84() {
+function getCtx88() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.trix called outside an active script step");
   }
   return ctx;
 }
-function initSlot74(capacity, signalSeries) {
+function initSlot78(capacity, signalSeries) {
   const trixBuffer = new Float64RingBuffer(capacity);
   return {
     result: Object.freeze({
@@ -14574,7 +14920,7 @@ function resultForOffset12(slot, offset, signalBuf) {
   return cached;
 }
 function trix(slotId, source, length, opts) {
-  const ctx = getCtx84();
+  const ctx = getCtx88();
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL5;
   const offset = opts?.offset ?? 0;
   const src = readSourceValue(source);
@@ -14592,7 +14938,7 @@ function trix(slotId, source, length, opts) {
   const trixValue = Number.isFinite(e3) && Number.isFinite(prevE3) && prevE3 !== 0 ? 100 * (e3 - prevE3) / prevE3 : Number.NaN;
   const signalSeries = ema(`${slotId}/signal`, trixValue, signalLength);
   if (slot === void 0) {
-    slot = initSlot74(ctx.stream.ohlcv.close.capacity, signalSeries);
+    slot = initSlot78(ctx.stream.ohlcv.close.capacity, signalSeries);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const signalSubSlot = ctx.stream.taSlots.get(`${slotId}/signal`);
@@ -14612,7 +14958,7 @@ function trix(slotId, source, length, opts) {
 var DEFAULT_FIRST3 = 25;
 var DEFAULT_SECOND3 = 13;
 var DEFAULT_SIGNAL6 = 13;
-function getCtx85() {
+function getCtx89() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.tsi called outside an active script step");
@@ -14638,7 +14984,7 @@ function tsiValue(num, den) {
   return 100 * num / den;
 }
 function tsi(slotId, source, opts) {
-  const ctx = getCtx85();
+  const ctx = getCtx89();
   const firstSmoothing = opts?.firstSmoothing ?? DEFAULT_FIRST3;
   const secondSmoothing = opts?.secondSmoothing ?? DEFAULT_SECOND3;
   const signalLength = opts?.signalLength ?? DEFAULT_SIGNAL6;
@@ -14688,14 +15034,14 @@ function tsi(slotId, source, opts) {
 }
 
 // ../runtime/dist/ta/ulcerIndex.js
-function getCtx86() {
+function getCtx90() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.ulcerIndex called outside an active script step");
   }
   return ctx;
 }
-function initSlot75(slotId, length, capacity) {
+function initSlot79(slotId, length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -14713,7 +15059,7 @@ function drawdownSquared(src, maxSrc) {
   const dd = 100 * (src - maxSrc) / maxSrc;
   return dd * dd;
 }
-function closeValue23(slot, src, maxSrc) {
+function closeValue25(slot, src, maxSrc) {
   const ddSq = drawdownSquared(src, maxSrc);
   if (!Number.isFinite(ddSq)) {
     return Number.NaN;
@@ -14725,7 +15071,7 @@ function closeValue23(slot, src, maxSrc) {
   slot.sumDrawdownSq += ddSq;
   return Math.sqrt(slot.sumDrawdownSq / slot.drawdownSqWindow.length);
 }
-function tickValue23(slot, src, maxSrc) {
+function tickValue25(slot, src, maxSrc) {
   if (slot.drawdownSqWindow.length === 0)
     return Number.NaN;
   const ddSq = drawdownSquared(src, maxSrc);
@@ -14736,19 +15082,19 @@ function tickValue23(slot, src, maxSrc) {
   return Math.sqrt(hypSum / slot.drawdownSqWindow.length);
 }
 function ulcerIndex(slotId, source, length, _opts) {
-  const ctx = getCtx86();
+  const ctx = getCtx90();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot75(slotId, length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot79(slotId, length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   const maxSeries = highest(slot.highestSub, source, length);
   const maxSrc = maxSeries.current;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue23(slot, src, maxSrc));
+    slot.outBuffer.replaceHead(tickValue25(slot, src, maxSrc));
   } else {
-    slot.outBuffer.append(closeValue23(slot, src, maxSrc));
+    slot.outBuffer.append(closeValue25(slot, src, maxSrc));
   }
   return slot.series;
 }
@@ -14757,14 +15103,14 @@ function ulcerIndex(slotId, source, length, _opts) {
 var DEFAULT_SHORT_LENGTH = 7;
 var DEFAULT_MEDIUM_LENGTH = 14;
 var DEFAULT_LONG_LENGTH = 28;
-function getCtx87() {
+function getCtx91() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.ultimateOsc called outside an active script step");
   }
   return ctx;
 }
-function initSlot76(shortLength, mediumLength, longLength, capacity) {
+function initSlot80(shortLength, mediumLength, longLength, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -14818,7 +15164,7 @@ function uoFromSums(sumBpShort, sumTrShort, sumBpMedium, sumTrMedium, sumBpLong,
   const avgLong = sumBpLong / sumTrLong;
   return 100 * (4 * avgShort + 2 * avgMedium + avgLong) / 7;
 }
-function closeValue24(slot, high, low, close) {
+function closeValue26(slot, high, low, close) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
     if (slot.barCount < slot.longLength)
       return Number.NaN;
@@ -14850,7 +15196,7 @@ function closeValue24(slot, high, low, close) {
     return Number.NaN;
   return uoFromSums(slot.sumBpShort, slot.sumTrShort, slot.sumBpMedium, slot.sumTrMedium, slot.sumBpLong, slot.sumTrLong);
 }
-function tickValue24(slot, high, low, close) {
+function tickValue26(slot, high, low, close) {
   if (slot.barCount < slot.longLength)
     return Number.NaN;
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
@@ -14860,13 +15206,13 @@ function tickValue24(slot, high, low, close) {
   return uoFromSums(slot.sumBpShort - slot.headBpShort + tickBp, slot.sumTrShort - slot.headTrShort + tickTr, slot.sumBpMedium - slot.headBpMedium + tickBp, slot.sumTrMedium - slot.headTrMedium + tickTr, slot.sumBpLong - slot.headBpLong + tickBp, slot.sumTrLong - slot.headTrLong + tickTr);
 }
 function ultimateOsc(slotId, opts) {
-  const ctx = getCtx87();
+  const ctx = getCtx91();
   const shortLength = opts?.shortLength ?? DEFAULT_SHORT_LENGTH;
   const mediumLength = opts?.mediumLength ?? DEFAULT_MEDIUM_LENGTH;
   const longLength = opts?.longLength ?? DEFAULT_LONG_LENGTH;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot76(shortLength, mediumLength, longLength, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot80(shortLength, mediumLength, longLength, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -14874,15 +15220,15 @@ function ultimateOsc(slotId, opts) {
   const low = +bar.low;
   const close = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue24(slot, high, low, close));
+    slot.outBuffer.replaceHead(tickValue26(slot, high, low, close));
   } else {
-    slot.outBuffer.append(closeValue24(slot, high, low, close));
+    slot.outBuffer.append(closeValue26(slot, high, low, close));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/valuewhen.js
-function getCtx88() {
+function getCtx92() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.valuewhen called outside an active script step");
@@ -14892,7 +15238,7 @@ function getCtx88() {
 function readBoolean(condition) {
   return condition.current;
 }
-function initSlot77(occurrence, capacity) {
+function initSlot81(occurrence, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   const ringCapacity = occurrence + 1;
   return {
@@ -14912,7 +15258,7 @@ function emitFromState(occurrence, ring, matchCount) {
     return Number.NaN;
   return ring[0];
 }
-function closeValue25(slot, src, fired) {
+function closeValue27(slot, src, fired) {
   slot.prevRing = slot.ring.slice();
   slot.prevMatchCount = slot.matchCount;
   if (fired) {
@@ -14923,7 +15269,7 @@ function closeValue25(slot, src, fired) {
   }
   return emitFromState(slot.occurrence, slot.ring, slot.matchCount);
 }
-function tickValue25(slot, src, fired) {
+function tickValue27(slot, src, fired) {
   const ring = slot.prevRing.slice();
   let count = slot.prevMatchCount;
   if (fired) {
@@ -14935,18 +15281,18 @@ function tickValue25(slot, src, fired) {
   return emitFromState(slot.occurrence, ring, count);
 }
 function valuewhen(slotId, condition, source, occurrence = 0, opts = {}) {
-  const ctx = getCtx88();
+  const ctx = getCtx92();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot77(occurrence, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot81(occurrence, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const fired = readBoolean(condition);
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue25(slot, src, fired));
+    slot.outBuffer.replaceHead(tickValue27(slot, src, fired));
   } else {
-    slot.outBuffer.append(closeValue25(slot, src, fired));
+    slot.outBuffer.append(closeValue27(slot, src, fired));
   }
   const offset = opts.offset ?? 0;
   if (offset === 0)
@@ -14960,14 +15306,14 @@ function valuewhen(slotId, condition, source, occurrence = 0, opts = {}) {
 }
 
 // ../runtime/dist/ta/visibleRangeVolumeProfile.js
-function getCtx89() {
+function getCtx93() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.visibleRangeVolumeProfile called outside an active script step");
   }
   return ctx;
 }
-function initSlot78(capacity) {
+function initSlot82(capacity) {
   const core = createVolumeProfileCore(capacity);
   const slot = {
     ...core,
@@ -15020,10 +15366,10 @@ function collectBars4(ctx) {
   return bars;
 }
 function visibleRangeVolumeProfile(slotId, opts) {
-  const ctx = getCtx89();
+  const ctx = getCtx93();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot78(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot82(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const snapshot6 = resolveVolumeProfileSnapshot({
@@ -15037,22 +15383,22 @@ function visibleRangeVolumeProfile(slotId, opts) {
 }
 
 // ../runtime/dist/ta/vol.js
-function getCtx90() {
+function getCtx94() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.vol called outside an active script step");
   }
   return ctx;
 }
-function initSlot79(capacity) {
+function initSlot83(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return { outBuffer, series: makeSeriesView(outBuffer) };
 }
 function vol(slotId, _opts) {
-  const ctx = getCtx90();
+  const ctx = getCtx94();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot79(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot83(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const value = ctx.stream.bar.volume;
@@ -15070,14 +15416,14 @@ var DEFAULT_MULTIPLIER8 = 2;
 var TREND_UP3 = 1;
 var TREND_DOWN3 = -1;
 var TREND_UNKNOWN = 0;
-function getCtx91() {
+function getCtx95() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.volatilityStop called outside an active script step");
   }
   return ctx;
 }
-function initSlot80(capacity, length, multiplier) {
+function initSlot84(capacity, length, multiplier) {
   const valueBuffer = new Float64RingBuffer(capacity);
   const directionBuffer = new Float64RingBuffer(capacity);
   return {
@@ -15175,12 +15521,12 @@ function tickStep6(slot, src, atrValue) {
   return { value: step2.value, direction: step2.direction };
 }
 function volatilityStop(slotId, opts) {
-  const ctx = getCtx91();
+  const ctx = getCtx95();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const length = opts?.length ?? DEFAULT_LENGTH9;
     const multiplier = opts?.multiplier ?? DEFAULT_MULTIPLIER8;
-    slot = initSlot80(ctx.stream.ohlcv.close.capacity, length, multiplier);
+    slot = initSlot84(ctx.stream.ohlcv.close.capacity, length, multiplier);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const atrSeries = atr(`${slotId}/atr`, slot.length);
@@ -15199,7 +15545,7 @@ function volatilityStop(slotId, opts) {
 }
 
 // ../runtime/dist/ta/vortex.js
-function getCtx92() {
+function getCtx96() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.vortex called outside an active script step");
@@ -15211,7 +15557,7 @@ function trueRange4(high, low, prevClose) {
     return high - low;
   return Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
 }
-function initSlot81(length, capacity) {
+function initSlot85(length, capacity) {
   const plusBuffer = new Float64RingBuffer(capacity);
   const minusBuffer = new Float64RingBuffer(capacity);
   return {
@@ -15323,10 +15669,10 @@ function tickStep7(slot, high, low, close) {
   };
 }
 function vortex(slotId, length, opts) {
-  const ctx = getCtx92();
+  const ctx = getCtx96();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot81(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot85(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -15348,14 +15694,14 @@ function vortex(slotId, length, opts) {
 // ../runtime/dist/ta/vwap.js
 var DEFAULT_SOURCE2 = "hlc3";
 var MS_PER_DAY3 = 864e5;
-function getCtx93() {
+function getCtx97() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.vwap called outside an active script step");
   }
   return ctx;
 }
-function initSlot82(capacity) {
+function initSlot86(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -15404,11 +15750,11 @@ function valueFromCum2(cumPV, cumV) {
   return cumPV / cumV;
 }
 function vwap(slotId, opts) {
-  const ctx = getCtx93();
+  const ctx = getCtx97();
   const source = opts?.source ?? DEFAULT_SOURCE2;
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot82(ctx.stream.ohlcv.close.capacity);
+    slot = initSlot86(ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSource2(ctx, source);
@@ -15431,14 +15777,14 @@ function vwap(slotId, opts) {
 }
 
 // ../runtime/dist/ta/vwma.js
-function getCtx94() {
+function getCtx98() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.vwma called outside an active script step");
   }
   return ctx;
 }
-function initSlot83(length, capacity) {
+function initSlot87(length, capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return {
     outBuffer,
@@ -15462,14 +15808,14 @@ function weightedFromWindows(slot) {
   }
   return volSum > 0 ? pvSum / volSum : Number.NaN;
 }
-function closeValue26(slot, src, vol2) {
+function closeValue28(slot, src, vol2) {
   slot.sourceWindow.append(src);
   slot.volumeWindow.append(vol2);
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   return weightedFromWindows(slot);
 }
-function tickValue26(slot, src, vol2) {
+function tickValue28(slot, src, vol2) {
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src))
@@ -15489,32 +15835,32 @@ function tickValue26(slot, src, vol2) {
   return volSum > 0 ? pvSum / volSum : Number.NaN;
 }
 function vwma(slotId, source, length, _opts) {
-  const ctx = getCtx94();
+  const ctx = getCtx98();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
-    slot = initSlot83(length, ctx.stream.ohlcv.close.capacity);
+    slot = initSlot87(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const src = readSourceValue(source);
   const vol2 = +ctx.stream.bar.volume;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue26(slot, src, vol2));
+    slot.outBuffer.replaceHead(tickValue28(slot, src, vol2));
   } else {
-    slot.outBuffer.append(closeValue26(slot, src, vol2));
+    slot.outBuffer.append(closeValue28(slot, src, vol2));
   }
   return slot.series;
 }
 
 // ../runtime/dist/ta/williamsFractal.js
 var DEFAULT_LENGTH10 = 2;
-function getCtx95() {
+function getCtx99() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.williamsFractal called outside an active script step");
   }
   return ctx;
 }
-function initSlot84(capacity, length) {
+function initSlot88(capacity, length) {
   const upBuffer = new Float64RingBuffer(capacity);
   const downBuffer = new Float64RingBuffer(capacity);
   const windowSize = 2 * length + 1;
@@ -15564,11 +15910,11 @@ function scanDownFractal(lowWindow, headLow, length) {
   return centreLow;
 }
 function williamsFractal(slotId, opts) {
-  const ctx = getCtx95();
+  const ctx = getCtx99();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const length = opts?.length ?? DEFAULT_LENGTH10;
-    slot = initSlot84(ctx.stream.ohlcv.close.capacity, length);
+    slot = initSlot88(ctx.stream.ohlcv.close.capacity, length);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
@@ -15597,7 +15943,7 @@ function williamsFractal(slotId, opts) {
 }
 
 // ../runtime/dist/ta/williamsR.js
-function getCtx96() {
+function getCtx100() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.williamsR called outside an active script step");
@@ -15614,7 +15960,7 @@ function williamsRValue(hh, ll, close) {
   return -100 * (hh - close) / denom;
 }
 function williamsR(slotId, length, _opts) {
-  const ctx = getCtx96();
+  const ctx = getCtx100();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const outBuffer = new Float64RingBuffer(ctx.stream.ohlcv.close.capacity);
@@ -15639,14 +15985,14 @@ var DEFAULT_DEPTH = 10;
 var TREND_UP4 = 1;
 var TREND_DOWN4 = -1;
 var TREND_UNKNOWN2 = 0;
-function getCtx97() {
+function getCtx101() {
   const ctx = ACTIVE_RUNTIME_CONTEXT.current;
   if (ctx === null) {
     throw new Error("ta.zigZag called outside an active script step");
   }
   return ctx;
 }
-function initSlot85(capacity, deviation, depth) {
+function initSlot89(capacity, deviation, depth) {
   const valueBuffer = new Float64RingBuffer(capacity);
   const directionBuffer = new Float64RingBuffer(capacity);
   return {
@@ -15809,12 +16155,12 @@ function tickStep8(slot, close, barIndex) {
   return { value: step2.value, direction: step2.direction };
 }
 function zigZag(slotId, opts) {
-  const ctx = getCtx97();
+  const ctx = getCtx101();
   let slot = ctx.stream.taSlots.get(slotId);
   if (slot === void 0) {
     const deviation = opts?.deviation ?? DEFAULT_DEVIATION;
     const depth = opts?.depth ?? DEFAULT_DEPTH;
-    slot = initSlot85(ctx.stream.ohlcv.close.capacity, deviation, depth);
+    slot = initSlot89(ctx.stream.ohlcv.close.capacity, deviation, depth);
     ctx.stream.taSlots.set(slotId, slot);
   }
   const close = +ctx.stream.bar.close;
@@ -15843,12 +16189,16 @@ var TA_REGISTRY = Object.freeze({
   atr,
   crossover,
   crossunder,
+  cross,
+  cum,
   nz: nz2,
   highest,
   lowest,
   highestbars,
   lowestbars,
   change,
+  rising,
+  falling,
   valuewhen,
   barssince,
   wma,
@@ -16339,6 +16689,8 @@ function buildComputeContext(state2) {
     hline: hline2,
     bgcolor: bgcolor2,
     barcolor: barcolor2,
+    plotcandle: plotcandle2,
+    plotbar: plotbar2,
     alert: alert2,
     draw: DRAW_NAMESPACE,
     state: buildStateNamespace(),

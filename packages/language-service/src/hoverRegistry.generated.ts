@@ -925,6 +925,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.3",
         "stability": "stable"
     },
+    "CrossOpts": {
+        "fqn": "CrossOpts",
+        "kind": "type",
+        "title": "CrossOpts",
+        "summary": "/**\nOptions bag for `ta.cross`. Mirrors  {@link RisingOpts} .",
+        "examples": [
+            "const opts: CrossOpts = {};"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
     "CrossoverOpts": {
         "fqn": "CrossoverOpts",
         "kind": "type",
@@ -945,6 +956,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const opts: CrossunderOpts = { offset: 0 };"
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "CumOpts": {
+        "fqn": "CumOpts",
+        "kind": "type",
+        "title": "CumOpts",
+        "summary": "/**\nOptions bag for `ta.cum`. Mirrors  {@link RisingOpts} .",
+        "examples": [
+            "const opts: CumOpts = {};"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "CurveState": {
@@ -2842,6 +2864,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "1.9",
         "stability": "stable"
     },
+    "FallingOpts": {
+        "fqn": "FallingOpts",
+        "kind": "type",
+        "title": "FallingOpts",
+        "summary": "/**\nOptions bag for `ta.falling`. Mirrors  {@link RisingOpts} .",
+        "examples": [
+            "const opts: FallingOpts = {};"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
     "feedKey": {
         "fqn": "feedKey",
         "kind": "function",
@@ -4512,6 +4545,104 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "plotbar": {
+        "fqn": "plotbar",
+        "kind": "function",
+        "title": "plotbar(_open, _high, _low, _close, _opts?)",
+        "summary": "Plot a **derived** OHLC-bar series for the current bar — Pine's `plotbar`.\nUnlike the color-only `bar-override` style (which recolors the primary\nchart bars), this renders its own OHLC quad. Each of `open` / `high` /\n`low` / `close` is `number | Series<number>`; the runtime lowers the call\nto an `ohlc-bar` plot style whose per-bar OHLC numerics live inside the\nstyle object. A fully-null bar is a legit gap; a partially-null bar is\nmalformed.",
+        "paramTable": [
+            {
+                "name": "_open",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_high",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_low",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_close",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_opts",
+                "type": "PlotBarOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// Inside a compiled `compute`:\n//   plotbar(o, h, l, c, { color: \"#f59e0b\" });\nimport { plotbar } from \"@invinite-org/chartlang-core\";\ntry { plotbar(1, 2, 0, 1.5); } catch {}"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
+    "PlotBarOpts": {
+        "fqn": "PlotBarOpts",
+        "kind": "type",
+        "title": "PlotBarOpts",
+        "summary": "Styling options accepted by `plotbar(...)` — a *derived* OHLC-bar series,\nlowering to the value-carrying `ohlc-bar` plot style. Distinct from the\ncolor-only `bar-override` style, which only recolors the primary chart\nbars. All colors default at emit time.",
+        "examples": [
+            "const opts: PlotBarOpts = { color: \"#f59e0b\" };\nvoid opts;"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
+    "plotcandle": {
+        "fqn": "plotcandle",
+        "kind": "function",
+        "title": "plotcandle(_open, _high, _low, _close, _opts?)",
+        "summary": "Plot a **derived** candle series for the current bar — Pine's `plotcandle`.\nUnlike the color-only `candle-override` style (which recolors the primary\nchart candles), this renders its own OHLC quad (Heikin-Ashi, smoothed\ncandles, a secondary-symbol / HTF overlay). Each of `open` / `high` / `low`\n/ `close` is `number | Series<number>`; the runtime lowers the call to a\n`candle` plot style whose per-bar OHLC numerics live inside the style\nobject. A fully-null bar is a legit gap; a partially-null bar is malformed.",
+        "paramTable": [
+            {
+                "name": "_open",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_high",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_low",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_close",
+                "type": "number | Series<number>",
+                "doc": ""
+            },
+            {
+                "name": "_opts",
+                "type": "PlotCandleOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "// Inside a compiled `compute`, plotting Heikin-Ashi candles:\n//   plotcandle(ha.open, ha.high, ha.low, ha.close, { bull: \"#26a69a\", bear: \"#ef5350\" });\nimport { plotcandle } from \"@invinite-org/chartlang-core\";\ntry { plotcandle(1, 2, 0, 1.5); } catch {}"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
+    "PlotCandleOpts": {
+        "fqn": "PlotCandleOpts",
+        "kind": "type",
+        "title": "PlotCandleOpts",
+        "summary": "Styling options accepted by `plotcandle(...)` — a *derived* candle series\n(Heikin-Ashi, smoothed candles, a secondary-symbol / HTF overlay), lowering\nto the value-carrying `candle` plot style. Distinct from the color-only\n`candle-override` style, which only recolors the primary chart candles.\nAll colors default at emit time; a fully-null OHLC bar is a legit gap.",
+        "examples": [
+            "const opts: PlotCandleOpts = { bull: \"#26a69a\", bear: \"#ef5350\", doji: \"#999999\" };\nvoid opts;"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
     "PlotGlyphShape": {
         "fqn": "PlotGlyphShape",
         "kind": "type",
@@ -4527,7 +4658,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PlotKind",
         "kind": "type",
         "title": "PlotKind",
-        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is\nadditive — the `apiVersion: 1` script header stays unchanged.",
+        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`; `candle` and\n`ohlc-bar` (1.8) carry a per-bar OHLC quad for a *derived* candle / bar\nseries (distinct from the color-only `candle-override` / `bar-override`\nrecolors of the primary candles). Every expansion is additive — the\n`apiVersion: 1` script header stays unchanged.",
         "examples": [
             "const k: PlotKind = \"line\";\nconst histogram: PlotKind = \"histogram\";\nconst shape: PlotKind = \"shape\";\nvoid k; void histogram; void shape;"
         ],
@@ -4946,6 +5077,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const red = rgb(255, 0, 0);\nvoid red;"
         ],
         "since": "0.5",
+        "stability": "stable"
+    },
+    "RisingOpts": {
+        "fqn": "RisingOpts",
+        "kind": "type",
+        "title": "RisingOpts",
+        "summary": "Options bag for `ta.rising`. Empty in v1 — reserved so a later option is\nadditive within `apiVersion: 1`.",
+        "examples": [
+            "const opts: RisingOpts = {};"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "RocOpts": {
@@ -6295,6 +6437,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.1",
         "stability": "stable"
     },
+    "ta.cross": {
+        "fqn": "ta.cross",
+        "kind": "property",
+        "title": "ta.cross",
+        "summary": "`true` on the bar where `a` crosses `b` in either direction — the union\nof `ta.crossover(a, b)` and `ta.crossunder(a, b)`. A `NaN` operand in\nthe one-bar window yields `false`.",
+        "examples": [
+            "// const touched = ta.cross(ta.ema(bar.close, 9), ta.ema(bar.close, 21));"
+        ],
+        "since": "1.8",
+        "stability": "stable"
+    },
     "ta.crossover": {
         "fqn": "ta.crossover",
         "kind": "function",
@@ -6343,6 +6496,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "ta.cum": {
+        "fqn": "ta.cum",
+        "kind": "property",
+        "title": "ta.cum",
+        "summary": "Running (cumulative) sum of `source` from the first bar. A `NaN` sample\ncontributes `0`, carrying the total forward without polluting it\n(matching Pine `ta.cum` and the `obv` / `adl` accumulator convention).",
+        "examples": [
+            "// const cumVol = ta.cum(bar.volume);"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "ta.dema": {
@@ -6498,6 +6662,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "ta.falling": {
+        "fqn": "ta.falling",
+        "kind": "property",
+        "title": "ta.falling",
+        "summary": "`true` when `source` fell on each of the trailing `length` bars — every\none of the last `length` consecutive first-differences is strictly\nnegative. A `NaN` anywhere in the window yields `false` (the\nboolean-series convention shared with `ta.crossunder`).",
+        "examples": [
+            "// const down = ta.falling(bar.close, 3);"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "ta.fisher": {
@@ -7138,6 +7313,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             }
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "ta.rising": {
+        "fqn": "ta.rising",
+        "kind": "property",
+        "title": "ta.rising",
+        "summary": "`true` when `source` rose on each of the trailing `length` bars — every\none of the last `length` consecutive first-differences is strictly\npositive. A `NaN` anywhere in the window yields `false` (the\nboolean-series convention shared with `ta.crossover`).",
+        "examples": [
+            "// const up = ta.rising(bar.close, 3);"
+        ],
+        "since": "1.8",
         "stability": "stable"
     },
     "ta.roc": {

@@ -415,6 +415,47 @@ describe("createCanvas2dAdapter — construction", () => {
             }),
         ).toThrow();
     });
+
+    it("threads feedExternalSeries into the worker host and the adapter definition", () => {
+        const channel = new MessageChannel();
+        const worker = {
+            addEventListener: () => {},
+            postMessage: () => {},
+            terminate: () => {
+                channel.port1.close();
+                channel.port2.close();
+            },
+        };
+        const feedExternalSeries = (): Record<string, { values: number[] }> => ({
+            feed: { values: [1, 2, 3] },
+        });
+        const adapter = createCanvas2dAdapter({
+            canvas: { width: 1, height: 1 },
+            ctx: new MockCanvas2DContext(),
+            candleSource: candleStream([]),
+            workerLike: worker,
+            feedExternalSeries,
+        });
+        expect(adapter.feedExternalSeries).toBe(feedExternalSeries);
+        adapter.dispose();
+    });
+
+    it("evaluates feedExternalSeries on the default (no-workerLike) worker path", () => {
+        const feedExternalSeries = (): Record<string, { values: number[] }> => ({
+            feed: { values: [1] },
+        });
+        // No `host` / `workerLike` ⇒ the real `new Worker(...)` throws in Node,
+        // but the `feedExternalSeries` conditional spread is evaluated while
+        // assembling the host options before the throw.
+        expect(() =>
+            createCanvas2dAdapter({
+                canvas: { width: 1, height: 1 },
+                ctx: new MockCanvas2DContext(),
+                candleSource: candleStream([]),
+                feedExternalSeries,
+            }),
+        ).toThrow();
+    });
 });
 
 describe("onEmissions dispatch", () => {
@@ -1471,6 +1512,185 @@ describe("onEmissions dispatch", () => {
         );
         // A finite point exists on both edges, so the band still fills.
         expect(ctx.calls.filter((c) => c.kind === "fill").length).toBeGreaterThan(0);
+    });
+
+    it("dispatches a candle plot: fills a bull body and strokes the wick per bar", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "c",
+                        value: 108,
+                        style: {
+                            kind: "candle",
+                            open: 100,
+                            high: 110,
+                            low: 95,
+                            close: 108,
+                            bull: "#26a69a",
+                            bear: "#ef5350",
+                        },
+                    }),
+                    plotEmission({
+                        slotId: "c",
+                        value: 103,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: {
+                            kind: "candle",
+                            open: 104,
+                            high: 106,
+                            low: 101,
+                            close: 103,
+                            bull: "#26a69a",
+                            bear: "#ef5350",
+                            doji: "#999999",
+                            wickColor: "#333333",
+                            borderColor: "#111111",
+                        },
+                    }),
+                ],
+            }),
+        );
+        // Bar 0 is bull (close > open), so its body fills with the bull color.
+        expect(
+            ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#26a69a",
+            ),
+        ).toBe(true);
+        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
+        expect(ctx.calls.some((c) => c.kind === "stroke")).toBe(true);
+    });
+
+    it("dispatches an ohlc-bar plot: strokes the bar in its resolved color", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "b",
+                        value: 108,
+                        style: {
+                            kind: "ohlc-bar",
+                            open: 100,
+                            high: 110,
+                            low: 95,
+                            close: 108,
+                            color: "#f59e0b",
+                            upColor: "#16a34a",
+                            downColor: "#dc2626",
+                        },
+                    }),
+                    // A second series with no directional overrides falls back
+                    // to the base color (covers the omitted-upColor/downColor
+                    // path). A distinct slot so its style is not collapsed by
+                    // the per-series last-write-wins.
+                    plotEmission({
+                        slotId: "b2",
+                        value: 101,
+                        time: SAMPLE_BARS[1].time,
+                        bar: 1,
+                        style: {
+                            kind: "ohlc-bar",
+                            open: 104,
+                            high: 107,
+                            low: 100,
+                            close: 101,
+                            color: "#f59e0b",
+                        },
+                    }),
+                    // An all-null gap bar draws nothing (covers the per-bar
+                    // null-quad path in renderOhlcBarSeries).
+                    plotEmission({
+                        slotId: "b3",
+                        value: null,
+                        style: {
+                            kind: "ohlc-bar",
+                            open: null,
+                            high: null,
+                            low: null,
+                            close: null,
+                            color: "#f59e0b",
+                        },
+                    }),
+                ],
+            }),
+        );
+        // Up bar (close ≥ open) ⇒ the up color overrides the base color.
+        expect(
+            ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "strokeStyle" && c.value === "#16a34a",
+            ),
+        ).toBe(true);
+    });
+
+    it("candle: an all-null OHLC gap bar issues no body fill", () => {
+        const { adapter, ctx } = buildAdapter({});
+        adapter.onEmissions(
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "c",
+                        value: null,
+                        style: {
+                            kind: "candle",
+                            open: null,
+                            high: null,
+                            low: null,
+                            close: null,
+                            bull: "#26a69a",
+                            bear: "#ef5350",
+                        },
+                    }),
+                ],
+            }),
+        );
+        // The gap draws nothing — the candle body's bull color is never set.
+        expect(
+            ctx.calls.some(
+                (c) => c.kind === "set" && c.prop === "fillStyle" && c.value === "#26a69a",
+            ),
+        ).toBe(false);
+    });
+
+    it("folds candle high/low into the auto price scale", async () => {
+        // Drive through runRendererLoop so bars exist, then emit a candle whose
+        // wick (high/low on the point) must stretch the y-range — exercises the
+        // computeYRange high/low fold alongside the primary candles.
+        const host = stubHost([
+            emissions(),
+            emissions({
+                plots: [
+                    plotEmission({
+                        slotId: "c",
+                        value: 500,
+                        bar: 0,
+                        style: {
+                            kind: "candle",
+                            open: 10,
+                            high: 1000,
+                            low: 0,
+                            close: 500,
+                            bull: "#26a69a",
+                            bear: "#ef5350",
+                        },
+                    }),
+                ],
+            }),
+        ]);
+        const ctx = new MockCanvas2DContext();
+        const { adapter } = buildAdapter({
+            ctx,
+            host,
+            candles: candleStream([
+                { kind: "history", bars: SAMPLE_BARS.slice(0, 1) },
+                { kind: "close", bar: SAMPLE_BARS[1] },
+            ]),
+        });
+        await runRendererLoop(adapter);
+        // The wide candle participates in the scale and its body still fills.
+        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
     });
 
     it("dispatches a marker plot via the glyph band (fill at the value anchor)", () => {

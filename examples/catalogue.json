@@ -1194,6 +1194,26 @@
         "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Close Change\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.\n        const delta = ta.change(bar.close);\n        plot(delta, {\n            color: \"#2962ff\",\n            title: \"Δ Close\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
     },
     {
+        "id": "close-rising",
+        "label": "Close Rising",
+        "description": "ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.",
+        "category": "ta-pivots-utility",
+        "primitives": [
+            "ta.rising"
+        ],
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Close Rising\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.\n        const up = ta.rising(bar.close, 3);\n        plot(up.current ? 1 : 0, {\n            color: \"#26a69a\",\n            title: \"Rising(3)\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
+    },
+    {
+        "id": "close-falling",
+        "label": "Close Falling",
+        "description": "ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.",
+        "category": "ta-pivots-utility",
+        "primitives": [
+            "ta.falling"
+        ],
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Close Falling\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.\n        const down = ta.falling(bar.close, 3);\n        plot(down.current ? 1 : 0, {\n            color: \"#ef5350\",\n            title: \"Falling(3)\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
+    },
+    {
         "id": "rolling-median",
         "label": "Rolling Median",
         "description": "ta.median — the rolling middle-value of the last 20 closes, a spike-robust center line where an SMA would be dragged by outliers.",
@@ -1212,6 +1232,26 @@
             "ta.nz"
         ],
         "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"NZ Warmup Fill\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.nz — replace the warmup NaN of a 5-bar change with 0, so the plotted momentum line starts at the very first bar instead of leaving a leading gap.\n        const delta = ta.change(bar.close, { length: 5 });\n        plot(ta.nz(delta.current, 0), {\n            color: \"#00897b\",\n            title: \"Δ Close (nz→0)\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
+    },
+    {
+        "id": "bidirectional-cross",
+        "label": "Bidirectional Cross",
+        "description": "ta.cross — true on the bar where the fast EMA(9) crosses the slow EMA(21) in either direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.",
+        "category": "ta-pivots-utility",
+        "primitives": [
+            "ta.cross"
+        ],
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Bidirectional Cross\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.cross — fires true on the bar where the fast EMA(9) crosses the slow EMA(21) in EITHER direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.\n        const touched = ta.cross(ta.ema(bar.close, 9), ta.ema(bar.close, 21));\n        plot(touched.current ? 1 : 0, {\n            color: \"#ff6d00\",\n            title: \"Cross\",\n            style: { kind: \"histogram\", baseline: 0 },\n        });\n    },\n});\n"
+    },
+    {
+        "id": "cumulative-volume",
+        "label": "Cumulative Volume",
+        "description": "ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.",
+        "category": "ta-pivots-utility",
+        "primitives": [
+            "ta.cum"
+        ],
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Cumulative Volume\",\n    apiVersion: 1,\n    overlay: false,\n    compute({ bar, ta, plot }) {\n        // ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.\n        plot(ta.cum(bar.volume), { color: \"#2962ff\", title: \"Cumulative Volume\" });\n    },\n});\n"
     },
     {
         "id": "pivot-arrow",

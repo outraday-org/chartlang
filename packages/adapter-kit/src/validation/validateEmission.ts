@@ -67,6 +67,8 @@ const VALID_PLOT_STYLE_KINDS: ReadonlySet<string> = new Set([
     "bg-color",
     "bar-color",
     "horizontal-histogram",
+    "candle",
+    "ohlc-bar",
 ]);
 
 const VALID_LINE_STYLES: ReadonlySet<string> = new Set(["solid", "dashed", "dotted"]);
@@ -369,6 +371,60 @@ function validateSingleColorStyle(style: Record<string, unknown>, path: string):
     return validateColor(style.color, path);
 }
 
+function validateOptionalColor(value: unknown, path: string): ValidationResult {
+    if (value === undefined) return { ok: true };
+    return validateColor(value, path);
+}
+
+const OHLC_QUAD_FIELDS = ["open", "high", "low", "close"] as const;
+
+// Shared OHLC-quad invariant for the value-carrying `candle` / `ohlc-bar`
+// styles: each field is a finite number or `null`; all four `null` is a gap
+// bar (the adapter draws nothing); a mix of finite and `null` is a malformed
+// emission. Mirrors the `filled-band` multi-value precedent.
+function validateOhlcQuad(style: Record<string, unknown>): ValidationResult {
+    let finiteCount = 0;
+    let nullCount = 0;
+    for (const name of OHLC_QUAD_FIELDS) {
+        const value = style[name];
+        if (value === null) {
+            nullCount += 1;
+        } else if (isFiniteNumber(value)) {
+            finiteCount += 1;
+        } else {
+            return bad(`style.${name}: must be a finite number or null`);
+        }
+    }
+    if (nullCount > 0 && finiteCount > 0) {
+        return bad("style.{open,high,low,close}: all four must be finite together or all null");
+    }
+    return { ok: true };
+}
+
+function validateCandleStyle(style: Record<string, unknown>): ValidationResult {
+    const quad = validateOhlcQuad(style);
+    if (!quad.ok) return quad;
+    const bull = validateColor(style.bull, "style.bull");
+    if (!bull.ok) return bull;
+    const bear = validateColor(style.bear, "style.bear");
+    if (!bear.ok) return bear;
+    const doji = validateOptionalColor(style.doji, "style.doji");
+    if (!doji.ok) return doji;
+    const wick = validateOptionalColor(style.wickColor, "style.wickColor");
+    if (!wick.ok) return wick;
+    return validateOptionalColor(style.borderColor, "style.borderColor");
+}
+
+function validateOhlcBarStyle(style: Record<string, unknown>): ValidationResult {
+    const quad = validateOhlcQuad(style);
+    if (!quad.ok) return quad;
+    const color = validateColor(style.color, "style.color");
+    if (!color.ok) return color;
+    const upColor = validateOptionalColor(style.upColor, "style.upColor");
+    if (!upColor.ok) return upColor;
+    return validateOptionalColor(style.downColor, "style.downColor");
+}
+
 function validateBgColorStyle(style: Record<string, unknown>): ValidationResult {
     const color = validateSingleColorStyle(style, "style.color");
     if (!color.ok) return color;
@@ -432,6 +488,10 @@ function validatePlotStyle(style: unknown): ValidationResult {
             return validateArrowStyle(style);
         case "candle-override":
             return validateCandleOverrideStyle(style);
+        case "candle":
+            return validateCandleStyle(style);
+        case "ohlc-bar":
+            return validateOhlcBarStyle(style);
         case "bar-override":
         case "bar-color":
             return validateSingleColorStyle(style, "style.color");

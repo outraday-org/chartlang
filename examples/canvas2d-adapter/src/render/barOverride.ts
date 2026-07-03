@@ -4,7 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { RenderCtx } from "./clear.js";
-import { priceToY, timeToX, type Viewport } from "./coords.js";
+import { BODY_WIDTH_RATIO, priceToY, timeToX, type Viewport } from "./coords.js";
 
 /**
  * OHLC bar and style inputs for a Phase 5 `bar-override` outline.
@@ -21,8 +21,6 @@ export type BarOverrideArgs = {
     readonly color: string;
     readonly barCount: number;
 };
-
-const BODY_WIDTH_RATIO = 0.6;
 
 /**
  * Render a Phase-5 `bar-override` OHLC outline.

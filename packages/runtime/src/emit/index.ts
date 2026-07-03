@@ -25,4 +25,5 @@ export { hline } from "./hline.js";
 export { buildRuntimeNamespace, emitLog } from "./logEmission.js";
 export { resolveDefaultPane, resolvePane, resolveScriptPane } from "./paneResolver.js";
 export { plot } from "./plot.js";
+export { plotbar, plotcandle } from "./plotCandle.js";
 export { isRuntimeErrorHalt, makeRuntimeErrorHalt } from "./runtimeError.js";

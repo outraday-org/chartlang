@@ -563,6 +563,20 @@ coppock = (Σ sum[t − N + 1 + i] · (i + 1)) / (N(N + 1) / 2)
 **Warmup:** max(roc1Length, roc2Length) + wmaLength − 1
 **Since:** 0.2 · stable
 
+### ta.cross
+
+```ts
+function cross(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries): Series<boolean>;
+```
+
+`true` on the bar where `a` crosses `b` in either direction — the union
+of `ta.crossover(a, b)` and `ta.crossunder(a, b)`. A `NaN` operand in
+the one-bar window yields `false`.
+
+**Formula:** out[t] = crossover(a,b)[t] ∨ crossunder(a,b)[t]
+**Warmup:** 1
+**Since:** 1.8 · stable
+
 ### ta.crossover
 
 ```ts
@@ -596,6 +610,24 @@ inputs yield `false`.
 **Formula:** out[t] = a[t] < b[t] && a[t − 1] ≥ b[t − 1] (else false)
 **Warmup:** 1
 **Since:** 0.1 · stable
+
+### ta.cum
+
+```ts
+function cum(slotId: string, source: ScalarOrSeries): Series<number>;
+```
+
+Running (cumulative) sum of `source` from the first bar. A `NaN` sample
+contributes `0`, carrying the total forward without polluting it
+(matching Pine `ta.cum` and the `obv` / `adl` accumulator convention).
+
+**Tick mode.** Replays the head bar's contribution against a snapshot of
+the prior-close total (`prevClosedCum`) so a partial-bar tick doesn't
+pollute the next close's accumulator.
+
+**Formula:** out[t] = Σ_{u=0..t} (isFinite(src[u]) ? src[u] : 0)
+**Warmup:** 0
+**Since:** 1.8 · stable
 
 ### ta.dema
 
@@ -754,6 +786,21 @@ any NaN in the window → NaN
 **Warmup:** length (first defined output at bar `length`; bar 1 has the
 first finite rawEom; the window needs `length` such values)
 **Since:** 0.2 · stable
+
+### ta.falling
+
+```ts
+function falling(slotId: string, source: ScalarOrSeries, length: number): Series<boolean>;
+```
+
+`true` when `source` fell on each of the trailing `length` bars — every
+one of the last `length` consecutive first-differences is strictly
+negative. A `NaN` anywhere in the window yields `false` (the
+boolean-series convention shared with `ta.crossunder`).
+
+**Formula:** out[t] = ⋀_{k=1..length} src[t−k+1] < src[t−k]
+**Warmup:** length
+**Since:** 1.8 · stable
 
 ### ta.fisher
 
@@ -1562,6 +1609,21 @@ bar tick doesn't pollute the next close's accumulator.
 **Formula:** pvt[t] = pvt[t − 1] + volume[t] · (close[t] − close[t − 1]) / close[t − 1]
 **Warmup:** 1 (needs a prior close to compute the delta; bar 0 emits 0)
 **Since:** 0.2 · stable
+
+### ta.rising
+
+```ts
+function rising(slotId: string, source: ScalarOrSeries, length: number): Series<boolean>;
+```
+
+`true` when `source` rose on each of the trailing `length` bars — every
+one of the last `length` consecutive first-differences is strictly
+positive. A `NaN` anywhere in the window yields `false` (the
+boolean-series convention shared with `ta.crossover`).
+
+**Formula:** out[t] = ⋀_{k=1..length} src[t−k+1] > src[t−k]
+**Warmup:** length
+**Since:** 1.8 · stable
 
 ### ta.roc
 
@@ -3254,6 +3316,38 @@ Tint the candle / bar for the current bar — the Pine-ergonomic alias for
 existing `bar-color` plot style.
 
 **Since:** 1.4 · stable
+
+### plotcandle
+
+```ts
+function plotcandle(_open: number | Series<number>, _high: number | Series<number>, _low: number | Series<number>, _close: number | Series<number>, _opts?: PlotCandleOpts): void;
+```
+
+Plot a **derived** candle series for the current bar — Pine's `plotcandle`.
+Unlike the color-only `candle-override` style (which recolors the primary
+chart candles), this renders its own OHLC quad (Heikin-Ashi, smoothed
+candles, a secondary-symbol / HTF overlay). Each of `open` / `high` / `low`
+/ `close` is `number | Series<number>`; the runtime lowers the call to a
+`candle` plot style whose per-bar OHLC numerics live inside the style
+object. A fully-null bar is a legit gap; a partially-null bar is malformed.
+
+**Since:** 1.8 · stable
+
+### plotbar
+
+```ts
+function plotbar(_open: number | Series<number>, _high: number | Series<number>, _low: number | Series<number>, _close: number | Series<number>, _opts?: PlotBarOpts): void;
+```
+
+Plot a **derived** OHLC-bar series for the current bar — Pine's `plotbar`.
+Unlike the color-only `bar-override` style (which recolors the primary
+chart bars), this renders its own OHLC quad. Each of `open` / `high` /
+`low` / `close` is `number | Series<number>`; the runtime lowers the call
+to an `ohlc-bar` plot style whose per-bar OHLC numerics live inside the
+style object. A fully-null bar is a legit gap; a partially-null bar is
+malformed.
+
+**Since:** 1.8 · stable
 
 ## math.*
 

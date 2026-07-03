@@ -482,6 +482,38 @@ export type PlotStyle =
           readonly kind: "bar-override";
           readonly color: Color;
       }
+    /** Value-carrying custom candle series — Pine `plotcandle`. Unlike
+     *  `candle-override` (which only recolors the primary candles), this
+     *  carries a per-bar OHLC quad so the adapter can render a *derived*
+     *  candle series. All four of `open` / `high` / `low` / `close` are a
+     *  finite number together (a drawn bar) or all `null` (a gap the adapter
+     *  skips); a partial mix is rejected by {@link validateEmission}.
+     *  @since 1.8 */
+    | {
+          readonly kind: "candle";
+          readonly open: number | null;
+          readonly high: number | null;
+          readonly low: number | null;
+          readonly close: number | null;
+          readonly bull: Color;
+          readonly bear: Color;
+          readonly doji?: Color;
+          readonly wickColor?: Color;
+          readonly borderColor?: Color;
+      }
+    /** Value-carrying custom OHLC bar series — Pine `plotbar`. Same
+     *  all-finite-or-all-null quad rule as `candle`; `upColor` /`downColor`
+     *  optionally tint by `close ≥ open`. @since 1.8 */
+    | {
+          readonly kind: "ohlc-bar";
+          readonly open: number | null;
+          readonly high: number | null;
+          readonly low: number | null;
+          readonly close: number | null;
+          readonly color: Color;
+          readonly upColor?: Color;
+          readonly downColor?: Color;
+      }
     /** Phase 5 — Pine `bgcolor` background band. @since 0.5 */
     | {
           readonly kind: "bg-color";

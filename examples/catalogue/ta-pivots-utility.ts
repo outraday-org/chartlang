@@ -101,6 +101,22 @@ const entries: ReadonlyArray<ExampleMeta> = [
         primitives: ["ta.change"],
     },
     {
+        id: "close-rising",
+        label: "Close Rising",
+        description:
+            "ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        primitives: ["ta.rising"],
+    },
+    {
+        id: "close-falling",
+        label: "Close Falling",
+        description:
+            "ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        primitives: ["ta.falling"],
+    },
+    {
         id: "rolling-median",
         label: "Rolling Median",
         description:
@@ -115,6 +131,22 @@ const entries: ReadonlyArray<ExampleMeta> = [
             "ta.nz — replace the warmup NaN of a 5-bar change with 0, so the plotted momentum line starts at the first bar instead of leaving a leading gap.",
         category: "ta-pivots-utility",
         primitives: ["ta.nz"],
+    },
+    {
+        id: "bidirectional-cross",
+        label: "Bidirectional Cross",
+        description:
+            "ta.cross — true on the bar where the fast EMA(9) crosses the slow EMA(21) in either direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        primitives: ["ta.cross"],
+    },
+    {
+        id: "cumulative-volume",
+        label: "Cumulative Volume",
+        description:
+            "ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.",
+        category: "ta-pivots-utility",
+        primitives: ["ta.cum"],
     },
 ];
 

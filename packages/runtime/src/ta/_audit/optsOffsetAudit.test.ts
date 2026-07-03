@@ -213,6 +213,6 @@ describe("ta opts.offset audit", () => {
 
     it("every options bag in the ta namespace exposes offset", () => {
         expectTypeOf<AuditedOpts>().toMatchTypeOf<OffsetOpts>();
-        expect(Object.keys(TA_REGISTRY)).toHaveLength(96);
+        expect(Object.keys(TA_REGISTRY)).toHaveLength(100);
     });
 });

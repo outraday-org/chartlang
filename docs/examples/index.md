@@ -126,8 +126,12 @@ back to run it in your browser.
 - [Crossunder Signal](/examples/crossunder-signal) — ta.crossunder — true only on the bar where the fast EMA(9) crosses below the slow EMA(21) (a death-cross trigger), drawn as 1-spikes on a zero baseline.
 - [Value At Cross](/examples/value-at-cross) — ta.valuewhen — the close captured at the most recent SMA(10)/SMA(30) crossover, held constant between events as a stepped reference level on price.
 - [Close Change](/examples/close-change) — ta.change — the bar-over-bar first difference of close (today − yesterday), drawn as a zero-baseline histogram of momentum.
+- [Close Rising](/examples/close-rising) — ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.
+- [Close Falling](/examples/close-falling) — ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.
 - [Rolling Median](/examples/rolling-median) — ta.median — the rolling middle-value of the last 20 closes, a spike-robust center line where an SMA would be dragged by outliers.
 - [NZ Warmup Fill](/examples/nz-warmup-fill) — ta.nz — replace the warmup NaN of a 5-bar change with 0, so the plotted momentum line starts at the first bar instead of leaving a leading gap.
+- [Bidirectional Cross](/examples/bidirectional-cross) — ta.cross — true on the bar where the fast EMA(9) crosses the slow EMA(21) in either direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.
+- [Cumulative Volume](/examples/cumulative-volume) — ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.
 - [Pivot Arrow](/examples/pivot-arrow) — draw.arrow — track the latest confirmed swing low in state.* slots (recovered 5 bars back via bar.point(-5, …)) and draw one reused directional arrow from it up to the current bar, with a label near the shaft.
 - [Swing High Level](/examples/swing-high-level) — draw.horizontalLine — hold a full-width horizontal level at the most recent confirmed swing high; the single reused line jumps up to each new pivot high as it confirms.
 - [Cross Event Marker](/examples/cross-event-marker) — draw.verticalLine — drop a full-height vertical marker on the bar where a fast EMA(9) crosses above a slow EMA(21) (ta.crossover), the reused line jumping to the time of each new event.

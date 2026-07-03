@@ -157,6 +157,10 @@ declare module "@invinite-org/chartlang-core" {
     export type HighestbarsOpts = Readonly<{ offset?: number }>;
     export type LowestbarsOpts = Readonly<{ offset?: number }>;
     export type ChangeOpts = Readonly<{ length?: number; offset?: number }>;
+    export type RisingOpts = Readonly<Record<string, never>>;
+    export type FallingOpts = Readonly<Record<string, never>>;
+    export type CrossOpts = Readonly<Record<string, never>>;
+    export type CumOpts = Readonly<Record<string, never>>;
     export type PlotLineStyle = "line" | "step" | "dashed" | "circles" | "cross";
     export type WmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
     export type VwmaOpts = Readonly<{ offset?: number; lineStyle?: PlotLineStyle }>;
@@ -648,6 +652,10 @@ declare module "@invinite-org/chartlang-core" {
             b: ScalarOrSeries,
             opts?: CrossunderOpts,
         ): Series<boolean>;
+        rising(source: ScalarOrSeries, length: number, opts?: RisingOpts): Series<boolean>;
+        falling(source: ScalarOrSeries, length: number, opts?: FallingOpts): Series<boolean>;
+        cross(a: ScalarOrSeries, b: ScalarOrSeries, opts?: CrossOpts): Series<boolean>;
+        cum(source: ScalarOrSeries, opts?: CumOpts): Series<number>;
         nz(value: number, replacement?: number): number;
         highest(source: ScalarOrSeries, length: number, opts?: HighestOpts): Series<number>;
         lowest(source: ScalarOrSeries, length: number, opts?: LowestOpts): Series<number>;
@@ -854,10 +862,44 @@ declare module "@invinite-org/chartlang-core" {
     export type BarColorOpts = Readonly<{
         title?: string;
     }>;
+    export type PlotCandleOpts = Readonly<{
+        bull?: Color;
+        bear?: Color;
+        doji?: Color;
+        wickColor?: Color;
+        borderColor?: Color;
+        title?: string;
+        visible?: boolean;
+        z?: number;
+        pane?: "overlay" | "new" | string;
+    }>;
+    export type PlotBarOpts = Readonly<{
+        color?: Color;
+        upColor?: Color;
+        downColor?: Color;
+        title?: string;
+        visible?: boolean;
+        z?: number;
+        pane?: "overlay" | "new" | string;
+    }>;
     export function plot(value: number | Series<number>, opts?: PlotOpts): void;
     export function hline(price: number, opts?: HLineOpts): void;
     export function bgcolor(color: Color, opts?: BgColorOpts): void;
     export function barcolor(color: Color, opts?: BarColorOpts): void;
+    export function plotcandle(
+        open: number | Series<number>,
+        high: number | Series<number>,
+        low: number | Series<number>,
+        close: number | Series<number>,
+        opts?: PlotCandleOpts,
+    ): void;
+    export function plotbar(
+        open: number | Series<number>,
+        high: number | Series<number>,
+        low: number | Series<number>,
+        close: number | Series<number>,
+        opts?: PlotBarOpts,
+    ): void;
     export type JsonValue =
         | null
         | boolean
@@ -1509,6 +1551,8 @@ declare module "@invinite-org/chartlang-core" {
         readonly hline: typeof hline;
         readonly bgcolor: typeof bgcolor;
         readonly barcolor: typeof barcolor;
+        readonly plotcandle: typeof plotcandle;
+        readonly plotbar: typeof plotbar;
         readonly alert: typeof alert;
         readonly draw: DrawNamespace;
         readonly state: StateNamespace;

@@ -67,7 +67,7 @@ plot(1);
 
     it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
-import { ta, plot, hline, bgcolor, barcolor, alert, draw, request, state } from "@invinite-org/chartlang-core";
+import { ta, plot, plotcandle, plotbar, hline, bgcolor, barcolor, alert, draw, request, state } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
@@ -79,11 +79,15 @@ ta.macd(close);
 ta.atr(14);
 ta.crossover(close, 0);
 ta.crossunder(close, 0);
+ta.cross(close, 0);
 ta.highest(close, 14);
 ta.lowest(close, 14);
 ta.highestbars(close, 14);
 ta.lowestbars(close, 14);
 ta.change(close);
+ta.rising(close, 3);
+ta.falling(close, 3);
+ta.cum(close);
 ta.valuewhen(flag, close);
 ta.barssince(flag);
 ta.wma(close, 14);
@@ -170,6 +174,8 @@ plot(1);
 hline(1);
 bgcolor("#000");
 barcolor("#000");
+plotcandle(close, close, close, close);
+plotbar(close, close, close, close);
 alert("msg");
 state.float(0);
 state.int(0);
@@ -206,10 +212,10 @@ draw.trendAngle({ time: 0, price: 0 }, { time: 1, price: 1 });
         // Phase-3 ports add draw.* entries to STATEFUL_PRIMITIVES per
         // category. Task 5 wires the 6 line-family kinds; the remaining
         // 55 draw.* kinds land in Tasks 6–18. The test exercises every
-        // shipped slot:true callsite (93 ta + plot + hline + bgcolor +
-        // barcolor + alert + 14 state (incl. state.series + state.color +
-        // state.boolSeries + state.stringSeries + state.array + state.map) +
-        // 6 line-family draw) —
+        // shipped slot:true callsite (97 ta + plot + hline + bgcolor +
+        // barcolor + plotcandle + plotbar + alert + 14 state (incl.
+        // state.series + state.color + state.boolSeries + state.stringSeries +
+        // state.array + state.map) + 6 line-family draw) —
         // entries without a call here are excluded from the expected count.
         const unwiredDrawEntries = new Set<string>();
         for (const entry of STATEFUL_PRIMITIVES) {

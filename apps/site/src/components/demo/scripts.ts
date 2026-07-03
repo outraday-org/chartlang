@@ -2932,6 +2932,48 @@ export default defineIndicator({
 });
 `;
 
+const CLOSE_RISING = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Close Rising",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, ta, plot }) {
+        // ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.
+        const up = ta.rising(bar.close, 3);
+        plot(up.current ? 1 : 0, {
+            color: "#26a69a",
+            title: "Rising(3)",
+            style: { kind: "histogram", baseline: 0 },
+        });
+    },
+});
+`;
+
+const CLOSE_FALLING = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Close Falling",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, ta, plot }) {
+        // ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.
+        const down = ta.falling(bar.close, 3);
+        plot(down.current ? 1 : 0, {
+            color: "#ef5350",
+            title: "Falling(3)",
+            style: { kind: "histogram", baseline: 0 },
+        });
+    },
+});
+`;
+
 const ROLLING_MEDIAN = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
@@ -2966,6 +3008,43 @@ export default defineIndicator({
             title: "Δ Close (nz→0)",
             style: { kind: "histogram", baseline: 0 },
         });
+    },
+});
+`;
+
+const BIDIRECTIONAL_CROSS = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Bidirectional Cross",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, ta, plot }) {
+        // ta.cross — fires true on the bar where the fast EMA(9) crosses the slow EMA(21) in EITHER direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.
+        const touched = ta.cross(ta.ema(bar.close, 9), ta.ema(bar.close, 21));
+        plot(touched.current ? 1 : 0, {
+            color: "#ff6d00",
+            title: "Cross",
+            style: { kind: "histogram", baseline: 0 },
+        });
+    },
+});
+`;
+
+const CUMULATIVE_VOLUME = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Cumulative Volume",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, ta, plot }) {
+        // ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.
+        plot(ta.cum(bar.volume), { color: "#2962ff", title: "Cumulative Volume" });
     },
 });
 `;
@@ -6847,6 +6926,20 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         source: CLOSE_CHANGE,
     },
     {
+        id: "close-rising",
+        label: "Close Rising",
+        description: "ta.rising — true only when close rose on each of the last 3 bars (every trailing first-difference strictly positive), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        source: CLOSE_RISING,
+    },
+    {
+        id: "close-falling",
+        label: "Close Falling",
+        description: "ta.falling — true only when close fell on each of the last 3 bars (every trailing first-difference strictly negative), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        source: CLOSE_FALLING,
+    },
+    {
         id: "rolling-median",
         label: "Rolling Median",
         description: "ta.median — the rolling middle-value of the last 20 closes, a spike-robust center line where an SMA would be dragged by outliers.",
@@ -6859,6 +6952,20 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description: "ta.nz — replace the warmup NaN of a 5-bar change with 0, so the plotted momentum line starts at the first bar instead of leaving a leading gap.",
         category: "ta-pivots-utility",
         source: NZ_WARMUP_FILL,
+    },
+    {
+        id: "bidirectional-cross",
+        label: "Bidirectional Cross",
+        description: "ta.cross — true on the bar where the fast EMA(9) crosses the slow EMA(21) in either direction (the union of crossover and crossunder), drawn as 1-spikes on a zero baseline.",
+        category: "ta-pivots-utility",
+        source: BIDIRECTIONAL_CROSS,
+    },
+    {
+        id: "cumulative-volume",
+        label: "Cumulative Volume",
+        description: "ta.cum — the running (cumulative) sum of volume from the first bar, a NaN-safe total that only ever grows.",
+        category: "ta-pivots-utility",
+        source: CUMULATIVE_VOLUME,
     },
     {
         id: "pivot-arrow",

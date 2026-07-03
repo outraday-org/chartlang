@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import { TA_REGISTRY, TA_REGISTRY_METADATA, ta } from "./registry.js";
 
 describe("TA_REGISTRY", () => {
-    it("ships exactly 96 entries after the highestbars/lowestbars additions", () => {
+    it("ships exactly 100 entries after the ta.rising/ta.falling additions", () => {
         const keys = Object.keys(TA_REGISTRY);
-        expect(keys.length).toBe(96);
+        expect(keys.length).toBe(100);
     });
 
     it("exposes the Phase-1+2+5 primitives by name", () => {
@@ -22,12 +22,16 @@ describe("TA_REGISTRY", () => {
             "atr",
             "crossover",
             "crossunder",
+            "cross",
+            "cum",
             "nz",
             "highest",
             "lowest",
             "highestbars",
             "lowestbars",
             "change",
+            "rising",
+            "falling",
             "valuewhen",
             "barssince",
             "wma",

@@ -829,6 +829,10 @@ export type ComputeContext = {
     readonly bgcolor: typeof import("./plot/plot.js").bgcolor;
     /** Candle/bar tint alias (`bar-color` plot style). @since 1.4 */
     readonly barcolor: typeof import("./plot/plot.js").barcolor;
+    /** Derived candle series (`candle` plot style). @since 1.8 */
+    readonly plotcandle: typeof import("./plot/plot.js").plotcandle;
+    /** Derived OHLC-bar series (`ohlc-bar` plot style). @since 1.8 */
+    readonly plotbar: typeof import("./plot/plot.js").plotbar;
     readonly alert: typeof import("./alert/alert.js").alert;
     /** Pine `var` / `varip` state slots. @since 0.4 */
     readonly state: StateNamespace;

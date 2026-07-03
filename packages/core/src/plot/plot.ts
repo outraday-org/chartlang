@@ -8,8 +8,11 @@ import type { Color, LineStyle, Series } from "../types.js";
  * The full 0.5 inventory is `line`, `step-line`, `horizontal-line`,
  * `histogram`, `area`, `filled-band`, `label`, `marker`,
  * `shape`, `character`, `arrow`, `candle-override`, `bar-override`,
- * `bg-color`, `bar-color`, and `horizontal-histogram`. Every expansion is
- * additive — the `apiVersion: 1` script header stays unchanged.
+ * `bg-color`, `bar-color`, and `horizontal-histogram`; `candle` and
+ * `ohlc-bar` (1.8) carry a per-bar OHLC quad for a *derived* candle / bar
+ * series (distinct from the color-only `candle-override` / `bar-override`
+ * recolors of the primary candles). Every expansion is additive — the
+ * `apiVersion: 1` script header stays unchanged.
  *
  * Typical Phase-2 consumers:
  *
@@ -43,7 +46,9 @@ export type PlotKind =
     | "bar-override"
     | "bg-color"
     | "bar-color"
-    | "horizontal-histogram";
+    | "horizontal-histogram"
+    | "candle"
+    | "ohlc-bar";
 
 /**
  * Marker glyphs shared by Phase 2 `marker` and Phase 5 `shape` plot styles.
@@ -338,6 +343,105 @@ export type BarColorOpts = Readonly<{
 }>;
 
 /**
+ * Styling options accepted by `plotcandle(...)` — a *derived* candle series
+ * (Heikin-Ashi, smoothed candles, a secondary-symbol / HTF overlay), lowering
+ * to the value-carrying `candle` plot style. Distinct from the color-only
+ * `candle-override` style, which only recolors the primary chart candles.
+ * All colors default at emit time; a fully-null OHLC bar is a legit gap.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: PlotCandleOpts = { bull: "#26a69a", bear: "#ef5350", doji: "#999999" };
+ *     void opts;
+ */
+export type PlotCandleOpts = Readonly<{
+    /** Up-candle (close ≥ open) body color. Defaults at emit time. */
+    bull?: Color;
+    /** Down-candle (close < open) body color. Defaults at emit time. */
+    bear?: Color;
+    /** Doji (close === open) body color. Defaults to the bull color. */
+    doji?: Color;
+    /** Wick (high/low shadow) color. Defaults to the body color. */
+    wickColor?: Color;
+    /** Body outline color. Defaults to the body color. */
+    borderColor?: Color;
+    title?: string;
+    /**
+     * Whether this candle series is drawn. `false` hides it entirely; omitted
+     * or `true` draws it (the default). Hiding SUPPRESSES the marks — it is
+     * NOT the same as plotting a null bar (a null bar leaves a series gap;
+     * `visible: false` removes the marks while keeping the slot listed).
+     * Mirrors Pine's `display = display.all | display.none`.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     plotcandle(o, h, l, c, { visible: showHa }); // input toggle
+     */
+    visible?: boolean;
+    /**
+     * Presentation-only render-order key (z-index). Default `0`.
+     * Higher `z` renders on top; lower `z` renders behind. `z` may be any
+     * finite number — fractional values slot a series between two layers
+     * without renumbering. It affects **only** stacking.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     plotcandle(o, h, l, c, { z: -1 }); // behind other plots
+     */
+    z?: number;
+    pane?: "overlay" | "new" | string;
+}>;
+
+/**
+ * Styling options accepted by `plotbar(...)` — a *derived* OHLC-bar series,
+ * lowering to the value-carrying `ohlc-bar` plot style. Distinct from the
+ * color-only `bar-override` style, which only recolors the primary chart
+ * bars. All colors default at emit time.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     const opts: PlotBarOpts = { color: "#f59e0b" };
+ *     void opts;
+ */
+export type PlotBarOpts = Readonly<{
+    /** Bar color used when `upColor` / `downColor` are omitted. */
+    color?: Color;
+    /** Up-bar (close ≥ open) color. Overrides `color` when set. */
+    upColor?: Color;
+    /** Down-bar (close < open) color. Overrides `color` when set. */
+    downColor?: Color;
+    title?: string;
+    /**
+     * Whether this bar series is drawn. `false` hides it entirely; omitted or
+     * `true` draws it (the default). Hiding SUPPRESSES the marks — it is NOT
+     * the same as plotting a null bar. Mirrors Pine's
+     * `display = display.all | display.none`.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     plotbar(o, h, l, c, { visible: showBars }); // input toggle
+     */
+    visible?: boolean;
+    /**
+     * Presentation-only render-order key (z-index). Default `0`.
+     * Higher `z` renders on top; lower `z` renders behind. It affects
+     * **only** stacking.
+     *
+     * @since 1.8
+     * @stable
+     * @example
+     *     plotbar(o, h, l, c, { z: -1 }); // behind other plots
+     */
+    z?: number;
+    pane?: "overlay" | "new" | string;
+}>;
+
+/**
  * Compile-time callable hole for `plot(value, opts?)`. The compiler rewrites
  * every callsite to dispatch to the runtime's `plot` implementation;
  * calling this outside a compiled runtime throws the sentinel.
@@ -407,4 +511,58 @@ export function bgcolor(_color: Color, _opts?: BgColorOpts): void {
  */
 export function barcolor(_color: Color, _opts?: BarColorOpts): void {
     throw new Error("barcolor called outside compiled runtime");
+}
+
+/**
+ * Plot a **derived** candle series for the current bar — Pine's `plotcandle`.
+ * Unlike the color-only `candle-override` style (which recolors the primary
+ * chart candles), this renders its own OHLC quad (Heikin-Ashi, smoothed
+ * candles, a secondary-symbol / HTF overlay). Each of `open` / `high` / `low`
+ * / `close` is `number | Series<number>`; the runtime lowers the call to a
+ * `candle` plot style whose per-bar OHLC numerics live inside the style
+ * object. A fully-null bar is a legit gap; a partially-null bar is malformed.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     // Inside a compiled `compute`, plotting Heikin-Ashi candles:
+ *     //   plotcandle(ha.open, ha.high, ha.low, ha.close, { bull: "#26a69a", bear: "#ef5350" });
+ *     import { plotcandle } from "@invinite-org/chartlang-core";
+ *     try { plotcandle(1, 2, 0, 1.5); } catch {}
+ */
+export function plotcandle(
+    _open: number | Series<number>,
+    _high: number | Series<number>,
+    _low: number | Series<number>,
+    _close: number | Series<number>,
+    _opts?: PlotCandleOpts,
+): void {
+    throw new Error("plotcandle called outside compiled runtime");
+}
+
+/**
+ * Plot a **derived** OHLC-bar series for the current bar — Pine's `plotbar`.
+ * Unlike the color-only `bar-override` style (which recolors the primary
+ * chart bars), this renders its own OHLC quad. Each of `open` / `high` /
+ * `low` / `close` is `number | Series<number>`; the runtime lowers the call
+ * to an `ohlc-bar` plot style whose per-bar OHLC numerics live inside the
+ * style object. A fully-null bar is a legit gap; a partially-null bar is
+ * malformed.
+ *
+ * @since 1.8
+ * @stable
+ * @example
+ *     // Inside a compiled `compute`:
+ *     //   plotbar(o, h, l, c, { color: "#f59e0b" });
+ *     import { plotbar } from "@invinite-org/chartlang-core";
+ *     try { plotbar(1, 2, 0, 1.5); } catch {}
+ */
+export function plotbar(
+    _open: number | Series<number>,
+    _high: number | Series<number>,
+    _low: number | Series<number>,
+    _close: number | Series<number>,
+    _opts?: PlotBarOpts,
+): void {
+    throw new Error("plotbar called outside compiled runtime");
 }

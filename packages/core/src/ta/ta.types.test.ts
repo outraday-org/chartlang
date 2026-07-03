@@ -32,6 +32,14 @@ function sourceCallSites(): void {
     expectTypeOf(ta.crossover(close.current - close[1], 0)).toEqualTypeOf<Series<boolean>>();
     expectTypeOf(ta.crossunder(close, close.current)).toEqualTypeOf<Series<boolean>>();
 
+    // rising / falling / cross return boolean series; cum returns a number
+    // series. Series and scalar sources are both assignable (TaSource).
+    expectTypeOf(ta.rising(close, 3)).toEqualTypeOf<Series<boolean>>();
+    expectTypeOf(ta.falling(close.current - close[1], 3)).toEqualTypeOf<Series<boolean>>();
+    expectTypeOf(ta.cross(close, close.current)).toEqualTypeOf<Series<boolean>>();
+    expectTypeOf(ta.cum(close)).toEqualTypeOf<Series<number>>();
+    expectTypeOf(ta.cum(close.current - close[1])).toEqualTypeOf<Series<number>>();
+
     // valuewhen widens its numeric source but keeps a boolean condition.
     expectTypeOf(ta.valuewhen(cond, close.current - close[1])).toEqualTypeOf<Series<number>>();
 }
@@ -47,6 +55,11 @@ describe("ta.* numeric source — TaSource widening", () => {
         expectTypeOf(ta.sma).parameter(0).toEqualTypeOf<TaSource>();
         expectTypeOf(ta.crossover).parameter(0).toEqualTypeOf<TaSource>();
         expectTypeOf(ta.crossover).parameter(1).toEqualTypeOf<TaSource>();
+        expectTypeOf(ta.rising).parameter(0).toEqualTypeOf<TaSource>();
+        expectTypeOf(ta.falling).parameter(0).toEqualTypeOf<TaSource>();
+        expectTypeOf(ta.cross).parameter(0).toEqualTypeOf<TaSource>();
+        expectTypeOf(ta.cross).parameter(1).toEqualTypeOf<TaSource>();
+        expectTypeOf(ta.cum).parameter(0).toEqualTypeOf<TaSource>();
         expectTypeOf(ta.valuewhen).parameter(0).toEqualTypeOf<Series<boolean>>();
         expectTypeOf(ta.valuewhen).parameter(1).toEqualTypeOf<TaSource>();
     });
@@ -54,5 +67,8 @@ describe("ta.* numeric source — TaSource widening", () => {
     it("return types are unchanged by the widen", () => {
         expectTypeOf(ta.ema).returns.toEqualTypeOf<Series<number>>();
         expectTypeOf(ta.crossover).returns.toEqualTypeOf<Series<boolean>>();
+        expectTypeOf(ta.rising).returns.toEqualTypeOf<Series<boolean>>();
+        expectTypeOf(ta.cross).returns.toEqualTypeOf<Series<boolean>>();
+        expectTypeOf(ta.cum).returns.toEqualTypeOf<Series<number>>();
     });
 });

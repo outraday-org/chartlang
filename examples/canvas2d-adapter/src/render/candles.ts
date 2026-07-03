@@ -5,12 +5,7 @@ import type { Bar } from "@invinite-org/chartlang-core";
 
 import type { Palette } from "../palette.js";
 import type { RenderCtx } from "./clear.js";
-import { priceToY, timeToX, type Viewport } from "./coords.js";
-
-const BODY_WIDTH_RATIO = 0.6;
-// Floor so a body never collapses below a visible pixel when many bars are
-// packed into the pane (otherwise the chart degrades to wicks-only).
-const MIN_BODY_WIDTH_PX = 1;
+import { BODY_WIDTH_RATIO, MIN_BODY_WIDTH_PX, priceToY, timeToX, type Viewport } from "./coords.js";
 
 /**
  * Draw OHLC candles for every bar in `bars`. Each bar emits a single

@@ -83,6 +83,44 @@ describe("type assertions", () => {
         expectTypeOf<PlotStyle["kind"]>().toEqualTypeOf<PlotKind>();
     });
 
+    it("PlotKind includes the value-carrying candle / ohlc-bar kinds", () => {
+        const candleKind: PlotKind = "candle";
+        const barKind: PlotKind = "ohlc-bar";
+        expect(candleKind).toBe("candle");
+        expect(barKind).toBe("ohlc-bar");
+    });
+
+    it("candle / ohlc-bar styles are assignable to PlotStyle and PlotEmission.style", () => {
+        const candle: PlotStyle = {
+            kind: "candle",
+            open: 1,
+            high: 2,
+            low: 0.5,
+            close: 1.5,
+            bull: "#26a69a",
+            bear: "#ef5350",
+            doji: "#999999",
+            wickColor: "#111111",
+            borderColor: "#222222",
+        };
+        const bar: PlotStyle = {
+            kind: "ohlc-bar",
+            open: null,
+            high: null,
+            low: null,
+            close: null,
+            color: "#f59e0b",
+            upColor: "#26a69a",
+            downColor: "#ef5350",
+        };
+        const emissionStyle: PlotEmission["style"] = candle;
+        expectTypeOf(candle).toExtend<PlotStyle>();
+        expectTypeOf(bar).toExtend<PlotStyle>();
+        expect(candle.kind).toBe("candle");
+        expect(bar.kind).toBe("ohlc-bar");
+        expect(emissionStyle.kind).toBe("candle");
+    });
+
     it("AlertEmission.severity is AlertSeverity", () => {
         expectTypeOf<AlertEmission["severity"]>().toEqualTypeOf<AlertSeverity>();
     });

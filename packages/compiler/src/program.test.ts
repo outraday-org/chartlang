@@ -219,7 +219,7 @@ void key;
     });
 
     it("keeps the runtime stateful primitive registry at the non-numeric state cardinality", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(194);
+        expect(STATEFUL_PRIMITIVES.size).toBe(200);
     });
 
     it("resolves the stateful primitive registry exports from the ambient shim", () => {

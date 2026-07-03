@@ -22,6 +22,32 @@ export {
 export type { Viewport } from "@invinite-org/chartlang-adapter-kit";
 
 /**
+ * Fraction of one bar's horizontal slot a candle body / OHLC-bar tick
+ * occupies. Shared by every bar-shaped renderer (`candles.ts`,
+ * `candle.ts`, `ohlcBar.ts`, `candleOverride.ts`, `barOverride.ts`) so
+ * primary candles and derived plots stay visually aligned.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const bodyWidth = (300 / 10) * BODY_WIDTH_RATIO; // 18px per bar
+ *     void bodyWidth;
+ */
+export const BODY_WIDTH_RATIO = 0.6;
+
+/**
+ * Floor so a candle body never collapses below a visible pixel when many
+ * bars are packed into the pane. Shared by `candles.ts` and `candle.ts`.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const bodyWidth = Math.max(MIN_BODY_WIDTH_PX, 0.4);
+ *     void bodyWidth;
+ */
+export const MIN_BODY_WIDTH_PX = 1;
+
+/**
  * One accumulated point in a plot series, keyed by callsite slot id at
  * the adapter layer (`AdapterState.plotSeries`). `value` is `null` when
  * the script emitted a "skip this bar" gap. `bar` is the source bar
@@ -40,6 +66,16 @@ export type { Viewport } from "@invinite-org/chartlang-adapter-kit";
  * style — line / step-line / histogram / area read `value` only and
  * ignore them, so a non-band point is byte-identical to the pre-feature
  * shape.
+ *
+ * `open` / `high` / `low` / `close` are the per-bar OHLC quad of a `candle`
+ * (`plotcandle`) / `ohlc-bar` (`plotbar`) series — the same per-bar
+ * multi-value channel `upper` / `lower` carry for the band. All four are a
+ * finite number together (a drawn bar) or all `null` (an all-null gap the
+ * renderer skips); a partial mix is rejected upstream by `validateEmission`.
+ * They are omitted for every other plot style. The per-series body colors live
+ * on the stored `PlotStyle` (read by `renderCandleSeries` /
+ * `renderOhlcBarSeries` like `renderFilledBandSeries` reads `style.alpha`), so
+ * the point stays a pure per-bar payload.
  *
  * `colorValue` is the per-bar dynamic-color channel
  * (`PlotEmission.colorValue`) for line-family plots: **omitted** ⇒ paint
@@ -69,6 +105,10 @@ export type PlotPoint = {
     readonly seq: number;
     readonly upper?: number | null;
     readonly lower?: number | null;
+    readonly open?: number | null;
+    readonly high?: number | null;
+    readonly low?: number | null;
+    readonly close?: number | null;
     readonly colorValue?: string | null;
 };
 

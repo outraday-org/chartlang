@@ -280,6 +280,11 @@ Highlights of the surface:
 - `ta.*` — moving averages, oscillators, momentum, trend, volatility,
   volume, support/resistance, and statistical helpers (`ema`, `sma`,
   `rsi`, `macd`, `bb`, `atr`, `stoch`, `crossover`, `crossunder`, ...).
+  Small Pine-idiom helpers: `ta.rising(src, len)` / `ta.falling(src, len)`
+  (`Series<boolean>` — every trailing delta strictly up / down over `len`
+  steps), `ta.cross(a, b)` (`Series<boolean>` — a bidirectional crossover,
+  either direction), and `ta.cum(src)` (`Series<number>` — the NaN-safe
+  running sum from the first bar).
 - `draw.*` — lines, boxes, curves, fills/bands, Fibonacci, Gann,
   pitchforks, harmonic patterns, Elliott waves, cycles.
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
@@ -310,6 +315,21 @@ Highlights of the surface:
   Adapters render these only when their `Capabilities.plots` include the
   `bg-color` / `bar-color` kinds; on adapters that don't, the call is a
   silent no-op.
+- `plotcandle(open, high, low, close, opts?)` and
+  `plotbar(open, high, low, close, opts?)` — Pine's `plotcandle` / `plotbar`.
+  Unlike the color-only `candle-override` / `bar-override` styles (which
+  merely recolor the primary chart candles), these render a **derived** OHLC
+  series of their own — Heikin-Ashi, smoothed candles, a secondary-symbol /
+  HTF candle overlay. You pass all four OHLC values (each `number |
+  Series<number>`): `plotcandle` colors the body by the sign of
+  `close − open` — `close > open` → `bull`, `close < open` → `bear`,
+  `close === open` → `doji` (plus optional `wickColor` / `borderColor`);
+  `plotbar` takes a single `{ color }` (or `{ upColor, downColor }`). The
+  OHLC arguments are **all-four-or-none** — a bar where every value is
+  non-finite is a legitimate gap (nothing drawn), but a partially-null bar
+  is a `malformed-emission` and is dropped. Rendering requires the adapter's
+  `candle` / `ohlc-bar` capability; on adapters that don't declare it the
+  call is a silent no-op (like the other plot kinds).
 - `time.*` / `session.*` — calendar accessors over a `Time` epoch (pass
   `bar.time`, the UTC ms epoch). `time.year/month/dayofmonth/dayofweek/
   hour/minute/second(t, tz?)` return the calendar field; `time.timestamp(

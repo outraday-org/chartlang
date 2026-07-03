@@ -275,6 +275,20 @@ layer** every adapter shares.
   re-derive the format inline. `mockCandleSource({ symbol })` tags its events
   through `feedKey`; omitting `symbol` leaves `streamKey` off, byte-identical
   to the single-symbol baseline.
+- **The value-carrying `candle` / `ohlc-bar` `PlotStyle` kinds carry the
+  per-bar OHLC quad INSIDE the style object (the `filled-band` multi-value
+  precedent), NOT in `PlotEmission.value`.** `{ open, high, low, close }` are
+  each a finite number or `null`; `validateEmission`'s shared
+  `validateOhlcQuad` enforces the ALL-FOUR-FINITE-or-ALL-NULL rule — all
+  `null` is a legit gap bar (the adapter draws nothing), a partial mix is
+  `malformed-emission`. `candle` recolors nothing (unlike the color-only
+  `candle-override` / `bar-override`); it renders a DERIVED candle / bar
+  series (Heikin-Ashi, HTF overlay, …). `PlotEmission.value` stays
+  single-channel (`close ?? null`, resolved in the runtime — the plotcandle /
+  plotbar feature's Task 6); the adapter accumulates a per-bar `PlotPoint` and
+  draws at flush, mirroring `renderFilledBandSeries`. Both kinds are additive
+  `PlotKind` members (in core, re-exported here) and are deliberately NOT in
+  `PHASE_5_PLOT_KINDS` (frozen) — adapters opt in individually.
 - **`Capabilities.multiSymbol` is a required boolean, independent of
   `multiTimeframe`.** It gates non-chart-symbol `request.security` requests
   (a strictly larger ask than a higher timeframe of the chart's own symbol).

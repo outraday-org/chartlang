@@ -25,11 +25,15 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "ta.atr", slot: true },
     { name: "ta.crossover", slot: true },
     { name: "ta.crossunder", slot: true },
+    { name: "ta.cross", slot: true },
+    { name: "ta.cum", slot: true },
     { name: "ta.highest", slot: true },
     { name: "ta.lowest", slot: true },
     { name: "ta.highestbars", slot: true },
     { name: "ta.lowestbars", slot: true },
     { name: "ta.change", slot: true },
+    { name: "ta.rising", slot: true },
+    { name: "ta.falling", slot: true },
     { name: "ta.valuewhen", slot: true },
     { name: "ta.barssince", slot: true },
     { name: "ta.wma", slot: true },
@@ -119,6 +123,12 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     // stable slot id and is listed in `manifest.plots` with its kind.
     { name: "bgcolor", slot: true },
     { name: "barcolor", slot: true },
+    // Derived candle / OHLC-bar series (Pine `plotcandle` / `plotbar`),
+    // lowering to the value-carrying `candle` / `ohlc-bar` plot styles.
+    // Slot-injected like `plot`/`hline` so each callsite owns a per-bar
+    // accumulator on the adapter side and a stable slot id.
+    { name: "plotcandle", slot: true },
+    { name: "plotbar", slot: true },
     { name: "alert", slot: true },
     // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
     // order. Names are camelCase (`draw.<kindCamelCase>`); the wire

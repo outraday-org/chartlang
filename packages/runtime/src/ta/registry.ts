@@ -32,8 +32,10 @@ import type {
     CmoOpts,
     ConnorsRsiOpts,
     CoppockOpts,
+    CrossOpts,
     CrossoverOpts,
     CrossunderOpts,
+    CumOpts,
     DemaOpts,
     DmiOpts,
     DmiResult,
@@ -44,6 +46,7 @@ import type {
     EnvelopeOpts,
     EnvelopeResult,
     EomOpts,
+    FallingOpts,
     FisherOpts,
     FisherResult,
     FixedRangeVolumeProfileOpts,
@@ -90,6 +93,7 @@ import type {
     PvoOpts,
     PvoResult,
     PvtOpts,
+    RisingOpts,
     RocOpts,
     RsiOpts,
     RvgiOpts,
@@ -160,8 +164,10 @@ import { cmf } from "./cmf.js";
 import { cmo } from "./cmo.js";
 import { connorsRsi } from "./connorsRsi.js";
 import { coppock } from "./coppock.js";
+import { cross } from "./cross.js";
 import { crossover } from "./crossover.js";
 import { crossunder } from "./crossunder.js";
+import { cum } from "./cum.js";
 import { dema } from "./dema.js";
 import { dmi } from "./dmi.js";
 import { donchian } from "./donchian.js";
@@ -169,6 +175,7 @@ import { dpo } from "./dpo.js";
 import { ema } from "./ema.js";
 import { envelope } from "./envelope.js";
 import { eom } from "./eom.js";
+import { falling } from "./falling.js";
 import { fisher } from "./fisher.js";
 import { fixedRangeVolumeProfile } from "./fixedRangeVolumeProfile.js";
 import { highest } from "./highest.js";
@@ -203,6 +210,7 @@ import { psar } from "./psar.js";
 import { pvi } from "./pvi.js";
 import { pvo } from "./pvo.js";
 import { pvt } from "./pvt.js";
+import { rising } from "./rising.js";
 import { roc } from "./roc.js";
 import { rsi } from "./rsi.js";
 import { rvgi } from "./rvgi.js";
@@ -271,6 +279,8 @@ export type RuntimeTaNamespace = {
         b: ScalarOrSeries,
         opts?: CrossunderOpts,
     ): Series<boolean>;
+    cross(slotId: string, a: ScalarOrSeries, b: ScalarOrSeries, opts?: CrossOpts): Series<boolean>;
+    cum(slotId: string, source: ScalarOrSeries, opts?: CumOpts): Series<number>;
     nz(value: number, replacement?: number): number;
     highest(
         slotId: string,
@@ -297,6 +307,18 @@ export type RuntimeTaNamespace = {
         opts?: LowestbarsOpts,
     ): Series<number>;
     change(slotId: string, source: ScalarOrSeries, opts?: ChangeOpts): Series<number>;
+    rising(
+        slotId: string,
+        source: ScalarOrSeries,
+        length: number,
+        opts?: RisingOpts,
+    ): Series<boolean>;
+    falling(
+        slotId: string,
+        source: ScalarOrSeries,
+        length: number,
+        opts?: FallingOpts,
+    ): Series<boolean>;
     valuewhen(
         slotId: string,
         condition: Series<boolean>,
@@ -458,12 +480,16 @@ export const TA_REGISTRY = Object.freeze({
     atr,
     crossover,
     crossunder,
+    cross,
+    cum,
     nz,
     highest,
     lowest,
     highestbars,
     lowestbars,
     change,
+    rising,
+    falling,
     valuewhen,
     barssince,
     wma,
