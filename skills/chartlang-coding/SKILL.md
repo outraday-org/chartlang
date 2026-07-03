@@ -192,6 +192,13 @@ arrives at `compute` as a JSON value; the script narrows with `as
 number`/`as string`/`as boolean`. Only one `input.interval` per script
 (the user-pickable main timeframe).
 
+`input.externalSeries` is the exception to the JSON-value rule: it
+resolves to an indexable host-fed `Series<number>` (narrow with
+`as Series<number>`, read `.current` / `[n]`, feed it into `ta.*`
+directly). Bars the host has not fed read `NaN` — never test the
+resolved value with `typeof x === "number"`; it is a series view, so
+that check is always false.
+
 Every builder accepts optional presentation metadata in its opts:
 `group?: string`, `inline?: string`, `tooltip?: string`,
 `display?: "all" | "status-line" | "data-window" | "none"`, and

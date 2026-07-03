@@ -96,7 +96,7 @@ const entries: ReadonlyArray<ExampleMeta> = [
         id: "input-external-series",
         label: "Input · External Series",
         description:
-            "input.externalSeries(...) declares an adapter-supplied overlay; with no feed at the default the script falls back to the close.",
+            "input.externalSeries(...) resolves to a host-fed Series<number> read per bar via .current; unfed bars are NaN, so the script falls back to the close.",
         category: "inputs",
         primitives: ["input.externalSeries"],
     },

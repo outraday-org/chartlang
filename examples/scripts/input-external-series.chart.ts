@@ -2,11 +2,13 @@
 // See the LICENSE file in the repo root for full license text.
 //
 // `input.externalSeries` example: an adapter-supplied external series overlay.
-// `input.externalSeries` has no default value, so until an adapter feeds data
-// the resolved value is undefined; the script falls back to the close so the
+// The resolved value is an indexable `Series<number>` the host advances per
+// bar (`.current`, `[n]`, `.length` — it feeds `ta.*` directly). Bars the
+// host has not fed read `NaN`, so the script falls back to the close and the
 // overlay still renders in the demo.
 
 import { defineIndicator, input, plot } from "@invinite-org/chartlang-core";
+import type { Series } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
     name: "Input · External Series",
@@ -20,8 +22,9 @@ export default defineIndicator({
         }),
     },
     compute({ bar, plot, inputs }) {
-        const earnings = inputs.earnings;
-        const value = typeof earnings === "number" ? earnings : bar.close.current;
+        const earnings = inputs.earnings as Series<number>;
+        const fed = earnings.current;
+        const value = Number.isFinite(fed) ? fed : bar.close.current;
         plot(value, { color: "#26a69a", title: "External / close", lineWidth: 2 });
     },
 });

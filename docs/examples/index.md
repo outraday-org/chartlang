@@ -198,7 +198,7 @@ back to run it in your browser.
 - [Input · Price Level](/examples/input-price-level) — input.price(125) drives a horizontal guide level sitting inside the demo's ~100–150 close band.
 - [Input · Time Anchor](/examples/input-time-anchor) — input.time(...) anchors a vertical guide line; the default is the demo's first-bar time, marking the series start.
 - [Input · Symbol Match](/examples/input-symbol-security) — input.symbol(...) names the tuned-for instrument; the SMA tints teal when the chart's bar.symbol matches it, grey otherwise.
-- [Input · External Series](/examples/input-external-series) — input.externalSeries(...) declares an adapter-supplied overlay; with no feed at the default the script falls back to the close.
+- [Input · External Series](/examples/input-external-series) — input.externalSeries(...) resolves to a host-fed Series<number> read per bar via .current; unfed bars are NaN, so the script falls back to the close.
 - [Bar Counter](/examples/bar-counter) — state.int — a persistent integer slot (Pine var int) seeded once and incremented every bar, plotted as a step series so the cross-bar accumulation is visible.
 - [Running Max Close](/examples/running-max-close) — state.float — a persistent float slot (Pine var float) holding the highest close seen so far, updated only on a new high so the line ratchets up across bars and never falls.
 - [Cross Latch](/examples/cross-latch) — state.bool — a persistent boolean slot (Pine var bool) latched true the first time price crosses above its SMA(20) and held true thereafter, recording that the event happened at some point in history.
