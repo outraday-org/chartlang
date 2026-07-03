@@ -52,13 +52,21 @@ overlay) is drawn correctly.
   line at `x`; a short left tick at `open`, right tick at `close`; color
   by `upColor`/`downColor` (fallback `color`) using `close ≥ open`.
 
-Reuse the shared `timeToX` / `priceToY` / `projectShiftedX` helpers the
-existing renderers use — do not add parallel projection math.
+Reuse the shared `timeToX` / `priceToY` / `projectShiftedX` helpers
+from `render/coords.js` (the same imports `candleOverride.ts` /
+`renderFilledBandSeries` use) — do not add parallel projection math.
+Every exported symbol in these new files needs full JSDoc (`@since`,
+stability marker, `@example`): `pnpm docs:check` walks
+`examples/canvas2d-adapter/src` too.
 
-### 2. Dispatch + accumulation (`createCanvas2dAdapter.ts`)
+### 2. Dispatch + accumulation (`createCanvas2dAdapter.ts` + `render/coords.ts`)
 
-- In the style-extract (mirror the `filled-band` branch ~line 1022),
-  add: `...(plot.style.kind === "candle" ? { open, high, low, close,
+- Extend the `PlotPoint` type (`render/coords.ts:62-73`) with optional
+  per-bar OHLC + color fields, exactly the way the optional
+  `upper?` / `lower?` fields carry the filled-band channel today.
+- In the style-extract (mirror the `filled-band` branch — lines
+  1022-1024 spread `{ upper, lower }` into the accumulated point), add:
+  `...(plot.style.kind === "candle" ? { open, high, low, close,
   bull, bear, doji, wickColor, borderColor } : {})` and the analogous
   `ohlc-bar` extract, into the accumulated `PlotPoint`.
 - Add `renderCandleSeries` / `renderOhlcBarSeries` (mirror
@@ -75,13 +83,23 @@ existing renderers use — do not add parallel projection math.
 Add `"candle"` and `"ohlc-bar"` to `CANVAS2D_PLOT_KINDS`. This is the
 adapter's opt-in; without it Task 6's runtime gate no-ops the plot.
 
-### 4. Tests (`examples/canvas2d-adapter/src/**/*.test.ts`)
+### 4. CLI adapter embed regen (`pnpm adapters:generate`)
 
-- Unit-test `drawCandle` / `drawOhlcBar` against a mock 2D context
-  (mirror the `candleOverride` / `filledBand` render tests): assert the
-  fill color chosen for bull / bear / doji, the min-body-height clamp,
-  wick + border stroke calls, and that an all-`null` bar issues no draw
-  calls.
+The CLI embeds a generated copy of every example adapter
+(`scripts/gen-adapters.ts` → `packages/cli/src/generated/adapters/`);
+`pnpm adapters:gate` byte-diffs it in CI. After the src changes, run
+`pnpm adapters:generate` and commit the regenerated embed — a src-only
+change here otherwise fails the gate (and the stale CLI copy is caught
+only by `test:scripts`).
+
+### 5. Tests (`examples/canvas2d-adapter/src/**/*.test.ts`)
+
+- Unit-test `drawCandle` / `drawOhlcBar` against `MockCanvas2DContext`
+  (from `src/testing.ts`; mirror the `candleOverride` / `filledBand`
+  render tests): assert the fill color chosen for bull / bear / doji,
+  the min-body-height clamp (`Math.max(1, …)`, the `candleOverride.ts:58`
+  precedent), wick + border stroke calls, and that an all-`null` bar
+  issues no draw calls.
 - Integration: run a small `plotcandle` script through the adapter and
   assert the accumulated series projects to the expected draw-call
   sequence (mirror the existing `filled-band` integration test).
@@ -94,8 +112,10 @@ adapter's opt-in; without it Task 6's runtime gate no-ops the plot.
 |------|--------|---------|
 | `examples/canvas2d-adapter/src/render/candle.ts` (+ test) | Create | `drawCandle` |
 | `examples/canvas2d-adapter/src/render/ohlcBar.ts` (+ test) | Create | `drawOhlcBar` |
+| `examples/canvas2d-adapter/src/render/coords.ts` | Modify | optional OHLC/color fields on `PlotPoint` |
 | `examples/canvas2d-adapter/src/createCanvas2dAdapter.ts` | Modify | extract + `renderCandleSeries`/`renderOhlcBarSeries` + dispatch |
-| `examples/canvas2d-adapter/src/capabilities.ts` | Modify | add 2 `PlotKind`s |
+| `examples/canvas2d-adapter/src/capabilities.ts` | Modify | add 2 `PlotKind`s to `CANVAS2D_PLOT_KINDS` |
+| `packages/cli/src/generated/adapters/**` | Generate | `pnpm adapters:generate` (CLI embed) |
 | `examples/canvas2d-adapter/src/**/*.test.ts` | Modify/Create | render + integration + capability tests |
 
 ## Gates
@@ -103,14 +123,18 @@ adapter's opt-in; without it Task 6's runtime gate no-ops the plot.
 - `pnpm typecheck`, `pnpm lint`
 - `pnpm test` (adapter 100% coverage — bull/bear/doji, min-body, null
   bar, border on/off, up/down bar)
+- `pnpm docs:check` (new exported render fns carry full JSDoc)
+- `pnpm adapters:gate` (regenerated CLI embed committed)
 - `pnpm conformance` (Task 8 adds the scenario; keep the suite green)
 
 ## Changeset
 
-`.changeset/canvas2d-candle-render.md` —
-`"@invinite-org/chartlang-canvas2d-adapter": minor` (match the actual
-adapter package name). Body: "Render `candle` / `ohlc-bar` custom
-OHLC series in the canvas2d reference adapter."
+`.changeset/canvas2d-candle-render.md` — the adapter package is the
+**private** `chartlang-example-canvas2d-adapter`; follow the repo
+convention for it (see `.changeset/canvas2d-line-colorvalue.md` in git
+history): an **empty-frontmatter** changeset (`---` / `---`, no package
+bump) whose body describes the change. Body: "Render `candle` /
+`ohlc-bar` custom OHLC series in the canvas2d reference adapter."
 
 ## Acceptance Criteria
 
@@ -120,4 +144,6 @@ OHLC series in the canvas2d reference adapter."
   (per-bar draw, not a connected polygon); capability opt-in added.
 - Color selection (bull/bear/doji, up/down), min-body clamp, border,
   and all-null gap are unit-covered; integration test passes.
-- Adapter coverage 100%; changeset committed.
+- CLI adapter embed regenerated + committed (`pnpm adapters:gate`
+  green).
+- Adapter coverage 100%; empty-frontmatter changeset committed.

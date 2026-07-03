@@ -38,15 +38,19 @@ root `CLAUDE.md`, `packages/core/CLAUDE.md`, and CONTRIBUTING §22.10
   (all specialized — no generic running sum).
 - **Plot family** — `plot` / `hline` / `bgcolor` / `barcolor` are
   plot-family holes in `packages/core/src/plot/plot.ts`, exported via
-  `plot/index.ts` + root `index.ts:264`, registered in
-  `statefulPrimitives.ts:115-121`, and mirrored in the compiler ambient
-  shim `packages/compiler/src/program.ts:857-860,1510-1511`. The wire
-  `PlotStyle` union lives in `packages/adapter-kit/src/types.ts`;
-  `candle-override` / `bar-override` are **color-only** overrides of the
-  primary candles. The multi-value precedent is `filled-band`, which
-  carries `upper` / `lower` numerics **inside the style object** and is
-  drawn by `examples/canvas2d-adapter/src/render/filledBand.ts` via a
-  per-bar `PlotPoint` accumulator.
+  `plot/index.ts` + root `index.ts:265`, registered in
+  `statefulPrimitives.ts:115-121`, carried on core's `ComputeContext`
+  (`types.ts:822+`, `typeof`-import members), and mirrored in the
+  hand-written compiler ambient shim
+  `packages/compiler/src/program.ts:857-860,1508-1511`. The `PlotKind`
+  union lives in **core** (`plot/plot.ts:30`); adapter-kit re-exports it
+  and defines the wire `PlotStyle` union
+  (`packages/adapter-kit/src/types.ts`); `candle-override` /
+  `bar-override` are **color-only** overrides of the primary candles.
+  The multi-value precedent is `filled-band`, which carries `upper` /
+  `lower` numerics **inside the style object** and is drawn by
+  `examples/canvas2d-adapter/src/render/filledBand.ts` via a per-bar
+  `PlotPoint` accumulator.
 
 ## Target State
 
@@ -83,26 +87,35 @@ root `CLAUDE.md`, `packages/core/CLAUDE.md`, and CONTRIBUTING §22.10
 ```
 Feature A — ta.* helpers            Feature B — plotcandle / plotbar
 ─────────────────────────           ────────────────────────────────
-Task 1 (core: 4 holes,              Task 4 (adapter-kit: wire kinds
-        opts, registry)                     "candle"/"ohlc-bar",
-  |                                          PlotKind, validateEmission)
-  ├──> Task 2 (runtime                 |
-  |     ta.rising + ta.falling)        v
-  |                                  Task 5 (core: plotcandle/plotbar
-  └──> Task 3 (runtime                       holes, opts, program.ts shim)
-        ta.cross + ta.cum)                  |
-                                            v
-                                     Task 6 (runtime: emit + value
+Task 1 (core: 4 holes, opts,        Task 4 (core PlotKind + adapter-kit
+        shim; NO registry entries)          wire styles + validateEmission)
+  |                                    |
+  ├──> Task 2 (runtime                 v
+  |     ta.rising + ta.falling       Task 5 (core: plotcandle/plotbar
+  |     + registry + gate bumps)             holes, ComputeContext,
+  |                                          registry, program.ts shim)
+  └──> Task 3 (runtime                      |
+        ta.cross + ta.cum                   v
+        + registry + gate bumps)     Task 6 (runtime: emit + value
                                              resolution + gate)
                                             |
                                             v
                                      Task 7 (canvas2d: render funcs +
-                                             capabilities + accumulation)
+                                             capabilities + accumulation
+                                             + adapters:generate)
                                             |
                                             v
                                      Task 8 (conformance scenarios +
                                              docs/skills regen + SKILL.md)
 ```
+
+Note: the `STATEFUL_PRIMITIVES` entries for the four `ta.*` helpers
+land in Tasks 2/3 (with their runtime impls), NOT Task 1 — the skills
+generator fails on a `ta.*` registry entry that has no documented
+runtime source file. Every task that appends registry entries also
+bumps the pinned cardinality gates
+(`packages/compiler/src/program.test.ts:222`,
+`packages/conformance/src/scenarios/phase2Coverage.test.ts`).
 
 Features A and B are independent; the numbering interleaves them only to
 define a single execution order. Every task's prerequisites are strictly
@@ -112,13 +125,13 @@ lower-numbered.
 
 | # | Title | Package | Dependencies | Est. Complexity |
 |---|-------|---------|--------------|-----------------|
-| 1 | [Core contract for `ta` helpers](./1-core-ta-helper-contract.md) | core | None | Medium |
-| 2 | [Runtime `ta.rising` + `ta.falling`](./2-runtime-ta-rising-falling.md) | runtime | 1 | Medium |
-| 3 | [Runtime `ta.cross` + `ta.cum`](./3-runtime-ta-cross-cum.md) | runtime | 1 | Medium |
-| 4 | [Adapter-kit candle wire contract](./4-adapter-kit-candle-wire-contract.md) | adapter-kit | None | Medium |
-| 5 | [Core `plotcandle` / `plotbar` API](./5-core-plotcandle-plotbar-api.md) | core | 4 | Medium |
+| 1 | [Core contract for `ta` helpers](./1-core-ta-helper-contract.md) | core + compiler | None | Medium |
+| 2 | [Runtime `ta.rising` + `ta.falling`](./2-runtime-ta-rising-falling.md) | runtime + core (registry) | 1 | Medium |
+| 3 | [Runtime `ta.cross` + `ta.cum`](./3-runtime-ta-cross-cum.md) | runtime + core (registry) | 1 | Medium |
+| 4 | [Candle wire contract](./4-adapter-kit-candle-wire-contract.md) | adapter-kit + core (`PlotKind`) | None | Medium |
+| 5 | [Core `plotcandle` / `plotbar` API](./5-core-plotcandle-plotbar-api.md) | core + compiler | 4 | Medium |
 | 6 | [Runtime candle emit + gate](./6-runtime-plotcandle-plotbar-emit.md) | runtime | 4, 5 | Medium |
-| 7 | [canvas2d candle render](./7-canvas2d-candle-render.md) | canvas2d-adapter | 4, 6 | High |
+| 7 | [canvas2d candle render](./7-canvas2d-candle-render.md) | canvas2d-adapter + cli embed | 4, 6 | High |
 | 8 | [Conformance + docs/skills](./8-conformance-docs-candle.md) | conformance | 2, 3, 6, 7 | Low |
 
 ## Code Reuse
@@ -126,14 +139,17 @@ lower-numbered.
 | Existing | Path | Reused by |
 |----------|------|-----------|
 | `ta.change` slot shape (window + tick replay) | `packages/runtime/src/ta/change.ts` | Task 2 (`rising`/`falling` window) |
-| `ta.crossover` / `ta.crossunder` (boolean series, NaN⇒false) | `packages/runtime/src/ta/crossover.ts`, `crossunder.ts` | Task 3 (`cross` composes both) |
+| `readSourceValue` source coercion | `packages/runtime/src/ta/lib/sourceValue.ts` | Tasks 2, 3 |
+| `ta.crossover` / `ta.crossunder` (boolean series + `shiftedViews`, NaN⇒false) | `packages/runtime/src/ta/crossover.ts`, `crossunder.ts` | Tasks 2, 3 |
 | `ta.obv` / `ta.adl` accumulator + tick snapshot | `packages/runtime/src/ta/obv.ts`, `adl.ts` | Task 3 (`cum` accumulator) |
-| Sub-slot composition seam | `packages/runtime/src/ta/aroonOsc.ts`, `donchian.ts` | Task 3 (`cross` sub-slots) |
-| `TA_REGISTRY` + `TA_REGISTRY_METADATA` | `packages/runtime/src/ta/registry.ts` | Tasks 2, 3 |
-| `filled-band` multi-value style + validation + render | `adapter-kit/src/types.ts`, `validation/validateEmission.ts` (`validateFilledBandStyle`), `canvas2d-adapter/src/render/filledBand.ts`, `createCanvas2dAdapter.ts` (`renderFilledBandSeries`) | Tasks 4, 6, 7 |
+| Sub-slot composition seam (`${slotId}/aroon`) | `packages/runtime/src/ta/aroonOsc.ts:62`, `donchian.ts` | Task 3 (`cross` sub-slots) |
+| `TA_REGISTRY` + `RuntimeTaNamespace` | `packages/runtime/src/ta/registry.ts` | Tasks 2, 3 |
+| `syntheticBars` / `hashBoolArray` / `hashFloat64Array` golden fixtures | `packages/runtime/src/ta/__fixtures__/syntheticBars.ts` | Tasks 2, 3 |
+| `filled-band` multi-value style + validation + render | `adapter-kit/src/types.ts:427`, `validation/validateEmission.ts:257` (`validateFilledBandStyle`; `validateColor` at 350), `canvas2d-adapter/src/render/filledBand.ts`, `createCanvas2dAdapter.ts:552` (`renderFilledBandSeries`) | Tasks 4, 6, 7 |
 | `candle-override` / `bar-override` author + render | `core/src/plot/plot.ts:162-183`, `canvas2d-adapter/src/render/candleOverride.ts` | Tasks 5, 7 |
-| `bgcolor` / `barcolor` alias precedent (fn → emission) | `core/src/plot/plot.ts`, `program.ts:857-860` | Task 5 |
-| `taChange.scenario.ts` / `plotKindCandleOverride.scenario.ts` | `packages/conformance/src/scenarios/` | Tasks 2, 3, 8 |
+| `bgcolor` / `barcolor` alias precedent (fn → emission; impls in `runtime/src/emit/bgcolor.ts`/`barcolor.ts`, installed at `buildComputeContext.ts:36-40`) | `core/src/plot/plot.ts`, `program.ts:857-860` | Tasks 5, 6 |
+| `resolveValue` plot-value coercion | `packages/runtime/src/emit/plot.ts:23-26` | Task 6 |
+| `taChange.scenario.ts` / `plotKindCandleOverride.scenario.ts` + `ALL_SCENARIOS` wiring | `packages/conformance/src/scenarios/` | Tasks 2, 3, 8 |
 | `unsupported-plot-kind` gate | `packages/runtime/src/emit/plot.ts:117-127` | Task 6 |
 
 ## Provenance
@@ -155,3 +171,13 @@ source, so no provenance header is required.
   or trivially composable; add on demand, not speculatively.
 - **Non-canvas adapters** (any additional bundled adapters) picking up
   `"candle"` / `"ohlc-bar"` — each opts in via its own `Capabilities`.
+  `PHASE_5_PLOT_KINDS` deliberately stays frozen (Phase-5 inventory).
+- **pine-converter re-mapping** — the converter today lowers Pine
+  `ta.cross` → `crossover` with a `ta-signature-divergence` warning
+  ("chartlang has no bidirectional `ta.cross`" — stale once Task 3
+  lands) and approximates Pine `plotcandle` / `plotbar` via the
+  color-only override styles (`transform/plotFamily.ts:225-228`).
+  Follow-up: add `TA_PASSTHROUGH_MAP` rows for
+  `cross`/`rising`/`falling`/`cum`, retarget `emitCandle` / `emitBar`
+  at the real `plotcandle` / `plotbar`, and update the
+  `packages/pine-converter/CLAUDE.md` divergence note.

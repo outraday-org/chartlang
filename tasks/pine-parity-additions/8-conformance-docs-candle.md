@@ -41,22 +41,30 @@ helper). Inline sources:
 ```
 
 Assertions (mirror the candle-override scenario): a pinned `plot-hash`
-(computed after Task 7 lands the deterministic emit — run once, pin the
-SHA), `diagnostic-code-absent: unsupported-plot-kind`,
-`diagnostic-code-absent: malformed-emission`. `intervalCount: 1`,
-`candleLimit: 5`.
+(computed after Task 7 lands the deterministic emit — run once, then
+pin from the runner's "expected vs actual" failure message, the
+established re-pin workflow), `diagnostic-code-absent:
+unsupported-plot-kind`, `diagnostic-code-absent: malformed-emission`.
+`intervalCount: 1`, `candleLimit: 5`. Note `plot-hash` covers
+`{ bar, value }` tuples only — Task 6's `value: close ?? null` is what
+makes these scenarios hashable.
 
-Export both from `packages/conformance/src/scenarios/index.ts` and
-register them in the suite wherever `PLOT_KIND_CANDLE_OVERRIDE_SCENARIO`
-is enumerated. If a scenario inventory / count gate exists (e.g.
-`phase2Inventory.ts`), bump it to include the new scenarios.
+Wire both the way `PLOT_KIND_CANDLE_OVERRIDE_SCENARIO` is wired in
+`packages/conformance/src/scenarios/index.ts`: import (~line 132),
+re-export (~line 385), append to `ALL_SCENARIOS` (~line 574). There is
+**no scenario-count gate** to bump: `phase2Inventory.ts` is the
+hand-written inventory of *Phase-2 `ta.*` primitives* (not scenarios)
+and these additions do not belong there — the registry cardinality
+gates in `phase2Coverage.test.ts` were already updated by Tasks 2/3/5.
 
 ### 2. Verify Feature-A scenarios are registered
 
 Confirm the `taRising` / `taFalling` / `taCross` / `taCum` scenarios
-from Tasks 2/3 are exported and enumerated. If the suite uses a central
-list, ensure all six new scenarios (4 `ta.*` + 2 plot) are present and
-`pnpm conformance` is green across every host + the reference adapter.
+from Tasks 2/3 are exported and present in the central `ALL_SCENARIOS`
+array; ensure all six new scenarios (4 `ta.*` + 2 plot) are enumerated
+and `pnpm conformance` is green across every registered adapter (the
+suite drives the runtime directly against each adapter's capability
+bag — see `packages/conformance/CLAUDE.md`).
 
 ### 3. Regenerate docs + skills
 
@@ -97,8 +105,7 @@ existing style.
 | File | Action | Purpose |
 |------|--------|---------|
 | `packages/conformance/src/scenarios/plotKindCandle.scenario.ts` / `plotKindOhlcBar.scenario.ts` | Create | end-to-end scenarios |
-| `packages/conformance/src/scenarios/index.ts` | Modify | export + register |
-| `packages/conformance/src/scenarios/phase2Inventory.ts` (if present) | Modify | scenario-count gate |
+| `packages/conformance/src/scenarios/index.ts` | Modify | import + export + `ALL_SCENARIOS` |
 | `skills/chartlang-coding/SKILL.md` | Modify | document `plotcandle`/`plotbar` + ta helpers |
 | `skills/chartlang-coding/references/primitives.md` | Generate | skills regen |
 | `docs/primitives/**` | Generate | docs regen |
@@ -108,8 +115,8 @@ existing style.
 
 - `pnpm typecheck`, `pnpm lint`
 - `pnpm test` (conformance 100% coverage)
-- `pnpm conformance` (all hosts + reference adapter green)
-- `pnpm docs:check`, `pnpm skills:gate`
+- `pnpm conformance` (every registered adapter green)
+- `pnpm docs:check`, `pnpm docs:gate`, `pnpm skills:gate`
 - `pnpm readme:check` (if any README touched — keep ≤ limits)
 
 ## Changeset
@@ -124,10 +131,11 @@ what earlier tasks' changesets already cover.)
 ## Acceptance Criteria
 
 - `plotKindCandle` / `plotKindOhlcBar` scenarios land with pinned
-  `plot-hash`, registered in the suite; `pnpm conformance` green on
-  every host + the reference adapter.
-- All six new primitive scenarios (4 `ta.*` + 2 plot) are enumerated;
-  inventory gate (if any) updated.
+  `plot-hash`, registered in `ALL_SCENARIOS`; `pnpm conformance` green
+  on every registered adapter.
+- All six new primitive scenarios (4 `ta.*` + 2 plot) are enumerated
+  in `ALL_SCENARIOS` (no inventory gate applies — `phase2Inventory.ts`
+  is the Phase-2 ta list, untouched).
 - Generated docs + skills committed and non-stale (`docs:check` /
   `skills:gate` green).
 - `SKILL.md` documents `plotcandle` / `plotbar` (contrasted with the

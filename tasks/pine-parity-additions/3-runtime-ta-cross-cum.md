@@ -12,7 +12,10 @@ both fit one focused task.
 
 ## Prerequisites
 
-Task 1 (core holes, `STATEFUL_PRIMITIVES`, signatures).
+Task 1 (core holes + signatures + compiler-shim mirror). The
+`STATEFUL_PRIMITIVES` registry entries for `cross` / `cum` land
+**here** (not Task 1 — see Task 1's Goal note on the `skills:gate`
+ordering constraint).
 
 ## Current Behavior
 
@@ -57,14 +60,20 @@ accumulator for a running total (only the specialized `obv` / `adl` /
 
 ```ts
 type CrossSlot = { readonly outBuffer: RingBuffer<boolean>;
-                   readonly series: Series<boolean>; };
+                   readonly series: Series<boolean>;
+                   readonly shiftedViews: Map<number, Series<boolean>>; };
 ```
+
+(`shiftedViews` mirrors `crossover.ts:16-28` — build the
+`Series<boolean>` the way `crossover` does so `[n]` reads work.)
 
 On first call, allocate the parent slot; each bar call the registered
 `crossover` / `crossunder` with the derived sub-slot ids and OR their
-`.current`. Look at `aroonOsc.ts` for the exact sub-slot-id derivation
-and how a composed boolean/number result is appended vs `replaceHead`
-on tick. Return `slot.series`.
+`.current`. The sub-slot-id seam is `aroonOsc.ts:62` — it calls
+`aroon("${slotId}/aroon", length)` (template literal); derive
+`${slotId}/over` / `${slotId}/under` the same way. Mirror how
+`aroonOsc` appends a composed result vs `replaceHead`s on tick. Return
+`slot.series`.
 
 ### 2. `cum.ts` (`packages/runtime/src/ta/`)
 
@@ -84,17 +93,37 @@ snapshot `prevClosedCum` before mutating. `tickValue`: return
 source via `readSourceValue`.
 
 Copy the Task-1 core JSDoc verbatim onto each runtime file (`@formula`,
-`@warmup`, `@since 1.6`, `@stable`, `@example`).
+`@warmup`, `@since 1.8`, `@stable`, `@example`) — the generated docs +
+skills pages read this runtime source.
 
-### 3. Registry wiring (`packages/runtime/src/ta/registry.ts`)
+### 3. Registry wiring (runtime + core + cardinality gates)
+
+**Runtime** (`packages/runtime/src/ta/registry.ts`):
 
 - Import `cross` / `cum`; add both to `TA_REGISTRY`.
-- Add both to `RuntimeTaNamespace` (`cross` → `Series<boolean>`, `cum` →
-  `Series<number>`).
-- `TA_REGISTRY_METADATA`: `cross` gets `yDomain: { kind: "fixed", min:
-  0, max: 1 }` (match the boolean convention from Task 2). `cum` is
-  unbounded → `yDomain: { kind: "auto" }` (or omit if `auto` is the
-  default — match how `obv` is keyed).
+- Add both to `RuntimeTaNamespace` (`registry.ts:254`; `cross` →
+  `Series<boolean>`, `cum` → `Series<number>`).
+- `TA_REGISTRY_METADATA`: add **no** entries. Neither `crossover` /
+  `crossunder` (booleans) nor `obv` (unbounded accumulator) carries a
+  metadata entry — both fall back to the auto `yDomain` default. Match
+  that convention.
+
+**Core** (`packages/core/src/statefulPrimitives.ts`) — moved here from
+Task 1:
+
+```ts
+{ name: "ta.cross", slot: true },
+{ name: "ta.cum", slot: true },
+```
+
+**Cardinality gates** (update in the same PR — mirror Task 2):
+
+- `packages/compiler/src/program.test.ts:222` — bump the pinned
+  `STATEFUL_PRIMITIVES.size` by 2.
+- `packages/conformance/src/scenarios/phase2Coverage.test.ts` — extend
+  the pine-parity additions constants (Task 2 introduced them) with
+  `ta.cross` / `ta.cum` in both the `STATEFUL_PRIMITIVES.size` and
+  `TA_REGISTRY` key-count sums.
 
 ### 4. Test layers (§22.10, co-located)
 
@@ -104,8 +133,10 @@ Copy the Task-1 core JSDoc verbatim onto each runtime file (`@formula`,
   `crossover||crossunder` on the same inputs.
 - Property: `cross[t] === (crossover[t] || crossunder[t])` for random
   arrays; `cross` and (no-cross) are exhaustive.
-- Golden: pin the boolean SHA for `syntheticBars(100, 42)` crossing two
-  EMAs (mirror `crossover.golden`).
+- Golden: pin the boolean hash for `syntheticBars(100, 42)` crossing
+  two EMAs, via `hashBoolArray` from
+  `packages/runtime/src/ta/__fixtures__/syntheticBars.ts` (mirror
+  `crossover.golden.test.ts`).
 - Bench: mirror `crossover.bench`.
 
 **`cum`:**
@@ -114,15 +145,17 @@ Copy the Task-1 core JSDoc verbatim onto each runtime file (`@formula`,
   `prevClosedCum + tick` and does not advance the closed total.
 - Property: `cum[t] − cum[t−1] === (finite(src[t]) ? src[t] : 0)`;
   monotonic when the source is non-negative.
-- Golden: pin the SHA for `ta.cum(bar.volume)` over `syntheticBars(100,
-  42)` (mirror a numeric golden, e.g. `change.golden`).
+- Golden: pin the hash for `ta.cum(bar.volume)` over `syntheticBars(100,
+  42)` via `hashFloat64Array` (same fixtures module; mirror
+  `change.golden.test.ts`).
 - Bench: O(1) per bar; mirror `change.bench`.
 
 ### 5. Conformance (`packages/conformance/src/scenarios/`)
 
 `taCross.scenario.ts` (cross of two EMAs) + `taCum.scenario.ts`
-(`ta.cum(bar.volume)`), mirroring `taChange.scenario.ts`. Export +
-register in `scenarios/index.ts` alongside `TA_CHANGE_SCENARIO`.
+(`ta.cum(bar.volume)`), mirroring `taChange.scenario.ts`. Wire like
+`TA_CHANGE_SCENARIO` in `scenarios/index.ts`: import (~177), re-export
+(~435), append to `ALL_SCENARIOS` (~596).
 
 ### 6. Docs + skills regen
 
@@ -136,9 +169,12 @@ register in `scenarios/index.ts` alongside `TA_CHANGE_SCENARIO`.
 |------|--------|---------|
 | `packages/runtime/src/ta/cross.ts` (+ 4 test files) | Create | composed-boolean impl + tests |
 | `packages/runtime/src/ta/cum.ts` (+ 4 test files) | Create | accumulator impl + tests |
-| `packages/runtime/src/ta/registry.ts` | Modify | imports + `TA_REGISTRY` + namespace + metadata |
+| `packages/runtime/src/ta/registry.ts` | Modify | imports + `TA_REGISTRY` + namespace (no metadata) |
+| `packages/core/src/statefulPrimitives.ts` | Modify | 2 `slot: true` entries (moved from Task 1) |
+| `packages/compiler/src/program.test.ts` | Modify | `STATEFUL_PRIMITIVES.size` pin +2 |
+| `packages/conformance/src/scenarios/phase2Coverage.test.ts` | Modify | extend pine-parity additions constants |
 | `packages/conformance/src/scenarios/taCross.scenario.ts` / `taCum.scenario.ts` | Create | conformance |
-| `packages/conformance/src/scenarios/index.ts` | Modify | export + register |
+| `packages/conformance/src/scenarios/index.ts` | Modify | import + export + `ALL_SCENARIOS` |
 | `docs/primitives/ta/cross.md` / `cum.md` | Generate | auto docs |
 | `skills/chartlang-coding/references/primitives.md` | Generate | skills regen |
 
@@ -146,15 +182,17 @@ register in `scenarios/index.ts` alongside `TA_CHANGE_SCENARIO`.
 
 - `pnpm typecheck`, `pnpm lint`
 - `pnpm test` (runtime + conformance 100% coverage)
-- `pnpm docs:check`, `pnpm skills:gate`
+- `pnpm docs:check`, `pnpm docs:gate` (generated ta pages committed),
+  `pnpm skills:gate`
 - `pnpm conformance`
 - `pnpm bench:ci`
 
 ## Changeset
 
 `.changeset/ta-cross-cum.md` — `"@invinite-org/chartlang-runtime":
-minor`. Body: "Add `ta.cross` (bidirectional cross) and `ta.cum`
-(running sum) primitives."
+minor`, `"@invinite-org/chartlang-core": minor` (registry entries).
+Body: "Add `ta.cross` (bidirectional cross) and `ta.cum` (running sum)
+primitives."
 
 ## Acceptance Criteria
 
@@ -162,6 +200,10 @@ minor`. Body: "Add `ta.cross` (bidirectional cross) and `ta.cum`
   cross math); property test proves the OR equivalence.
 - `cum` matches the `obv`/`adl` NaN-safe accumulator + tick-snapshot
   shape; property test proves the first-difference identity.
-- Both wired into `TA_REGISTRY` + metadata + namespace; full §22.10 set
-  landed; goldens pinned; conformance registered and green.
+- Both wired into `TA_REGISTRY` + namespace (no metadata entries — the
+  `crossover`/`obv` convention); `STATEFUL_PRIMITIVES` gains both
+  entries; compiler size pin + conformance cardinality sums updated
+  and green.
+- Full §22.10 set landed; goldens pinned; conformance scenarios in
+  `ALL_SCENARIOS` and green.
 - Generated docs + skills committed; changeset committed; coverage 100%.
