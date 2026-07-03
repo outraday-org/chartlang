@@ -315,6 +315,32 @@ describe("formatCompiledDefaultRebind", () => {
         expect(line.startsWith("a_chart_default = Object.freeze({ ...a_chart_default,")).toBe(true);
     });
 
+    it("captures the default binding when it is not first in the export clause", () => {
+        const line = formatCompiledDefaultRebind(
+            "export { sib, a_chart_default as default };\n",
+            manifest,
+        );
+        expect(line.startsWith("a_chart_default = Object.freeze({ ...a_chart_default,")).toBe(true);
+    });
+
+    it("captures the default binding from single-line minified output", () => {
+        const line = formatCompiledDefaultRebind(
+            'var c={compute(){}};var s="alias as defaults";export{c as default};',
+            manifest,
+        );
+        expect(line.startsWith("c = Object.freeze({ ...c,")).toBe(true);
+    });
+
+    it("ignores an `as default` substring inside a string literal before the export clause", () => {
+        const line = formatCompiledDefaultRebind(
+            'var msg = "reset color as default please";\nvar demo_chart_default = {};\nexport {\n  demo_chart_default as default\n};\n',
+            manifest,
+        );
+        expect(line.startsWith("demo_chart_default = Object.freeze({ ...demo_chart_default,")).toBe(
+            true,
+        );
+    });
+
     it("throws when the bundle has no `as default` export", () => {
         expect(() => formatCompiledDefaultRebind("export const x = 1;\n", manifest)).toThrow(
             /as default/,

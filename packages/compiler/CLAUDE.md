@@ -325,7 +325,11 @@
   `mod.default` straight into `createScriptRunner` (bypassing the shared
   `buildBundleFromModule` loader) no longer collapses series capacity to 1.
   The binding NAME is captured from the emitted source (the `<ident> as
-  default` shape, never hardcoded); the manifest JSON is INLINED (not a
+  default` shape inside a statement-boundary-anchored `export {` clause,
+  taking the LAST match — esbuild hoists the export clause to the end of
+  the module, so a string literal containing `… as default` mid-file is
+  never captured; works for both pretty and minified output; never
+  hardcoded); the manifest JSON is INLINED (not a
   reference to the `__manifest` const) so host-quickjs's `moduleSourceToScript`
   — which rewrites `export const __manifest` into a global, erasing the binding
   — never sees a dangling reference. Exactly one `export … as default` remains

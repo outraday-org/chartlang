@@ -230,10 +230,18 @@ export function formatManifestAssignment(
 }
 
 // esbuild's ESM output always names the default export via a local binding —
-// `var <slug>_chart_default = …; export { <slug>_chart_default as default };`.
-// This captures that binding name from the emitted source (the same
-// `<ident> as default` shape `host-quickjs`'s `moduleSourceToScript` matches).
-const DEFAULT_EXPORT_BINDING_RE = /([A-Za-z_$][\w$]*)\s+as\s+default\b/;
+// `var <slug>_chart_default = …; export { <slug>_chart_default as default };`
+// (multiline when pretty, `;export{c as default};` when minified, and the
+// clause may carry sibling co-exports). Anchored to a statement boundary
+// (line start / `;` / `}`) so a bare `<word> as default` substring inside a
+// string literal (e.g. a plot title "reset color as default") can never be
+// captured as the binding name; `formatCompiledDefaultRebind` additionally
+// takes the LAST anchored match, because esbuild hoists the export clause to
+// the end of the module — nothing authored can follow it. `[^}]*?` keeps the
+// scan inside the clause braces; the leading `\b` stops a mid-identifier
+// suffix capture.
+const DEFAULT_EXPORT_BINDING_RE =
+    /(?:^|[;}])\s*export\s*\{[^}]*?\b([A-Za-z_$][\w$]*)\s+as\s+default\b/gm;
 
 /**
  * Synthesise the tail line that makes a compiled bundle's `default` export
@@ -266,13 +274,15 @@ export function formatCompiledDefaultRebind(
     moduleSource: string,
     primaryManifest: ScriptManifest,
 ): string {
-    const match = DEFAULT_EXPORT_BINDING_RE.exec(moduleSource);
-    if (match === null) {
+    let binding: string | undefined;
+    for (const match of moduleSource.matchAll(DEFAULT_EXPORT_BINDING_RE)) {
+        binding = match[1];
+    }
+    if (binding === undefined) {
         throw new Error(
             "compiled bundle has no `<binding> as default` export to carry the manifest",
         );
     }
-    const binding = match[1];
     return `${binding} = Object.freeze({ ...${binding}, manifest: ${JSON.stringify(primaryManifest)} });\n`;
 }
 
