@@ -10,5 +10,29 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": false,
+    "outputs": [
+        {
+            "title": "RSI(14)",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/rsi-divergence-alert.chart.ts:12:9#0",
+            "kind": "line",
+            "title": "RSI(14)"
+        },
+        {
+            "slotId": "examples/scripts/rsi-divergence-alert.chart.ts:14:9#0",
+            "kind": "horizontal-line",
+            "title": "Overbought"
+        },
+        {
+            "slotId": "examples/scripts/rsi-divergence-alert.chart.ts:15:9#0",
+            "kind": "horizontal-line",
+            "title": "Oversold"
+        }
+    ]
 }

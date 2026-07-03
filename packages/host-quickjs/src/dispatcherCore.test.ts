@@ -430,7 +430,11 @@ describe("createDispatcher", () => {
                 DispatcherDeps["runnerFactory"]
             >[0];
             const bundle = args.compiled as CompiledScriptBundle;
-            expect(bundle.primary).toBe(primary);
+            // The shared loader merges the primary manifest (array sidecar's
+            // first entry) over the default — so `primary` is a fresh frozen
+            // object carrying that manifest, not the seeded object by identity.
+            expect(bundle.primary.compute).toBe(primary.compute);
+            expect(bundle.primary.manifest).toBe(manifest[0]);
             expect(bundle.siblings).toHaveLength(1);
             expect(bundle.siblings[0]).toEqual({ exportName: "sibling", compiled: sibling });
             expect(bundle.dependencies).toEqual([]);
@@ -467,18 +471,23 @@ describe("createDispatcher", () => {
             expect(compiled.compute).toBe(primary.compute);
         });
 
-        it("mounts a bundle when the guest emits __dependencies even without an array manifest", async () => {
+        it("mounts a bundle when the guest emits __dependencies with a single-object manifest", async () => {
             const primary: CompiledScriptObject = {
                 manifest: makeManifest(),
                 compute: () => {},
             };
+            const sidecar = makeManifest();
             const dep: CompiledScriptObject = {
                 manifest: { ...makeManifest(), name: "base" },
                 compute: () => {},
             };
             const { deps, runnerFactory } = makeDeps({
-                bundleSeed: (defaultSlot, _named, depsSlot, _manifestSlot) => {
+                bundleSeed: (defaultSlot, _named, depsSlot, manifestSlot) => {
                     defaultSlot.value = primary;
+                    // Real compiler output always emits `__manifest` (single
+                    // object here since the sidecar is not an array); the
+                    // `__dependencies` slot alone flips bundle detection on.
+                    manifestSlot.value = sidecar;
                     depsSlot.value = [{ localId: "base", compiled: dep }];
                 },
             });
@@ -489,7 +498,8 @@ describe("createDispatcher", () => {
                 DispatcherDeps["runnerFactory"]
             >[0];
             const bundle = args.compiled as CompiledScriptBundle;
-            expect(bundle.primary).toBe(primary);
+            expect(bundle.primary.compute).toBe(primary.compute);
+            expect(bundle.primary.manifest).toBe(sidecar);
             expect(bundle.siblings).toEqual([]);
             expect(bundle.dependencies).toEqual([{ localId: "base", compiled: dep }]);
         });
@@ -509,8 +519,9 @@ describe("createDispatcher", () => {
                 compute: () => {},
             };
             const { deps, runnerFactory } = makeDeps({
-                bundleSeed: (defaultSlot, _named, depsSlot, _manifestSlot) => {
+                bundleSeed: (defaultSlot, _named, depsSlot, manifestSlot) => {
                     defaultSlot.value = primary;
+                    manifestSlot.value = makeManifest();
                     depsSlot.value = [
                         { localId: "base", compiled: dep, inputOverrides: { length: 30 } },
                     ];

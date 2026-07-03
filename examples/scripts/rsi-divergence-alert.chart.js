@@ -11,6 +11,17 @@ var MULTIPLIERS = Object.freeze({
   Y: 31536e3
 });
 
+// packages/core/dist/define/depAccessorSentinel.js
+var depAccessorSentinel = (name) => {
+  throw new Error(`${name} can only be called on a compiled chartlang indicator binding inside another indicator's compute body`);
+};
+var attachDepAccessorSentinels = (base) => ({
+  manifest: base.manifest,
+  compute: base.compute,
+  output: (name) => depAccessorSentinel(`output("${name}")`),
+  withInputs: () => depAccessorSentinel("withInputs")
+});
+
 // packages/core/dist/define/defineIndicator.js
 function defineIndicator(opts) {
   const capabilities = Object.freeze(["indicators"]);
@@ -29,21 +40,33 @@ function defineIndicator(opts) {
   };
   const manifest = {
     ...base,
+    ...opts.overlay === void 0 ? {} : { overlay: opts.overlay },
     ...opts.maxDrawings === void 0 ? {} : { maxDrawings: opts.maxDrawings },
     ...opts.maxBarsBack === void 0 ? {} : { maxBarsBack: opts.maxBarsBack },
     ...opts.format === void 0 ? {} : { format: opts.format },
     ...opts.precision === void 0 ? {} : { precision: opts.precision },
     ...opts.scale === void 0 ? {} : { scale: opts.scale },
     ...opts.requiresIntervals === void 0 ? {} : { requiresIntervals: opts.requiresIntervals },
-    ...opts.shortName === void 0 ? {} : { shortName: opts.shortName }
+    ...opts.shortName === void 0 ? {} : { shortName: opts.shortName },
+    ...opts.outputs === void 0 ? {} : { outputs: opts.outputs }
   };
-  return Object.freeze({
+  return Object.freeze(attachDepAccessorSentinels({
     manifest: Object.freeze(manifest),
     compute: opts.compute
-  });
+  }));
 }
 
 // packages/core/dist/input/input.js
+function definedExternalSeriesMetadata(args) {
+  return {
+    ...args.title === void 0 ? {} : { title: args.title },
+    ...args.group === void 0 ? {} : { group: args.group },
+    ...args.inline === void 0 ? {} : { inline: args.inline },
+    ...args.tooltip === void 0 ? {} : { tooltip: args.tooltip },
+    ...args.display === void 0 ? {} : { display: args.display },
+    ...args.confirm === void 0 ? {} : { confirm: args.confirm }
+  };
+}
 var input = Object.freeze({
   /**
    * Build an integer input descriptor.
@@ -94,13 +117,17 @@ var input = Object.freeze({
     return Object.freeze({ kind: "string", defaultValue, ...opts });
   },
   /**
-   * Build a string enum input descriptor.
+   * Build an enum input descriptor (a fixed-options dropdown). Options are
+   * either string labels or numeric values; the default must be one of the
+   * options.
    *
-   * @since 0.4
+   * @since 0.4 — numeric (`number`) options added in 1.6
    * @stable
    * @example
    *     const mode = input.enum("fast", ["fast", "slow"]);
+   *     const length = input.enum(21, [8, 21, 30, 50, 100]);
    *     void mode;
+   *     void length;
    */
   enum(defaultValue, options, opts) {
     return Object.freeze({
@@ -123,7 +150,10 @@ var input = Object.freeze({
     return Object.freeze({ kind: "color", defaultValue, ...opts });
   },
   /**
-   * Build a source-field input descriptor.
+   * Build a source-field input descriptor. `input.source` selects only the
+   * built-in OHLC and derived bar fields (`open`, `high`, `low`, `close`,
+   * `hl2`, `hlc3`, `ohlc4`, `hlcc4`). Host-supplied numeric series belong
+   * in `input.externalSeries`.
    *
    * @since 0.4
    * @stable
@@ -183,7 +213,24 @@ var input = Object.freeze({
     return Object.freeze({ kind: "interval", defaultValue, ...opts });
   },
   /**
-   * Build an adapter-supplied external series input descriptor.
+   * Build a session-window input descriptor (`"HH:MM-HH:MM"`). The value is
+   * a free string in v1 (the grammar is parsed at runtime by
+   * `session.isOpen`), mirroring `input.string`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const sess = input.session("0930-1600", { title: "Session" });
+   *     void sess;
+   */
+  session(defaultValue, opts) {
+    return Object.freeze({ kind: "session", defaultValue, ...opts });
+  },
+  /**
+   * Build a host-supplied external numeric series input descriptor. Use this
+   * for another indicator output, another script output, fundamentals, or
+   * app data aligned by the host to the primary chart stream. Missing feed
+   * values read as `NaN`.
    *
    * @since 0.4
    * @stable
@@ -199,7 +246,7 @@ var input = Object.freeze({
       kind: "external-series",
       name: args.name,
       schema: args.schema,
-      ...args.title === void 0 ? {} : { title: args.title }
+      ...definedExternalSeriesMetadata(args)
     });
   }
 });
@@ -258,6 +305,120 @@ var state = Object.freeze({
     return sentinel("state.string");
   },
   /**
+   * Allocate or read a persistent **series** slot — a writable, indexable
+   * number history. `s.value = expr` writes the current bar's value;
+   * `s[0]` / `s.current` / `+s` read it back, `s[1]` reads one bar ago.
+   * The allocation bar's pre-write head is seeded with `init`; unwritten later
+   * bars and out-of-range history reads are `NaN`. Unlike `state.float`, the
+   * slot retains a bounded window of prior committed values (sized to the
+   * script's deepest literal `s[n]` lookback).
+   *
+   * @since 1.3
+   * @stable
+   * @example
+   *     const fn: typeof state.series = state.series;
+   *     void fn;
+   */
+  series(_init) {
+    return sentinel("state.series");
+  },
+  /**
+   * Allocate or read a persistent **color** scalar slot — Pine's
+   * `var color c = …`. `c.value = expr` writes the current bar's color;
+   * `c.value` reads it back. A {@link Color} is a CSS color string the
+   * adapter round-trips verbatim, so the slot stores the string directly.
+   * The allocation bar's pre-write head is seeded with `init`; unlike
+   * {@link state}.series there is no history window — it is a scalar, not an
+   * indexable series.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.color = state.color;
+   *     void fn;
+   */
+  color(_init) {
+    return sentinel("state.color");
+  },
+  /**
+   * Allocate or read a persistent **boolean series** slot — the non-numeric
+   * sibling of {@link state}.series for Pine's `var bool` history. `s.value =
+   * entered` writes the current bar's value; `s[1]` reads one bar ago,
+   * `s.current` the current bar. Out-of-range / first-bar history reads are
+   * **`false`** (Pine v6: a `bool` `[]` no longer returns `na`). The
+   * allocation bar's pre-write head is seeded with `init`. The slot retains a
+   * bounded window sized to the script's deepest literal `s[n]` lookback.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.boolSeries = state.boolSeries;
+   *     void fn;
+   */
+  boolSeries(_init) {
+    return sentinel("state.boolSeries");
+  },
+  /**
+   * Allocate or read a persistent **string series** slot — the non-numeric
+   * sibling of {@link state}.series for Pine's `var string` history.
+   * `s.value = label` writes the current bar's value; `s[1]` reads one bar
+   * ago, `s.current` the current bar. Out-of-range / first-bar history reads
+   * are the empty string **`""`**. The allocation bar's pre-write head is
+   * seeded with `init`. The slot retains a bounded window sized to the
+   * script's deepest literal `s[n]` lookback.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof state.stringSeries = state.stringSeries;
+   *     void fn;
+   */
+  stringSeries(_init) {
+    return sentinel("state.stringSeries");
+  },
+  /**
+   * Allocate or read a persistent **bounded collection** slot — a
+   * fixed-capacity FIFO ring you push values into across bars. `a.push(v)`
+   * appends (evicting the oldest once full); `a.get(n)` reads the `n`-th
+   * element from the newest; `a.last()` is the newest; `a.size` is the
+   * filled count; `a.capacity` is the bound; `a.clear()` empties it.
+   * `capacity` must be a compile-time numeric literal (the slot is bounded
+   * so it serializes). Unlike {@link state}.series (one value's bar-indexed
+   * history), this is a collection of many pushed values. v1 supports
+   * `number` element type.
+   *
+   * @since 1.3
+   * @stable
+   * @example
+   *     const fn: typeof state.array = state.array;
+   *     void fn;
+   */
+  array(_capacity) {
+    return sentinel("state.array");
+  },
+  /**
+   * Allocate or read a persistent **bounded keyed collection** slot — a
+   * fixed-capacity key→value store that persists across bars. `m.set(k, v)`
+   * inserts/updates; `m.get(k)` returns the value or `undefined` for an
+   * absent key (distinct from a stored `0`); `m.has(k)` / `m.delete(k)`
+   * test/remove a key; `m.size` is the entry count (`≤ capacity`);
+   * `m.keyAt(i)` reads the `i`-th key in insertion order (`0` = oldest);
+   * `m.clear()` empties it. Inserting a NEW key once full evicts the
+   * oldest-inserted key (insertion-order FIFO). `capacity` must be a
+   * compile-time numeric literal (the slot is bounded so it serializes).
+   * Keys are `string | number`; v1 value type is `number`. Unlike
+   * {@link state}.series this is a collection, not a number-coercible value.
+   *
+   * @since 1.4
+   * @stable
+   * @example
+   *     const fn: typeof state.map = state.map;
+   *     void fn;
+   */
+  map(_capacity) {
+    return sentinel("state.map");
+  },
+  /**
    * Tick-persistent state slots, Pine `varip` semantics. Writes commit
    * immediately, even during a tick.
    *
@@ -281,6 +442,168 @@ var state = Object.freeze({
       return sentinel("state.tick.string");
     }
   })
+});
+
+// packages/core/dist/time-accessors/sessionAccessors.js
+var sentinel2 = (name) => {
+  throw new Error(`${name} called outside an active script step`);
+};
+var session = Object.freeze({
+  /**
+   * `true` when `t` falls inside the daily session window `spec`. `spec` is
+   * an `"HH:MM-HH:MM"` (or `"HHMM-HHMM"`) intraday window, e.g.
+   * `"0930-1600"`. The window is interpreted in `tz` (default
+   * `syminfo.timezone`, fallback `"UTC"`).
+   *
+   * v1 resolves UTC and fixed-offset zones only; a DST zone resolves to UTC
+   * plus a one-time diagnostic (see the determinism note in the docs).
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof session.isOpen = session.isOpen;
+   *     void fn;
+   */
+  isOpen(_t, _spec, _tz) {
+    return sentinel2("session.isOpen");
+  }
+});
+
+// packages/core/dist/time-accessors/timeAccessors.js
+var sentinel3 = (name) => {
+  throw new Error(`${name} called outside an active script step`);
+};
+var time = Object.freeze({
+  /**
+   * Calendar year of `t` (e.g. `2024`).
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.year = time.year;
+   *     void fn;
+   */
+  year(_t, _tz) {
+    return sentinel3("time.year");
+  },
+  /**
+   * Calendar month of `t`, `1..12`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.month = time.month;
+   *     void fn;
+   */
+  month(_t, _tz) {
+    return sentinel3("time.month");
+  },
+  /**
+   * Day of the month of `t`, `1..31`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.dayofmonth = time.dayofmonth;
+   *     void fn;
+   */
+  dayofmonth(_t, _tz) {
+    return sentinel3("time.dayofmonth");
+  },
+  /**
+   * Day of the week of `t`, following Pine's convention `1=Sunday .. 7=Saturday`
+   * (note: NOT the ISO `1=Monday` convention).
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.dayofweek = time.dayofweek;
+   *     void fn;
+   */
+  dayofweek(_t, _tz) {
+    return sentinel3("time.dayofweek");
+  },
+  /**
+   * Hour-of-day of `t`, `0..23`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.hour = time.hour;
+   *     void fn;
+   */
+  hour(_t, _tz) {
+    return sentinel3("time.hour");
+  },
+  /**
+   * Minute-of-hour of `t`, `0..59`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.minute = time.minute;
+   *     void fn;
+   */
+  minute(_t, _tz) {
+    return sentinel3("time.minute");
+  },
+  /**
+   * Second-of-minute of `t`, `0..59`.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.second = time.second;
+   *     void fn;
+   */
+  second(_t, _tz) {
+    return sentinel3("time.second");
+  },
+  /**
+   * Build a `Time` (UTC ms epoch) from calendar fields. `month` is `1..12`
+   * and `day` is `1..31`; `hour`/`minute`/`second` default to `0`. The
+   * fields are interpreted in `tz` (default `syminfo.timezone`, fallback
+   * `"UTC"`).
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.timestamp = time.timestamp;
+   *     void fn;
+   */
+  timestamp(_year, _month, _day, _hour, _minute, _second, _tz) {
+    return sentinel3("time.timestamp");
+  },
+  /**
+   * Host-injected wall-clock time as a UTC ms epoch. The runtime reads the
+   * active mount's `now` provider at call time; unlike the calendar accessors
+   * this is intentionally not a deterministic function of bar data.
+   *
+   * @since 1.7
+   * @stable
+   * @example
+   *     const fn: typeof time.now = time.now;
+   *     void fn;
+   */
+  now() {
+    return sentinel3("time.now");
+  },
+  /**
+   * Close timestamp of the bar that starts at `t` — Pine's no-arg
+   * `time_close()`. Equals `t + interval`, where the interval is the active
+   * bar's `timeframe.inSeconds` the runtime reads internally (so this mirrors
+   * Pine's "current bar's interval" without an explicit interval argument).
+   * `tz` is accepted for surface symmetry with the other `time.*` accessors.
+   *
+   * @since 1.5
+   * @stable
+   * @example
+   *     const fn: typeof time.timeClose = time.timeClose;
+   *     void fn;
+   */
+  timeClose(_t, _tz) {
+    return sentinel3("time.timeClose");
+  }
 });
 
 // packages/core/dist/views/barstate.js
@@ -317,35 +640,16 @@ var timeframe = Object.freeze({
 });
 
 // packages/core/dist/request/request.js
-var sentinel2 = (name) => {
+var sentinel4 = (name) => {
   throw new Error(`${name} called outside an active script step`);
 };
-var request = Object.freeze({
-  /**
-   * Read a secondary candle stream at a script-author-fixed interval.
-   *
-   * @since 0.4
-   * @stable
-   * @example
-   *     const fn: typeof request.security = request.security;
-   *     void fn;
-   */
-  security(_opts) {
-    return sentinel2("request.security");
-  },
-  /**
-   * Read lower-timeframe bars contained by each main-stream bar.
-   *
-   * @since 0.6
-   * @stable
-   * @example
-   *     const fn: typeof request.lowerTf = request.lowerTf;
-   *     void fn;
-   */
-  lowerTf(_opts) {
-    return sentinel2("request.lowerTf");
-  }
-});
+function security(_opts, _expr) {
+  return sentinel4("request.security");
+}
+function lowerTf(_opts) {
+  return sentinel4("request.lowerTf");
+}
+var request = Object.freeze({ security, lowerTf });
 
 // packages/core/dist/runtime/runtime.js
 function _logInfo(_message, _meta) {
@@ -586,6 +890,137 @@ var color = Object.freeze({
   hsl
 });
 
+// packages/core/dist/math/mathHelpers.js
+var roundTo = (value, step) => step > 0 && Number.isFinite(step) ? Math.round(value / step) * step : value;
+var roundToMintick = (value, mintick) => roundTo(value, mintick);
+var na = (value) => !Number.isFinite(value);
+var nz = (value, replacement = 0) => Number.isFinite(value) ? value : replacement;
+var fixnan = (value, lastGood) => Number.isFinite(value) ? value : lastGood;
+var sign = (value) => Number.isNaN(value) ? Number.NaN : Math.sign(value);
+var clamp = (value, lo, hi) => value < lo ? lo : value > hi ? hi : value;
+var avg = (...values) => {
+  let total = 0;
+  let count = 0;
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) {
+      total += n;
+      count++;
+    }
+  }
+  return count === 0 ? Number.NaN : total / count;
+};
+var sum = (...values) => {
+  let total = 0;
+  let count = 0;
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) {
+      total += n;
+      count++;
+    }
+  }
+  return count === 0 ? Number.NaN : total;
+};
+
+// packages/core/dist/math/index.js
+var math = Object.freeze({
+  roundToMintick,
+  roundTo,
+  na,
+  nz,
+  fixnan,
+  sign,
+  clamp,
+  avg,
+  sum
+});
+
+// packages/core/dist/str/strHelpers.js
+var parseMask = (mask) => {
+  const dot = mask.indexOf(".");
+  if (dot < 0) {
+    return null;
+  }
+  const fraction = mask.slice(dot + 1);
+  const padded = fraction.includes("0");
+  return { digits: fraction.length, padded };
+};
+var formatNumber2 = (value, mask) => {
+  if (Number.isNaN(value)) {
+    return "NaN";
+  }
+  if (value === Number.POSITIVE_INFINITY) {
+    return "\u221E";
+  }
+  if (value === Number.NEGATIVE_INFINITY) {
+    return "-\u221E";
+  }
+  const normalized = value === 0 ? 0 : value;
+  const parsed = mask === void 0 ? null : parseMask(mask);
+  if (parsed === null) {
+    return String(normalized);
+  }
+  const fixed = normalized.toFixed(parsed.digits);
+  if (parsed.padded || parsed.digits === 0) {
+    return fixed;
+  }
+  return fixed.replace(/\.?0+$/, "");
+};
+var applyFormat = (template, args) => {
+  return template.replace(/\{\{|\}\}|\{(\d+)(?:,number,([^}]*))?\}/g, (match, indexText, mask) => {
+    if (match === "{{") {
+      return "{";
+    }
+    if (match === "}}") {
+      return "}";
+    }
+    const index = Number(indexText);
+    const arg = args[index];
+    if (arg === void 0) {
+      return match;
+    }
+    if (mask !== void 0) {
+      return formatNumber2(Number(arg), mask);
+    }
+    return String(arg);
+  });
+};
+
+// packages/core/dist/str/index.js
+var str = Object.freeze({
+  tostring: (value, format) => typeof value === "number" ? formatNumber2(value, format) : String(value),
+  format: (template, ...args) => applyFormat(template, args),
+  length: (s) => s.length,
+  contains: (s, sub) => s.includes(sub),
+  startsWith: (s, sub) => s.startsWith(sub),
+  endsWith: (s, sub) => s.endsWith(sub),
+  replace: (s, target, repl) => s.replace(target, repl),
+  replaceAll: (s, target, repl) => s.split(target).join(repl),
+  split: (s, sep) => s.split(sep),
+  substring: (s, start, end) => s.substring(start, end),
+  upper: (s) => s.toUpperCase(),
+  lower: (s) => s.toLowerCase(),
+  trim: (s) => s.trim(),
+  repeat: (s, count) => s.repeat(Math.max(0, Math.trunc(count)))
+});
+
+// packages/core/dist/array/index.js
+var array = Object.freeze({
+  sum: (a) => a.sum(),
+  avg: (a) => a.avg(),
+  min: (a) => a.min(),
+  max: (a) => a.max(),
+  range: (a) => a.range(),
+  variance: (a, biased) => a.variance(biased),
+  stdev: (a, biased) => a.stdev(biased),
+  median: (a) => a.median(),
+  percentile: (a, p) => a.percentile(p),
+  indexOf: (a, v) => a.indexOf(v),
+  includes: (a, v) => a.includes(v),
+  sort: (a, order) => a.sort(order)
+});
+
 // packages/core/dist/statefulPrimitives.js
 var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.sma", slot: true },
@@ -599,6 +1034,8 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.crossunder", slot: true },
   { name: "ta.highest", slot: true },
   { name: "ta.lowest", slot: true },
+  { name: "ta.highestbars", slot: true },
+  { name: "ta.lowestbars", slot: true },
   { name: "ta.change", slot: true },
   { name: "ta.valuewhen", slot: true },
   { name: "ta.barssince", slot: true },
@@ -684,6 +1121,11 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "ta.nz", slot: false },
   { name: "plot", slot: true },
   { name: "hline", slot: true },
+  // Pine-ergonomic aliases lowering to the `bg-color` / `bar-color` plot
+  // styles. Slot-injected like `plot`/`hline` so each callsite gets a
+  // stable slot id and is listed in `manifest.plots` with its kind.
+  { name: "bgcolor", slot: true },
+  { name: "barcolor", slot: true },
   { name: "alert", slot: true },
   // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
   // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
@@ -701,6 +1143,7 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "draw.circle", slot: true },
   { name: "draw.ellipse", slot: true },
   { name: "draw.path", slot: true },
+  { name: "draw.fillBetween", slot: true },
   { name: "draw.marker", slot: true },
   { name: "draw.arc", slot: true },
   { name: "draw.curve", slot: true },
@@ -754,12 +1197,37 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "state.int", slot: true },
   { name: "state.bool", slot: true },
   { name: "state.string", slot: true },
+  { name: "state.series", slot: true },
+  { name: "state.color", slot: true },
+  { name: "state.boolSeries", slot: true },
+  { name: "state.stringSeries", slot: true },
   { name: "state.tick.float", slot: true },
   { name: "state.tick.int", slot: true },
   { name: "state.tick.bool", slot: true },
   { name: "state.tick.string", slot: true },
+  { name: "state.array", slot: true },
+  { name: "state.map", slot: true },
+  // Both the data form `request.security({ interval })` and the expression
+  // form `request.security({ interval }, (bar) => …)` route through this one
+  // entry: `slot: true` injects the slot id as the first argument regardless
+  // of the optional second (callback) argument.
   { name: "request.security", slot: true },
   { name: "request.lowerTf", slot: true },
+  // Calendar / session accessors — stateless (slot: false). Like `ta.nz`,
+  // they ride the registry for the `stateful-call-inside-loop` diagnostic
+  // (Pine-parity) but take NO injected slot id: the runtime function
+  // receives the author's arguments directly.
+  { name: "time.year", slot: false },
+  { name: "time.month", slot: false },
+  { name: "time.dayofmonth", slot: false },
+  { name: "time.dayofweek", slot: false },
+  { name: "time.hour", slot: false },
+  { name: "time.minute", slot: false },
+  { name: "time.second", slot: false },
+  { name: "time.timestamp", slot: false },
+  { name: "time.now", slot: false },
+  { name: "time.timeClose", slot: false },
+  { name: "session.isOpen", slot: false },
   { name: "defineAlertCondition.signal", slot: false },
   { name: "runtime.log", slot: false },
   { name: "runtime.error", slot: false }
@@ -782,6 +1250,7 @@ var DRAWING_KINDS = Object.freeze([
   "circle",
   "ellipse",
   "path",
+  "fill-between",
   "marker",
   "arc",
   "curve",
@@ -846,6 +1315,7 @@ var KIND_CAMELCASE = /* @__PURE__ */ new Map([
   ["circle", "circle"],
   ["ellipse", "ellipse"],
   ["path", "path"],
+  ["fill-between", "fillBetween"],
   ["marker", "marker"],
   ["arc", "arc"],
   ["curve", "curve"],
@@ -931,9 +1401,11 @@ var rsi_divergence_alert_chart_default = defineIndicator({
     if (ta3.crossover("examples/scripts/rsi-divergence-alert.chart.ts:20:13#0", rsi, 30).current) {
       alert3("examples/scripts/rsi-divergence-alert.chart.ts:21:13#0", "RSI rose above 30 (oversold exit)", { severity: "info" });
     }
-  }
+  },
+  outputs: [{ title: "RSI(14)", kind: "series-number" }]
 });
 export {
   rsi_divergence_alert_chart_default as default
 };
-export const __manifest = {"apiVersion":1,"kind":"indicator","name":"RSI Divergence Alert","inputs":{},"capabilities":["alerts","indicators"],"requestedIntervals":[],"userPickableInterval":false,"seriesCapacities":{},"maxLookback":0};
+export const __manifest = {"apiVersion":1,"kind":"indicator","name":"RSI Divergence Alert","inputs":{},"capabilities":["alerts","indicators"],"requestedIntervals":[],"userPickableInterval":false,"seriesCapacities":{},"maxLookback":0,"overlay":false,"outputs":[{"title":"RSI(14)","kind":"series-number"}],"plots":[{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:12:9#0","kind":"line","title":"RSI(14)"},{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:14:9#0","kind":"horizontal-line","title":"Overbought"},{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:15:9#0","kind":"horizontal-line","title":"Oversold"}]};
+rsi_divergence_alert_chart_default = Object.freeze({ ...rsi_divergence_alert_chart_default, manifest: {"apiVersion":1,"kind":"indicator","name":"RSI Divergence Alert","inputs":{},"capabilities":["alerts","indicators"],"requestedIntervals":[],"userPickableInterval":false,"seriesCapacities":{},"maxLookback":0,"overlay":false,"outputs":[{"title":"RSI(14)","kind":"series-number"}],"plots":[{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:12:9#0","kind":"line","title":"RSI(14)"},{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:14:9#0","kind":"horizontal-line","title":"Overbought"},{"slotId":"examples/scripts/rsi-divergence-alert.chart.ts:15:9#0","kind":"horizontal-line","title":"Oversold"}]} });

@@ -29,11 +29,6 @@ import {
 } from "./dep/index.js";
 import { pushDiagnostic, resolveDefaultPane, resolveScriptPane } from "./emit/index.js";
 import {
-    createExternalSeriesSlots,
-    isExternalSeriesFeed,
-    replaceExternalSeriesFeedMap,
-} from "./inputs/externalSeriesFeeds.js";
-import {
     dispose as disposeImpl,
     drain as drainImpl,
     onBarClose as onBarCloseImpl,
@@ -45,6 +40,11 @@ import {
     appendSecondaryHistory,
     replaceSecondaryHead,
 } from "./execution/secondaryStream.js";
+import {
+    createExternalSeriesSlots,
+    isExternalSeriesFeed,
+    replaceExternalSeriesFeedMap,
+} from "./inputs/externalSeriesFeeds.js";
 import { resolveInputs } from "./inputs/index.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import {
@@ -193,6 +193,14 @@ export type CreateScriptRunnerArgs = {
      * byte-identically) or a `CompiledScriptBundle` whose primary script
      * is mounted alongside one `DepRunner` per private dep entry and one
      * `SiblingRunner` per drawn named export.
+     *
+     * The `.manifest` MUST be the compiler-derived one — obtained via
+     * {@link buildBundleFromModule} (which merges the compiled `__manifest`
+     * sidecar), NOT a raw `defineIndicator(...)` author-eval return. The
+     * author stub zeroes `maxLookback` / `seriesCapacities` /
+     * `requestedFeeds`, which would collapse every series ring to capacity 1
+     * (all-NaN history reads) and drop every secondary feed. Pass the module
+     * namespace through `buildBundleFromModule` first.
      *
      * @since 0.1 — widened to bundle in 0.7
      */

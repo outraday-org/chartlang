@@ -316,6 +316,24 @@
   runtime can recover the manifest via dynamic `import(...)`. The `.d.ts`
   sibling (`typesEmit.ts`) declares the symbol in lockstep — both halves
   must stay aligned.
+- **The emitted `default` carries the REAL (primary) manifest, not the
+  author stub.** After the `__manifest` line, `api.ts` appends
+  `bundle.ts:formatCompiledDefaultRebind(bundle.moduleSource, result.manifest)`
+  — a single line that reassigns the esbuild default `var` binding to
+  `Object.freeze({ ...<binding>, manifest: <inline primary JSON> })`. ESM
+  live-binding makes `mod.default.manifest` the real manifest, so feeding
+  `mod.default` straight into `createScriptRunner` (bypassing the shared
+  `buildBundleFromModule` loader) no longer collapses series capacity to 1.
+  The binding NAME is captured from the emitted source (the `<ident> as
+  default` shape, never hardcoded); the manifest JSON is INLINED (not a
+  reference to the `__manifest` const) so host-quickjs's `moduleSourceToScript`
+  — which rewrites `export const __manifest` into a global, erasing the binding
+  — never sees a dangling reference. Exactly one `export … as default` remains
+  (the reassign is not a second default export), so the guest single-default
+  guard holds. For the multi-export (siblings) case the default still carries
+  the PRIMARY `result.manifest` (never the array). The primary manifest JSON
+  therefore appears twice in the tail (once in `__manifest`, once inline) — a
+  deliberate decoupling, not drift; `__manifest`'s JSON stays byte-identical.
 - **`__dependencies` is prepended PRE-bundle, not appended.** The
   `export const __dependencies = [...]` line synthesised by
   `formatDependenciesAssignment` lands inside the source `compile()`

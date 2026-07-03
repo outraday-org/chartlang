@@ -169,7 +169,17 @@ type CapturedRun = {
     readonly ctx: MockCanvas2DContext;
 };
 
+// Real compiler output always emits an `export const __manifest = …` sidecar
+// alongside `export default`, and the shared runtime loader
+// (`buildBundleFromModule`) throws on a stub-shaped default with no sidecar
+// (e.g. a pure-`draw.*` script whose manifest is legitimately `maxLookback: 0`,
+// no plots/feeds). These hand-crafted fixtures mirror that, so append the
+// sidecar to whichever per-script body `phase4ModuleBody` returns.
 function phase4ModuleSource(relPath: string, manifest: ScriptManifest): string {
+    return `${phase4ModuleBody(relPath, manifest)}export const __manifest = ${JSON.stringify(manifest)};\n`;
+}
+
+function phase4ModuleBody(relPath: string, manifest: ScriptManifest): string {
     const manifestJson = JSON.stringify(manifest);
     if (relPath.endsWith("session-high-alert.chart.ts")) {
         return `

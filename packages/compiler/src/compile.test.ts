@@ -724,6 +724,35 @@ export default defineIndicator({
         expect(mod.__manifest.name).toBe("EMA cross");
     });
 
+    it("carries the real manifest on `default` — deep-equals `__manifest`, not the zeroed stub", async () => {
+        // The footgun this closes: a compiled `mod.default` fed straight into
+        // `createScriptRunner` must carry the compiler-derived manifest, not the
+        // author stub (`maxLookback: 0`) that collapses series capacity to 1.
+        const src = `import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "Lookback",
+    apiVersion: 1,
+    compute: ({ bar, plot }) => {
+        plot(bar.close[5]);
+    },
+});`;
+        const result = await compile(src, { apiVersion: 1, sourcePath: "lookback.chart.ts" });
+        const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(result.moduleSource)}`;
+        const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+            readonly default: {
+                readonly manifest: { readonly maxLookback: number };
+                readonly compute: unknown;
+            };
+            readonly __manifest: unknown;
+        };
+        // The default's manifest equals the sidecar (deep, not identity), so the
+        // real `bar.close[5]` lookback (5, not the stub's 0) rides the default.
+        expect(mod.default.manifest).toEqual(mod.__manifest);
+        expect(mod.default.manifest.maxLookback).toBe(5);
+        expect(typeof mod.default.compute).toBe("function");
+        expect(Object.isFrozen(mod.default)).toBe(true);
+    });
+
     it("compiles a defineDrawing script with manifest.kind 'drawing' and capabilities ['drawings']", async () => {
         const DRAWING_SCRIPT = `
 import { defineDrawing } from "@invinite-org/chartlang-core";

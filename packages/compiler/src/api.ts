@@ -31,7 +31,12 @@ import {
     validateLowerTfIntervals,
 } from "./analysis/index.js";
 import type { InputLoopBounds } from "./analysis/loopBounds.js";
-import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
+import {
+    bundleModule,
+    formatCompiledDefaultRebind,
+    formatDependenciesAssignment,
+    formatManifestAssignment,
+} from "./bundle.js";
 import {
     type CompiledProducerArtefacts,
     type ProducerCompiled,
@@ -773,7 +778,11 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
         result.siblings === undefined
             ? result.manifest
             : Object.freeze([result.manifest, ...result.siblings]);
-    const moduleSource = `${bundle.moduleSource}${formatManifestAssignment(sidecar)}`;
+    // The `__manifest` sidecar carries the compiler-derived manifest; the
+    // rebind line then reassigns the esbuild default binding so `mod.default`
+    // itself carries the real (primary) manifest instead of the frozen author
+    // stub — feeding `mod.default` straight into the runtime Just Works.
+    const moduleSource = `${bundle.moduleSource}${formatManifestAssignment(sidecar)}${formatCompiledDefaultRebind(bundle.moduleSource, result.manifest)}`;
     const types = emitTypes({ manifest: sidecar, sourcePath });
 
     if (bundle.sourcemap !== undefined) {

@@ -165,6 +165,7 @@ export type {
     SupertrendOpts,
     SupertrendResult,
     TaNamespace,
+    TaSource,
     TemaOpts,
     TrendStrengthIndexOpts,
     TrixOpts,

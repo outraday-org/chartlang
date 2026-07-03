@@ -24,6 +24,16 @@ plot hashes, alert counts, and diagnostic codes.
   block. Do not "optimise" this into a `data:` URL — the test
   fixtures would silently break for any script that exercises a
   workspace primitive.
+- **`loadCompiledModuleAt` delegates to the shared runtime loader
+  `buildBundleFromModule`.** After the `file://` `import()`, the runner calls
+  `buildBundleFromModule(mod)` (imported from
+  `@invinite-org/chartlang-runtime`) — the local merge copy + its
+  `CompiledModuleExport`/`isCompiledScriptObject` were deleted, and the old
+  `primaryManifest` argument is gone (the loader reads `mod.__manifest`). The
+  loader **throws** on a stub-shaped default with no `__manifest` sidecar, so
+  any injected-`compile` test fixture must emit `export const __manifest = …`
+  alongside its `export default` (real compiler output always does). See
+  `packages/runtime/CLAUDE.md` for the loader contract.
 - **`plot-hash` SHA-256 covers `{ bar, value }` tuples in JSON-
   stringified emission order.** Adding fields to the tuple (e.g.
   `time`, `color`) would invalidate every pinned hash. The hash is

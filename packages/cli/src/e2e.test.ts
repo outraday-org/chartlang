@@ -47,6 +47,17 @@ describe("example scripts compile end-to-end", () => {
                 expect(Object.keys(KIND_CAPABILITY)).toContain(kind);
                 expect(compiled.manifest.capabilities).toContain(KIND_CAPABILITY[kind]);
                 expect(compiled.types).toMatch(/export default script/);
+
+                // The compiled `default` must carry the REAL manifest (not the
+                // author stub) so an integrator feeding `mod.default` straight
+                // into the runtime gets correct series capacity + feeds.
+                const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(compiled.moduleSource)}`;
+                const mod = (await import(/* @vite-ignore */ dataUrl)) as {
+                    readonly default: { readonly manifest: unknown };
+                    readonly __manifest: unknown;
+                };
+                const primary = Array.isArray(mod.__manifest) ? mod.__manifest[0] : mod.__manifest;
+                expect(mod.default.manifest).toEqual(primary);
             },
             COMPILE_TIMEOUT_MS,
         );

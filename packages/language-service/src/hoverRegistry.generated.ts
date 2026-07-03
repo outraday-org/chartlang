@@ -5863,7 +5863,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6018,7 +6018,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6043,7 +6043,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6068,7 +6068,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6108,7 +6108,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6178,7 +6178,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6238,7 +6238,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6263,7 +6263,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6283,7 +6283,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6303,12 +6303,12 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "a",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
                 "name": "b",
-                "type": "Series<number> | number",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6328,12 +6328,12 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "a",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
                 "name": "b",
-                "type": "Series<number> | number",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6353,7 +6353,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6418,7 +6418,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6443,7 +6443,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6468,7 +6468,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6543,7 +6543,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6568,7 +6568,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6593,7 +6593,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6618,7 +6618,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6658,7 +6658,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6708,7 +6708,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6728,7 +6728,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6753,7 +6753,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6778,7 +6778,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6803,7 +6803,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6823,7 +6823,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6858,7 +6858,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6883,7 +6883,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -6928,7 +6928,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7048,7 +7048,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7068,7 +7068,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7148,7 +7148,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7173,7 +7173,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7213,7 +7213,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7253,7 +7253,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7293,7 +7293,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7318,7 +7318,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7358,7 +7358,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7393,7 +7393,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7418,7 +7418,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7443,7 +7443,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7468,7 +7468,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7488,7 +7488,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7533,7 +7533,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             },
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7638,7 +7638,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7698,7 +7698,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
                 "doc": ""
             },
             {
@@ -7801,6 +7801,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "declare const close: Series<number>;\nconst e: Series<number> = ta.ema(close, 20);"
         ],
         "since": "0.1",
+        "stability": "stable"
+    },
+    "TaSource": {
+        "fqn": "TaSource",
+        "kind": "type",
+        "title": "TaSource",
+        "summary": "A `ta.*` numeric source. A `Series<number>` (the common case,\n`bar.close` / another `ta.*` output) OR a per-bar scalar `number` — the\ncompiler keys each `ta.*` callsite by source position and the runtime\ncoerces a scalar via `readSourceValue`, so a computed expression like\n`(ma.current - ma[1]) / ma[1] * 100` is a valid source without a\n`state.series` wrapper. Mirrors the runtime's `ScalarOrSeries` union;\nthis is the author-facing name.",
+        "examples": [
+            "declare const close: Series<number>;\nconst bySeries: TaSource = close;\nconst byScalar: TaSource = (close.current - close[1]) / close[1] * 100;"
+        ],
+        "since": "1.9",
         "stability": "stable"
     },
     "TemaOpts": {

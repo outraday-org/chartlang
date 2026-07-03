@@ -33,19 +33,21 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   dispatch which is fire-and-forget by design. Adding a nonce
   to overshoot would require a synchronous reply contract per
   push, which Phase 1 explicitly avoids.
-- **Single-script load adopts the `__manifest` sidecar.**
-  `buildBundleFromModule` returns `{ ...mod.default, manifest: __manifest }`
-  for a single-script module when the object-form `__manifest` export is
-  present. The compiler's `__manifest` is authoritative — it carries
-  fields the runtime `defineIndicator` stub zeroes (`requestedIntervals`,
-  `outputs`, `plots`, `maxLookback`). Using `mod.default.manifest`
-  directly leaves `requestedIntervals` empty, so an MTF
-  (`request.security`) script never registers its secondary streams and
-  every secondary candle drops with an `unknown-secondary-stream`
-  warning. `Array.isArray` does not subtract a `ReadonlyArray` union
-  member (TS #17002), so the single-object detection goes through the
-  dedicated `isSingleManifest` guard. host-quickjs's `dispatcherCore`
-  carries the byte-identical fix for cross-host parity. The whole
+- **Module load delegates to the shared runtime loader
+  `buildBundleFromModule`.** `createWorkerBoot` imports
+  `buildBundleFromModule` (+ `CompiledModuleExport`) from
+  `@invinite-org/chartlang-runtime` and calls it on the dynamically-imported
+  module namespace — the boot owns NO merge logic (the local copy +
+  `isSingleManifest`/`isCompiledScriptObject` were deleted; see
+  `packages/runtime/CLAUDE.md` for the loader contract). The loader merges the
+  authoritative `__manifest` sidecar over `mod.default` (it carries fields the
+  runtime `defineIndicator` stub zeroes — `requestedIntervals`, `outputs`,
+  `plots`, `maxLookback`, `requestedFeeds`), so an MTF (`request.security`)
+  script registers its secondary streams instead of dropping every secondary
+  candle with `unknown-secondary-stream`. It also throws on a stub-shaped
+  default with no `__manifest` sidecar (a raw `defineIndicator(...)` object) —
+  so the host fails loud instead of running all-NaN. host-quickjs's
+  `dispatcherCore` calls the SAME loader for cross-host parity. The whole
   `__manifest` is spread through, so the HTF-expression
   `request.security(opts, expr)` form needs no host change — its
   `manifest.securityExpressions` rides the same sidecar (covered by

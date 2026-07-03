@@ -4,6 +4,25 @@
 import type { PlotLineStyle, Series, Time } from "../types.js";
 
 /**
+ * A `ta.*` numeric source. A `Series<number>` (the common case,
+ * `bar.close` / another `ta.*` output) OR a per-bar scalar `number` — the
+ * compiler keys each `ta.*` callsite by source position and the runtime
+ * coerces a scalar via `readSourceValue`, so a computed expression like
+ * `(ma.current - ma[1]) / ma[1] * 100` is a valid source without a
+ * `state.series` wrapper. Mirrors the runtime's `ScalarOrSeries` union;
+ * this is the author-facing name.
+ *
+ * @formula  N/A — source-type alias
+ * @since 1.9
+ * @stable
+ * @example
+ *     declare const close: Series<number>;
+ *     const bySeries: TaSource = close;
+ *     const byScalar: TaSource = (close.current - close[1]) / close[1] * 100;
+ */
+export type TaSource = number | Series<number>;
+
+/**
  * Options bag for `ta.sma`. `offset` is the universal **display shift**
  * (in bars) applied to where the series renders, not to its value:
  * `+n` shifts the plotted series `n` bars right (into the future), `−n`
@@ -2368,68 +2387,64 @@ export type MacdResult = Readonly<{
  *     const e: Series<number> = ta.ema(close, 20);
  */
 export type TaNamespace = {
-    sma(source: Series<number>, length: number, opts?: SmaOpts): Series<number>;
-    ema(source: Series<number>, length: number, opts?: EmaOpts): Series<number>;
-    stdev(source: Series<number>, length: number, opts?: StdevOpts): Series<number>;
-    bb(source: Series<number>, length: number, opts?: BbOpts): BbResult;
-    rsi(source: Series<number>, length: number, opts?: RsiOpts): Series<number>;
-    macd(source: Series<number>, opts?: MacdOpts): MacdResult;
+    sma(source: TaSource, length: number, opts?: SmaOpts): Series<number>;
+    ema(source: TaSource, length: number, opts?: EmaOpts): Series<number>;
+    stdev(source: TaSource, length: number, opts?: StdevOpts): Series<number>;
+    bb(source: TaSource, length: number, opts?: BbOpts): BbResult;
+    rsi(source: TaSource, length: number, opts?: RsiOpts): Series<number>;
+    macd(source: TaSource, opts?: MacdOpts): MacdResult;
     atr(length: number, opts?: AtrOpts): Series<number>;
-    crossover(a: Series<number>, b: Series<number> | number, opts?: CrossoverOpts): Series<boolean>;
-    crossunder(
-        a: Series<number>,
-        b: Series<number> | number,
-        opts?: CrossunderOpts,
-    ): Series<boolean>;
+    crossover(a: TaSource, b: TaSource, opts?: CrossoverOpts): Series<boolean>;
+    crossunder(a: TaSource, b: TaSource, opts?: CrossunderOpts): Series<boolean>;
     nz(value: number, replacement?: number): number;
-    highest(source: Series<number>, length: number, opts?: HighestOpts): Series<number>;
-    lowest(source: Series<number>, length: number, opts?: LowestOpts): Series<number>;
-    highestbars(source: Series<number>, length: number, opts?: HighestbarsOpts): Series<number>;
-    lowestbars(source: Series<number>, length: number, opts?: LowestbarsOpts): Series<number>;
-    change(source: Series<number>, opts?: ChangeOpts): Series<number>;
+    highest(source: TaSource, length: number, opts?: HighestOpts): Series<number>;
+    lowest(source: TaSource, length: number, opts?: LowestOpts): Series<number>;
+    highestbars(source: TaSource, length: number, opts?: HighestbarsOpts): Series<number>;
+    lowestbars(source: TaSource, length: number, opts?: LowestbarsOpts): Series<number>;
+    change(source: TaSource, opts?: ChangeOpts): Series<number>;
     valuewhen(
         condition: Series<boolean>,
-        source: Series<number>,
+        source: TaSource,
         occurrence?: number,
         opts?: ValuewhenOpts,
     ): Series<number>;
     barssince(condition: Series<boolean>, opts?: BarssinceOpts): Series<number>;
-    wma(source: Series<number>, length: number, opts?: WmaOpts): Series<number>;
-    vwma(source: Series<number>, length: number, opts?: VwmaOpts): Series<number>;
-    hma(source: Series<number>, length: number, opts?: HmaOpts): Series<number>;
-    smma(source: Series<number>, length: number, opts?: SmmaOpts): Series<number>;
-    dema(source: Series<number>, length: number, opts?: DemaOpts): Series<number>;
-    tema(source: Series<number>, length: number, opts?: TemaOpts): Series<number>;
-    kama(source: Series<number>, opts?: KamaOpts): Series<number>;
-    alma(source: Series<number>, length: number, opts?: AlmaOpts): Series<number>;
-    lsma(source: Series<number>, length: number, opts?: LsmaOpts): Series<number>;
-    mcginley(source: Series<number>, length: number, opts?: McginleyOpts): Series<number>;
-    maRibbon(source: Series<number>, opts?: MaRibbonOpts): MaRibbonResult;
-    cci(source: Series<number>, length: number, opts?: CciOpts): Series<number>;
+    wma(source: TaSource, length: number, opts?: WmaOpts): Series<number>;
+    vwma(source: TaSource, length: number, opts?: VwmaOpts): Series<number>;
+    hma(source: TaSource, length: number, opts?: HmaOpts): Series<number>;
+    smma(source: TaSource, length: number, opts?: SmmaOpts): Series<number>;
+    dema(source: TaSource, length: number, opts?: DemaOpts): Series<number>;
+    tema(source: TaSource, length: number, opts?: TemaOpts): Series<number>;
+    kama(source: TaSource, opts?: KamaOpts): Series<number>;
+    alma(source: TaSource, length: number, opts?: AlmaOpts): Series<number>;
+    lsma(source: TaSource, length: number, opts?: LsmaOpts): Series<number>;
+    mcginley(source: TaSource, length: number, opts?: McginleyOpts): Series<number>;
+    maRibbon(source: TaSource, opts?: MaRibbonOpts): MaRibbonResult;
+    cci(source: TaSource, length: number, opts?: CciOpts): Series<number>;
     stoch(opts?: StochOpts): StochResult;
     williamsR(length: number, opts?: WilliamsROpts): Series<number>;
-    stochRsi(source: Series<number>, opts?: StochRsiOpts): StochRsiResult;
+    stochRsi(source: TaSource, opts?: StochRsiOpts): StochRsiResult;
     ultimateOsc(opts?: UltimateOscOpts): Series<number>;
-    coppock(source: Series<number>, opts?: CoppockOpts): Series<number>;
-    ppo(source: Series<number>, opts?: PpoOpts): PpoResult;
-    dpo(source: Series<number>, length: number, opts?: DpoOpts): Series<number>;
-    connorsRsi(source: Series<number>, opts?: ConnorsRsiOpts): Series<number>;
-    kst(source: Series<number>, opts?: KstOpts): KstResult;
+    coppock(source: TaSource, opts?: CoppockOpts): Series<number>;
+    ppo(source: TaSource, opts?: PpoOpts): PpoResult;
+    dpo(source: TaSource, length: number, opts?: DpoOpts): Series<number>;
+    connorsRsi(source: TaSource, opts?: ConnorsRsiOpts): Series<number>;
+    kst(source: TaSource, opts?: KstOpts): KstResult;
     fisher(length: number, opts?: FisherOpts): FisherResult;
     klinger(opts?: KlingerOpts): KlingerResult;
     rvgi(opts?: RvgiOpts): RvgiResult;
     ao(opts?: AoOpts): Series<number>;
-    cmo(source: Series<number>, length: number, opts?: CmoOpts): Series<number>;
-    momentum(source: Series<number>, length: number, opts?: MomentumOpts): Series<number>;
-    roc(source: Series<number>, length: number, opts?: RocOpts): Series<number>;
-    pmo(source: Series<number>, opts?: PmoOpts): PmoResult;
+    cmo(source: TaSource, length: number, opts?: CmoOpts): Series<number>;
+    momentum(source: TaSource, length: number, opts?: MomentumOpts): Series<number>;
+    roc(source: TaSource, length: number, opts?: RocOpts): Series<number>;
+    pmo(source: TaSource, opts?: PmoOpts): PmoResult;
     smi(opts?: SmiOpts): SmiResult;
-    tsi(source: Series<number>, opts?: TsiOpts): TsiResult;
+    tsi(source: TaSource, opts?: TsiOpts): TsiResult;
     aroon(length: number, opts?: AroonOpts): AroonResult;
     aroonOsc(length: number, opts?: AroonOscOpts): Series<number>;
-    median(source: Series<number>, length: number, opts?: MedianOpts): Series<number>;
+    median(source: TaSource, length: number, opts?: MedianOpts): Series<number>;
     adr(opts?: AdrOpts): Series<number>;
-    ulcerIndex(source: Series<number>, length: number, opts?: UlcerIndexOpts): Series<number>;
+    ulcerIndex(source: TaSource, length: number, opts?: UlcerIndexOpts): Series<number>;
     vol(opts?: VolOpts): Series<number>;
     vwap(opts?: VwapOpts): Series<number>;
     anchoredVwap(anchorTime: number, opts?: AnchoredVwapOpts): Series<number>;
@@ -2451,14 +2466,14 @@ export type TaNamespace = {
     eom(length: number, opts?: EomOpts): Series<number>;
     nvi(opts?: NviOpts): Series<number>;
     pvi(opts?: PviOpts): Series<number>;
-    bbPercentB(source: Series<number>, length: number, opts?: BbPercentBOpts): Series<number>;
-    bbw(source: Series<number>, length: number, opts?: BbwOpts): Series<number>;
+    bbPercentB(source: TaSource, length: number, opts?: BbPercentBOpts): Series<number>;
+    bbw(source: TaSource, length: number, opts?: BbwOpts): Series<number>;
     donchian(length: number, opts?: DonchianOpts): DonchianResult;
     keltner(opts?: KeltnerOpts): KeltnerResult;
-    envelope(source: Series<number>, opts?: EnvelopeOpts): EnvelopeResult;
+    envelope(source: TaSource, opts?: EnvelopeOpts): EnvelopeResult;
     chop(length: number, opts?: ChopOpts): Series<number>;
-    historicalVolatility(source: Series<number>, length: number, opts?: HvOpts): Series<number>;
-    rvi(source: Series<number>, length: number, opts?: RviOpts): Series<number>;
+    historicalVolatility(source: TaSource, length: number, opts?: HvOpts): Series<number>;
+    rvi(source: TaSource, length: number, opts?: RviOpts): Series<number>;
     massIndex(opts?: MassIndexOpts): Series<number>;
     psar(opts?: PsarOpts): PsarResult;
     supertrend(opts?: SupertrendOpts): SupertrendResult;
@@ -2471,10 +2486,10 @@ export type TaNamespace = {
     volatilityStop(opts?: VolatilityStopOpts): VolatilityStopResult;
     adx(length: number, opts?: AdxOpts): Series<number>;
     dmi(length: number, opts?: DmiOpts): DmiResult;
-    trix(source: Series<number>, length: number, opts?: TrixOpts): TrixResult;
+    trix(source: TaSource, length: number, opts?: TrixOpts): TrixResult;
     vortex(length: number, opts?: VortexOpts): VortexResult;
     trendStrengthIndex(
-        source: Series<number>,
+        source: TaSource,
         length: number,
         opts?: TrendStrengthIndexOpts,
     ): Series<number>;

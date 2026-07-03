@@ -17709,6 +17709,62 @@ function createScriptRunner(args) {
   });
 }
 
+// ../runtime/dist/loadBundle.js
+function isCompiledScriptObject(value) {
+  if (value === null || typeof value !== "object")
+    return false;
+  const candidate = value;
+  return typeof candidate.compute === "function" && "manifest" in candidate;
+}
+function isStubManifest(manifest) {
+  if (manifest === null || typeof manifest !== "object")
+    return false;
+  const m = manifest;
+  const caps = m.seriesCapacities;
+  const emptyCapacities = typeof caps === "object" && caps !== null && Object.keys(caps).length === 0;
+  return m.maxLookback === 0 && m.plots === void 0 && m.requestedFeeds === void 0 && emptyCapacities;
+}
+function buildBundleFromModule(mod2) {
+  const sidecar = mod2.__manifest;
+  const dependencies = mod2.__dependencies ?? [];
+  const primaryManifest = Array.isArray(sidecar) ? sidecar[0] : sidecar;
+  if (primaryManifest === void 0) {
+    if (isStubManifest(mod2.default.manifest)) {
+      throw new Error("manifest-stub: module default carries a stub manifest (maxLookback 0, no plots/feeds) and no __manifest sidecar was found \u2014 pass a compiled bundle, not an author-eval object");
+    }
+    return mod2.default;
+  }
+  const primary = Object.freeze({
+    ...mod2.default,
+    manifest: primaryManifest
+  });
+  const isBundle = Array.isArray(sidecar) || dependencies.length > 0;
+  if (!isBundle) {
+    return primary;
+  }
+  const siblings = [];
+  if (Array.isArray(sidecar)) {
+    for (let i = 1; i < sidecar.length; i += 1) {
+      const exportName = sidecar[i].exportName;
+      if (exportName === void 0 || exportName === "default")
+        continue;
+      const compiled = mod2[exportName];
+      if (!isCompiledScriptObject(compiled))
+        continue;
+      siblings.push(Object.freeze({ exportName, compiled }));
+    }
+  }
+  return Object.freeze({
+    primary,
+    siblings: Object.freeze(siblings),
+    dependencies: Object.freeze(dependencies.map((d) => Object.freeze({
+      localId: d.localId,
+      compiled: d.compiled,
+      ...d.inputOverrides === void 0 ? {} : { inputOverrides: d.inputOverrides }
+    })))
+  });
+}
+
 // src/moduleSourceToScript.ts
 var EXPORT_DEFAULT_RE = /^\s*export\s+default\s+/m;
 var EXPORT_DEFAULT_GLOBAL_RE = /^\s*export\s+default\s+/gm;
@@ -17752,9 +17808,6 @@ function reply(frame2) {
 function message(err) {
   return err instanceof Error ? err.message : String(err);
 }
-function isSingleManifest(manifest) {
-  return manifest !== void 0 && !Array.isArray(manifest);
-}
 function reviveSet(value) {
   if (Array.isArray(value)) {
     return new Set(value);
@@ -17789,38 +17842,14 @@ ${moduleSourceToScript(source)}
     }
     const manifest = deps.getCompiledManifest?.();
     const dependencies = deps.getCompiledDependencies?.() ?? [];
-    const isBundle = Array.isArray(manifest) || dependencies.length > 0;
-    if (!isBundle) {
-      if (isSingleManifest(manifest)) {
-        return Object.freeze({ ...compiledDefault, manifest });
-      }
-      return compiledDefault;
-    }
     const named = deps.getCompiledNamed?.() ?? {};
-    const siblings = [];
-    if (Array.isArray(manifest)) {
-      for (let i = 1; i < manifest.length; i += 1) {
-        const entry = manifest[i];
-        const exportName = entry.exportName;
-        if (exportName === void 0 || exportName === "default") continue;
-        const sibling = named[exportName];
-        if (sibling === void 0) continue;
-        siblings.push(Object.freeze({ exportName, compiled: sibling }));
-      }
-    }
-    return Object.freeze({
-      primary: compiledDefault,
-      siblings: Object.freeze(siblings),
-      dependencies: Object.freeze(
-        dependencies.map(
-          (d) => Object.freeze({
-            localId: d.localId,
-            compiled: d.compiled,
-            ...d.inputOverrides === void 0 ? {} : { inputOverrides: d.inputOverrides }
-          })
-        )
-      )
-    });
+    const mod2 = {
+      ...named,
+      default: compiledDefault,
+      __dependencies: dependencies,
+      ...manifest === void 0 ? {} : { __manifest: manifest }
+    };
+    return buildBundleFromModule(mod2);
   }
   async function load(json) {
     try {

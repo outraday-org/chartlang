@@ -9,5 +9,6 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": true
 }

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import * as esbuild from "esbuild";
 
@@ -227,6 +227,53 @@ export function formatManifestAssignment(
         ? JSON.stringify(manifestOrArray, null, 4)
         : JSON.stringify(manifestOrArray);
     return `export const __manifest = ${json};\n`;
+}
+
+// esbuild's ESM output always names the default export via a local binding —
+// `var <slug>_chart_default = …; export { <slug>_chart_default as default };`.
+// This captures that binding name from the emitted source (the same
+// `<ident> as default` shape `host-quickjs`'s `moduleSourceToScript` matches).
+const DEFAULT_EXPORT_BINDING_RE = /([A-Za-z_$][\w$]*)\s+as\s+default\b/;
+
+/**
+ * Synthesise the tail line that makes a compiled bundle's `default` export
+ * carry the **real** manifest instead of the author-eval stub. The stub the
+ * `defineIndicator(...)` factory returns is frozen (its `.manifest` cannot be
+ * reassigned in place under strict mode), so this rebuilds a fresh frozen
+ * object from the stub's own props with the compiler-derived `primaryManifest`
+ * and reassigns the esbuild default binding. Because `default` is exported via
+ * a local `var` binding, the ESM live-binding contract makes `mod.default`
+ * reflect the reassignment — so an integrator who feeds `mod.default` straight
+ * into the runtime gets the real manifest (not the capacity-1-collapsing stub).
+ *
+ * The manifest JSON is inlined (not a reference to the `__manifest` const) so
+ * the guest-realm source rewrite in `host-quickjs` — which turns
+ * `export const __manifest = …` into a global assignment, erasing the binding —
+ * never sees a dangling `__manifest` reference.
+ *
+ * @since 2.0
+ * @stable
+ * @example
+ *     // const line = formatCompiledDefaultRebind(
+ *     //     "export { demo_chart_default as default };\n",
+ *     //     manifest,
+ *     // );
+ *     // line === 'demo_chart_default = Object.freeze({ ...demo_chart_default, manifest: {…} });\n'
+ *     const fn: typeof formatCompiledDefaultRebind = formatCompiledDefaultRebind;
+ *     void fn;
+ */
+export function formatCompiledDefaultRebind(
+    moduleSource: string,
+    primaryManifest: ScriptManifest,
+): string {
+    const match = DEFAULT_EXPORT_BINDING_RE.exec(moduleSource);
+    if (match === null) {
+        throw new Error(
+            "compiled bundle has no `<binding> as default` export to carry the manifest",
+        );
+    }
+    const binding = match[1];
+    return `${binding} = Object.freeze({ ...${binding}, manifest: ${JSON.stringify(primaryManifest)} });\n`;
 }
 
 /**

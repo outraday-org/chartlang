@@ -16,5 +16,19 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": true,
+    "outputs": [
+        {
+            "title": "Session high",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/session-high-alert.chart.ts:25:9#0",
+            "kind": "line",
+            "title": "Session high"
+        }
+    ]
 }

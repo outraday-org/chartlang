@@ -4,7 +4,12 @@
 import type { ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { bundleModule, formatDependenciesAssignment, formatManifestAssignment } from "./bundle.js";
+import {
+    bundleModule,
+    formatCompiledDefaultRebind,
+    formatDependenciesAssignment,
+    formatManifestAssignment,
+} from "./bundle.js";
 
 const TS_SOURCE = `
 const greeting: string = "hi";
@@ -274,5 +279,45 @@ describe("bundleModule inlinedProducers", () => {
             ],
         });
         expect(result.moduleSource).not.toContain("99");
+    });
+});
+
+describe("formatCompiledDefaultRebind", () => {
+    const manifest: ScriptManifest = Object.freeze({
+        apiVersion: 1,
+        kind: "indicator",
+        name: "demo",
+        inputs: Object.freeze({}),
+        capabilities: Object.freeze(["indicators"]),
+        requestedIntervals: Object.freeze([]),
+        userPickableInterval: false,
+        seriesCapacities: Object.freeze({ ohlcv: 6 }),
+        maxLookback: 5,
+    });
+
+    it("reassigns the captured default binding to a frozen copy carrying the manifest", () => {
+        const line = formatCompiledDefaultRebind(
+            "var demo_chart_default = {};\nexport {\n  demo_chart_default as default\n};\n",
+            manifest,
+        );
+        expect(line).toContain(
+            "demo_chart_default = Object.freeze({ ...demo_chart_default, manifest: ",
+        );
+        expect(line).toContain(JSON.stringify(manifest));
+        expect(line.endsWith(";\n")).toBe(true);
+    });
+
+    it("captures the default binding even amid co-exports", () => {
+        const line = formatCompiledDefaultRebind(
+            "export { a_chart_default as default, sib };\n",
+            manifest,
+        );
+        expect(line.startsWith("a_chart_default = Object.freeze({ ...a_chart_default,")).toBe(true);
+    });
+
+    it("throws when the bundle has no `as default` export", () => {
+        expect(() => formatCompiledDefaultRebind("export const x = 1;\n", manifest)).toThrow(
+            /as default/,
+        );
     });
 });

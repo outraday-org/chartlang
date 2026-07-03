@@ -5,6 +5,27 @@
 
 ## Invariants
 
+- **`buildBundleFromModule(mod)` (`loadBundle.ts`) is THE module→runner
+  entry — every host calls it, no host re-implements the merge.** Given a
+  compiled bundle's module namespace it merges the authoritative `__manifest`
+  sidecar (single → the object, multi → `sidecar[0]`) over `mod.default` for
+  BOTH the single-script return AND the bundle `primary`, recovers siblings
+  (`mod[exportName]` behind a compiled-object guard) + `__dependencies`, and
+  returns the `CompiledScriptObject | CompiledScriptBundle` `createScriptRunner`
+  expects. It **throws** `manifest-stub: …` when `__manifest` is absent AND
+  `mod.default.manifest` is stub-shaped (`maxLookback 0`, no `plots`, empty
+  `seriesCapacities`, no `requestedFeeds`) — i.e. a raw `defineIndicator(...)`
+  author-eval object was fed instead of a compiled bundle (which would
+  otherwise collapse every series ring to capacity 1 → all-NaN, and drop
+  secondary feeds, silently). host-worker (`createWorkerBoot`), host-quickjs
+  (`dispatcherCore.loadCompiled`, which reassembles a synthetic namespace from
+  its guest globals), and conformance (`loadCompiledModuleAt`) ALL call it — do
+  not fork a fourth copy. Compiled bundles always carry `__manifest`, and the
+  compiler's default-manifest rebind (`bundle.ts:formatCompiledDefaultRebind`)
+  also makes `mod.default.manifest` the real manifest, so the merge is
+  idempotent on real output; the guard only fires on misuse. `createScriptRunner`
+  does NOT re-guard (it cannot tell a stub from a legitimately-trivial script
+  without the sidecar).
 - **Property tests run with a pinned `fast-check` seed.**
   `vitest.setup.ts` calls `fc.configureGlobal({ seed: 42, numRuns: 25 })`
   before any test loads. Per-test `fc.assert(prop, { seed, numRuns })`

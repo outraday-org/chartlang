@@ -22,5 +22,27 @@
     "requestedIntervals": [],
     "userPickableInterval": true,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "outputs": [
+        {
+            "title": "RSI",
+            "kind": "series-number"
+        },
+        {
+            "title": "Bars since divergence",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/daily-rsi-divergence.chart.ts:24:9#0",
+            "kind": "line",
+            "title": "RSI"
+        },
+        {
+            "slotId": "examples/scripts/daily-rsi-divergence.chart.ts:25:9#0",
+            "kind": "line",
+            "title": "Bars since divergence"
+        }
+    ]
 }

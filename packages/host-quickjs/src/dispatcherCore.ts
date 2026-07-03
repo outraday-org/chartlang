@@ -7,7 +7,8 @@ import type {
     CompiledScriptObject,
     ScriptManifest,
 } from "@invinite-org/chartlang-core";
-import type { createScriptRunner } from "@invinite-org/chartlang-runtime";
+import { buildBundleFromModule } from "@invinite-org/chartlang-runtime";
+import type { CompiledModuleExport, createScriptRunner } from "@invinite-org/chartlang-runtime";
 
 import { moduleSourceToScript } from "./moduleSourceToScript.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
@@ -123,15 +124,6 @@ function message(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
 }
 
-// `Array.isArray` narrows to `any[]`, which does not subtract a
-// `ReadonlyArray<T>` member from a union (TS #17002), so the single-object
-// `__manifest` form needs this dedicated guard.
-function isSingleManifest(
-    manifest: ScriptManifest | ReadonlyArray<ScriptManifest> | undefined,
-): manifest is ScriptManifest {
-    return manifest !== undefined && !Array.isArray(manifest);
-}
-
 function reviveSet<T>(value: unknown): ReadonlySet<T> {
     if (Array.isArray(value)) {
         return new Set<T>(value as Array<T>);
@@ -192,49 +184,20 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
         const manifest = deps.getCompiledManifest?.();
         const dependencies = deps.getCompiledDependencies?.() ?? [];
-        const isBundle = Array.isArray(manifest) || dependencies.length > 0;
-        if (!isBundle) {
-            // Single-script form: the compiler's `__manifest` sidecar is the
-            // authoritative manifest (it carries compiler-derived fields the
-            // runtime `defineIndicator` stub zeroes — `requestedIntervals`,
-            // `outputs`, `plots`, `maxLookback`). Without this an MTF script
-            // would never register its secondary streams. Mirrors
-            // host-worker's `buildBundleFromModule`.
-            if (isSingleManifest(manifest)) {
-                return Object.freeze({ ...compiledDefault, manifest });
-            }
-            return compiledDefault;
-        }
         const named = deps.getCompiledNamed?.() ?? {};
-        const siblings: Array<{
-            readonly exportName: string;
-            readonly compiled: CompiledScriptObject;
-        }> = [];
-        if (Array.isArray(manifest)) {
-            for (let i = 1; i < manifest.length; i += 1) {
-                const entry = manifest[i];
-                const exportName = entry.exportName;
-                if (exportName === undefined || exportName === "default") continue;
-                const sibling = named[exportName];
-                if (sibling === undefined) continue;
-                siblings.push(Object.freeze({ exportName, compiled: sibling }));
-            }
-        }
-        return Object.freeze({
-            primary: compiledDefault,
-            siblings: Object.freeze(siblings),
-            dependencies: Object.freeze(
-                dependencies.map((d) =>
-                    Object.freeze({
-                        localId: d.localId,
-                        compiled: d.compiled,
-                        ...(d.inputOverrides === undefined
-                            ? {}
-                            : { inputOverrides: d.inputOverrides }),
-                    }),
-                ),
-            ),
-        });
+        // QuickJS has no ESM importer, so the dispatcher captured `default`,
+        // `__manifest`, `__dependencies`, and each sibling export into host
+        // globals as the guest evaluated the module. Reassemble them into the
+        // module-namespace shape the shared runtime loader expects, then let it
+        // apply the SAME `__manifest`-merge + stub guard as every other host
+        // (cross-host parity with host-worker's `data:`-URL import path).
+        const mod: CompiledModuleExport = {
+            ...named,
+            default: compiledDefault,
+            __dependencies: dependencies,
+            ...(manifest === undefined ? {} : { __manifest: manifest }),
+        };
+        return buildBundleFromModule(mod);
     }
 
     async function load(json: string): Promise<string> {

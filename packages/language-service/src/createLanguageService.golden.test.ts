@@ -46,7 +46,7 @@ describe("language-service goldens", () => {
               {
                 "doc": "",
                 "name": "source",
-                "type": "Series<number>",
+                "type": "TaSource",
               },
               {
                 "doc": "",

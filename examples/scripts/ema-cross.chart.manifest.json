@@ -10,5 +10,28 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": true,
+    "outputs": [
+        {
+            "title": "EMA(12)",
+            "kind": "series-number"
+        },
+        {
+            "title": "EMA(26)",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/ema-cross.chart.ts:14:9#0",
+            "kind": "line",
+            "title": "EMA(12)"
+        },
+        {
+            "slotId": "examples/scripts/ema-cross.chart.ts:15:9#0",
+            "kind": "line",
+            "title": "EMA(26)"
+        }
+    ]
 }

@@ -186,6 +186,21 @@
   `docs/spec/versioning.md`. `STATEFUL_PRIMITIVES_BY_NAME` derives from the
   same canonical list, so a new entry shows up in both automatically.
 
+- **Every numeric `ta.*` source is the shared `TaSource = number |
+  Series<number>` alias (`ta/ta.ts`), NOT a bare `Series<number>`.** A
+  per-bar scalar is a valid source: the compiler keys each `ta.*` callsite by
+  source position and the runtime coerces a scalar via `readSourceValue`, so a
+  computed expression (`(ma.current - ma[1]) / ma[1] * 100`) is a source with
+  no `state.series` wrapper. This is a **three-way lockstep** with the same
+  union under a different name in each layer — core `TaSource`, the compiler's
+  ambient shim `ScalarOrSeries` (`program.ts` `TaNamespace`), and the runtime's
+  `ScalarOrSeries` (`runtime/src/ta/lib/sourceValue.ts`). Widening/narrowing
+  one requires the others; they are structurally identical, so no byte-lockstep
+  gate enforces it — keep them aligned by hand. `crossover`/`crossunder`
+  operands (`a`, `b`) and `valuewhen`'s `source` use `TaSource` too; boolean
+  `condition` params stay `Series<boolean>`. Additive within `apiVersion: 1`
+  (a strict relaxation — every existing series caller still type-checks).
+
 - **`Bar` (candle contract) is scalar; `BarSeries` (compute bar) is
   indexable.** `Bar` is the adapter-supplied / `request.lowerTf` candle —
   its OHLCV + derived fields stay scalar `Price`/`Volume` so adapters keep

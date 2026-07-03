@@ -21,14 +21,10 @@ import type {
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import { type CompiledScript, compile as defaultCompile } from "@invinite-org/chartlang-compiler";
-import type {
-    Bar,
-    CompiledScriptBundle,
-    CompiledScriptObject,
-    ScriptManifest,
-} from "@invinite-org/chartlang-core";
+import type { Bar, CompiledScriptBundle, CompiledScriptObject } from "@invinite-org/chartlang-core";
 import { feedKey } from "@invinite-org/chartlang-core";
-import { createScriptRunner } from "@invinite-org/chartlang-runtime";
+import { buildBundleFromModule, createScriptRunner } from "@invinite-org/chartlang-runtime";
+import type { CompiledModuleExport } from "@invinite-org/chartlang-runtime";
 
 import { GOLDEN_BARS_PATH, type GoldenBars } from "./fixtures/generateGoldenBars.js";
 
@@ -694,62 +690,6 @@ async function pushRunnerEvent(
     await runner.push(event);
 }
 
-type CompiledModuleExport = {
-    readonly default: CompiledScriptObject;
-    readonly __manifest?: ScriptManifest | ReadonlyArray<ScriptManifest>;
-    readonly __dependencies?: ReadonlyArray<{
-        readonly localId: string;
-        readonly compiled: CompiledScriptObject;
-    }>;
-    readonly [exportName: string]: unknown;
-};
-
-function isCompiledScriptObject(value: unknown): value is CompiledScriptObject {
-    /* v8 ignore next */
-    if (value === null || typeof value !== "object") return false;
-    const candidate = value as Readonly<Record<string, unknown>>;
-    return typeof candidate.compute === "function" && "manifest" in candidate;
-}
-
-function buildBundleFromModule(
-    mod: CompiledModuleExport,
-    primaryManifest: ScriptManifest,
-): CompiledScriptObject | CompiledScriptBundle {
-    const manifest = mod.__manifest;
-    const dependencies = mod.__dependencies ?? [];
-    const isBundle = Array.isArray(manifest) || dependencies.length > 0;
-    const primary: CompiledScriptObject = Object.freeze({
-        ...mod.default,
-        manifest: primaryManifest,
-    });
-    if (!isBundle) {
-        return primary;
-    }
-    const siblings: Array<{
-        readonly exportName: string;
-        readonly compiled: CompiledScriptObject;
-    }> = [];
-    if (Array.isArray(manifest)) {
-        for (let i = 1; i < manifest.length; i += 1) {
-            const entry = manifest[i];
-            const exportName = entry.exportName;
-            /* v8 ignore next */
-            if (exportName === undefined || exportName === "default") continue;
-            const compiled = mod[exportName];
-            /* v8 ignore next */
-            if (!isCompiledScriptObject(compiled)) continue;
-            siblings.push(Object.freeze({ exportName, compiled }));
-        }
-    }
-    return Object.freeze({
-        primary,
-        siblings: Object.freeze(siblings),
-        dependencies: Object.freeze(
-            dependencies.map((d) => Object.freeze({ localId: d.localId, compiled: d.compiled })),
-        ),
-    });
-}
-
 async function loadCompiledModuleAt(
     compiled: CompiledScript,
     tmpPath: string,
@@ -757,7 +697,10 @@ async function loadCompiledModuleAt(
     await writeFile(tmpPath, compiled.moduleSource, "utf8");
     const url = pathToFileURL(tmpPath).href;
     const mod = (await import(/* @vite-ignore */ url)) as CompiledModuleExport;
-    return buildBundleFromModule(mod, compiled.manifest);
+    // The shared runtime loader merges the compiled `__manifest` sidecar over
+    // `mod.default` (real compiler output always carries it after the
+    // default-manifest rebind) and fails loud on a stub-without-sidecar.
+    return buildBundleFromModule(mod);
 }
 
 type ResolvedSource = {

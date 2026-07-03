@@ -18,5 +18,28 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": true,
+    "outputs": [
+        {
+            "title": "Target (raw)",
+            "kind": "series-number"
+        },
+        {
+            "title": "Target (snapped)",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/mintick-snapped-entry.chart.ts:20:13#0",
+            "kind": "line",
+            "title": "Target (raw)"
+        },
+        {
+            "slotId": "examples/scripts/mintick-snapped-entry.chart.ts:24:9#0",
+            "kind": "line",
+            "title": "Target (snapped)"
+        }
+    ]
 }

@@ -8,6 +8,7 @@ import type { Bar, CompiledScriptObject, Series } from "@invinite-org/chartlang-
 import { describe, expect, it, vi } from "vitest";
 
 import { createScriptRunner } from "./createScriptRunner.js";
+import { type CompiledModuleExport, buildBundleFromModule } from "./loadBundle.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
 import { inMemoryStateStore } from "./stateStore.js";
 import { ema } from "./ta/ema.js";
@@ -1212,6 +1213,76 @@ describe("createScriptRunner", () => {
         expect(emissions.diagnostics).toEqual([]);
         expect(seen).toHaveLength(3);
 
+        await runner.dispose();
+    });
+});
+
+describe("createScriptRunner + buildBundleFromModule (manifest unification)", () => {
+    function historyReader(): {
+        readonly compiled: CompiledScriptObject;
+        readonly reads: number[];
+    } {
+        const reads: number[] = [];
+        const compiled = defineIndicator({
+            name: "hist",
+            apiVersion: 1,
+            compute: ({ bar }) => {
+                reads.push(bar.close[1]);
+            },
+        });
+        return { compiled, reads };
+    }
+
+    it("honours the merged __manifest so history reads stay finite and the feed registers", async () => {
+        const { compiled: stub, reads } = historyReader();
+        // A compiled bundle's real manifest rides `__manifest`; `stub.manifest`
+        // is the zeroed author stub. The shared loader merges the real one, so
+        // series capacity is 2 (not the collapsed 1) and the "1D" feed exists.
+        const mod: CompiledModuleExport = {
+            default: stub,
+            __manifest: {
+                ...stub.manifest,
+                maxLookback: 1,
+                seriesCapacities: { ohlcv: 2 },
+                requestedFeeds: [{ interval: "1D" }],
+            },
+        };
+        const runner = createScriptRunner({
+            compiled: buildBundleFromModule(mod),
+            capabilities: { ...makeCapabilities(), multiTimeframe: true },
+        });
+        await runner.push({ kind: "close", bar: makeBar(0) });
+        await runner.push({ kind: "close", bar: makeBar(1) });
+        expect(Number.isNaN(reads[0] ?? 0)).toBe(true);
+        expect(reads[1]).toBeCloseTo(100.5);
+
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(2), interval: "1D" },
+            streamKey: "1D",
+        });
+        const codes = runner.drain().diagnostics.map((d) => d.code);
+        expect(codes).not.toContain("unknown-secondary-stream");
+        await runner.dispose();
+    });
+
+    it("collapses capacity to 1 and drops the feed when fed the raw author stub (the footgun)", async () => {
+        const { compiled: stub, reads } = historyReader();
+        const runner = createScriptRunner({
+            compiled: stub,
+            capabilities: { ...makeCapabilities(), multiTimeframe: true },
+        });
+        await runner.push({ kind: "close", bar: makeBar(0) });
+        await runner.push({ kind: "close", bar: makeBar(1) });
+        expect(Number.isNaN(reads[1] ?? 0)).toBe(true);
+
+        await runner.push({
+            kind: "close",
+            bar: { ...makeBar(2), interval: "1D" },
+            streamKey: "1D",
+        });
+        const codes = runner.drain().diagnostics.map((d) => d.code);
+        expect(codes).toContain("unknown-secondary-stream");
         await runner.dispose();
     });
 });

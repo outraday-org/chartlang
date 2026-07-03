@@ -9,5 +9,37 @@
     "requestedIntervals": [],
     "userPickableInterval": false,
     "seriesCapacities": {},
-    "maxLookback": 0
+    "maxLookback": 0,
+    "overlay": true,
+    "outputs": [
+        {
+            "title": "BB Upper",
+            "kind": "series-number"
+        },
+        {
+            "title": "BB Middle",
+            "kind": "series-number"
+        },
+        {
+            "title": "BB Lower",
+            "kind": "series-number"
+        }
+    ],
+    "plots": [
+        {
+            "slotId": "examples/scripts/bollinger-bands.chart.ts:12:9#0",
+            "kind": "line",
+            "title": "BB Upper"
+        },
+        {
+            "slotId": "examples/scripts/bollinger-bands.chart.ts:13:9#0",
+            "kind": "line",
+            "title": "BB Middle"
+        },
+        {
+            "slotId": "examples/scripts/bollinger-bands.chart.ts:14:9#0",
+            "kind": "line",
+            "title": "BB Lower"
+        }
+    ]
 }

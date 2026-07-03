@@ -35,17 +35,23 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   diverge from host-worker emission semantics. If QuickJS needs a host-specific
   sandbox rule, surface it as an error path rather than a different emission
   shape.
-- **Single-script load adopts the `__manifest` sidecar.**
-  `dispatcherCore`'s bundle builder returns `{ ...compiledDefault,
-  manifest }` for a single-script module when the object-form
-  `__manifest` global is present, mirroring host-worker's
-  `buildBundleFromModule`. The compiler's `__manifest` carries fields the
-  runtime `defineIndicator` stub zeroes (`requestedIntervals`, `outputs`,
-  `plots`, `maxLookback`), so without this an MTF (`request.security`)
-  script never registers its secondary streams. The single-object guard
-  is `isSingleManifest` (TS #17002 — `Array.isArray` does not subtract a
-  `ReadonlyArray` union member). Cross-host parity with host-worker is the
-  conformance contract. The whole `__manifest` is spread through, so the
+- **Module load delegates to the shared runtime loader
+  `buildBundleFromModule`.** QuickJS has no ESM importer, so
+  `dispatcherCore.loadCompiled` captures `default` / `__manifest` /
+  `__dependencies` / each sibling into host globals as the guest evaluates the
+  module, then **reassembles a synthetic `CompiledModuleExport`** from those
+  globals and calls the SAME `buildBundleFromModule` host-worker uses (imported
+  from `@invinite-org/chartlang-runtime`; the local merge + `isSingleManifest`
+  were deleted). The loader merges the authoritative `__manifest` (which carries
+  fields the runtime `defineIndicator` stub zeroes — `requestedIntervals`,
+  `outputs`, `plots`, `maxLookback`, `requestedFeeds`) over the captured
+  default, so an MTF (`request.security`) script registers its secondary
+  streams; it throws on a stub default with no `__manifest`. Because
+  `moduleSourceToScript` rewrites `export const __manifest` into a global (the
+  guest realm has no `__manifest` binding), the compiler's default-manifest
+  rebind INLINES the manifest JSON rather than referencing `__manifest` — so the
+  guest eval never hits a dangling reference. Cross-host parity with host-worker
+  is the conformance contract. The whole `__manifest` is spread through, so the
   HTF-expression `request.security(opts, expr)` form (carried by
   `manifest.securityExpressions`) needs no dispatcher change. The multi-symbol
   feature (`manifest.requestedFeeds` + the composite `CandleEvent.streamKey`

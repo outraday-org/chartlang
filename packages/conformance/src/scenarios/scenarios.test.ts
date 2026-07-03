@@ -175,8 +175,11 @@ describe("bundled scenario constants", () => {
             });
             return Object.freeze({
                 manifest,
+                // Real compiler output carries the manifest on `default` AND
+                // the `__manifest` sidecar; the shared loader merges the
+                // sidecar and throws on a stub default with no sidecar.
                 moduleSource:
-                    "export default Object.freeze({ manifest: Object.freeze({ apiVersion: 1, kind: 'indicator', name: 'noop', inputs: Object.freeze({}), capabilities: Object.freeze(['indicators']), requestedIntervals: Object.freeze([]), userPickableInterval: false, seriesCapacities: Object.freeze({}), maxLookback: 0 }), compute() {} });",
+                    "export default Object.freeze({ manifest: Object.freeze({ apiVersion: 1, kind: 'indicator', name: 'noop', inputs: Object.freeze({}), capabilities: Object.freeze(['indicators']), requestedIntervals: Object.freeze([]), userPickableInterval: false, seriesCapacities: Object.freeze({}), maxLookback: 0 }), compute() {} });\nexport const __manifest = { apiVersion: 1, kind: 'indicator', name: 'noop', inputs: {}, capabilities: ['indicators'], requestedIntervals: [], userPickableInterval: false, seriesCapacities: {}, maxLookback: 0 };",
                 types: "",
             });
         };
