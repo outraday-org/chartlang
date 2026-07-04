@@ -2841,18 +2841,7 @@ function buildStateNamespace() {
 function isExternalSeriesFeed(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return false;
-  if (!("values" in value) || !Array.isArray(value.values))
-    return false;
-  return value.values.every((entry) => typeof entry === "number");
-}
-function isExternalSeriesFeedMap(value) {
-  if (value === null || typeof value !== "object" || Array.isArray(value))
-    return false;
-  for (const feed of Object.values(value)) {
-    if (!isExternalSeriesFeed(feed))
-      return false;
-  }
-  return true;
+  return "values" in value && Array.isArray(value.values);
 }
 function createExternalSeriesSlots(descriptors, capacity) {
   const slots = /* @__PURE__ */ new Map();
@@ -2882,12 +2871,15 @@ function advanceExternalSeriesFeeds(slots, feeds, barIndex, isTick) {
   }
 }
 function replaceExternalSeriesFeedMap(value) {
-  if (!isExternalSeriesFeedMap(value))
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return Object.freeze({});
+  }
   const out = {};
-  const feeds = value;
-  for (const [key, feed] of Object.entries(feeds)) {
-    out[key] = Object.freeze({ values: Object.freeze([...feed.values]) });
+  for (const [key, feed] of Object.entries(value)) {
+    if (!isExternalSeriesFeed(feed))
+      continue;
+    const values = feed.values.map((entry) => typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN);
+    out[key] = Object.freeze({ values: Object.freeze(values) });
   }
   return Object.freeze(out);
 }
@@ -17840,7 +17832,15 @@ function pushSecondaryEvent(state2, streamKey, event) {
 function primaryOf(compiled) {
   return isCompiledScriptBundle(compiled) ? compiled.primary : compiled;
 }
-function buildPrimaryState(args, primary) {
+function maxExternalFeedLength(feeds) {
+  let max = 0;
+  for (const feed of Object.values(feeds)) {
+    if (feed.values.length > max)
+      max = feed.values.length;
+  }
+  return max;
+}
+function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
   const capacity = resolveCapacity(primary.manifest);
   const chartSymbol = args.symInfo?.ticker ?? "";
   const mainStream = createStreamState({ interval: "", capacity, symbol: "" });
@@ -17848,8 +17848,9 @@ function buildPrimaryState(args, primary) {
   const stateStore = args.stateStore ?? inMemoryStateStore();
   const now = args.now ?? Date.now;
   const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
-  const externalSeriesSlots = createExternalSeriesSlots(externalSeriesDescriptors2(primary.manifest), capacity);
   const externalSeriesFeeds = resolveInitialExternalSeriesFeeds(args, primary.manifest, overrides);
+  const externalSeriesCapacity = Math.max(capacity, maxExternalFeedLength(externalSeriesFeeds), sizingExternalSeriesFeeds === void 0 ? 0 : maxExternalFeedLength(sizingExternalSeriesFeeds));
+  const externalSeriesSlots = createExternalSeriesSlots(externalSeriesDescriptors2(primary.manifest), externalSeriesCapacity);
   const views = createRuntimeViews({
     syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields)
   });
@@ -17989,7 +17990,7 @@ function resetStateForHistoryReseed(state2) {
     return;
   const liveExternalSeriesFeeds = state2.runtimeContext.externalSeriesFeeds;
   const livePlotOverrides = state2.runtimeContext.plotOverrides;
-  const rebuilt = buildPrimaryState(args, primary);
+  const rebuilt = buildPrimaryState(args, primary, liveExternalSeriesFeeds);
   if (isCompiledScriptBundle(args.compiled)) {
     attachBundle(rebuilt, args.compiled, args.capabilities, rebuilt.now);
   }

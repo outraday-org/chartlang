@@ -14,6 +14,24 @@ function run(source: string, inputLoopBounds: ReadonlyMap<string, number | null>
     return extractMaxLookback(sourceFile, checker, "demo.chart.ts", sourceFile, inputLoopBounds);
 }
 
+function runExternal(
+    source: string,
+    externalKeys: ReadonlyArray<string>,
+    inputLoopBounds: ReadonlyMap<string, number | null> = new Map(),
+) {
+    const { sourceFile, checker } = createProgramForSource(source, {
+        sourcePath: "demo.chart.ts",
+    });
+    return extractMaxLookback(
+        sourceFile,
+        checker,
+        "demo.chart.ts",
+        sourceFile,
+        inputLoopBounds,
+        new Set(externalKeys),
+    );
+}
+
 describe("extractMaxLookback", () => {
     it("returns 0 when no series reads are present", () => {
         const result = run(`
@@ -113,6 +131,154 @@ for (let i = 0; i <= (inputs.tol as number); i++) { const v = bar.close[i]; void
         );
         expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
         expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("sizes a literal element read of an inputs.<key>-bound external series", () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const bound = inputs.bound;
+const v = bound[5];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(5);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a destructured external series (const { bound } = inputs)", () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const { bound } = inputs;
+const v = bound[7];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(7);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it('sizes an external series bound through inputs["<key>"] string access', () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const bound = inputs["bound"];
+const v = bound[3];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(3);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a renamed destructured external series (const { bound: b } = inputs)", () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const { bound: b } = inputs;
+const v = b[6];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(6);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("skips a nested destructured binding element (non-identifier name)", () => {
+        // `const { bound: { nested } } = inputs;` — the binding element's name is
+        // an object pattern, not an identifier, so it is not a series binding.
+        const result = runExternal(
+            `
+declare const inputs: Record<string, { nested: number }>;
+const { bound: { nested } } = inputs;
+void nested;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(0);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("sizes a direct inputs.<key>[N] external series read", () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const v = inputs.bound[4];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(4);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it('sizes a direct inputs["<key>"][N] external series read (no binding)', () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const v = inputs["bound"][8];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(8);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("falls back dynamically for a non-literal external-series index", () => {
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+const bound = inputs.bound;
+let i = 2;
+const v = bound[i];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+    });
+
+    it("does not size a non-external inputs.<key> element read", () => {
+        // `length` is NOT an external-series key, so `inputs.length[5]` is not a
+        // series read — the buffer stays sized to OHLCV reads only.
+        const result = runExternal(
+            `
+declare const inputs: Record<string, ReadonlyArray<number>>;
+const v = inputs.length[5];
+void v;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(0);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("does not over-size when an external series is passed to a ta.* builtin", () => {
+        // `ta.sma(bound, len)` reads only `bound.current` and buffers its own
+        // window, so passing an external series to a dynamic-length ta.* needs
+        // NO extra source capacity — no dynamicFallback, no lookback bump.
+        const result = runExternal(
+            `
+declare const inputs: Record<string, import("@invinite-org/chartlang-core").Series<number>>;
+declare const ta: { sma(id: string, src: unknown, len: number): { current: number } };
+const bound = inputs.bound;
+const len = 10 as number;
+const s = ta.sma("s", bound, len);
+void s;
+`,
+            ["bound"],
+        );
+        expect(result.maxLookback).toBe(0);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
     });
 
     it("sizes a const numeric-literal index precisely (no warning)", () => {

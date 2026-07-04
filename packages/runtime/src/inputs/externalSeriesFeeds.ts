@@ -24,7 +24,13 @@ export type ExternalSeriesSlot = {
 };
 
 /**
- * Return true when `value` is one public external-series feed object.
+ * Return true when `value` is shaped like one public external-series feed
+ * (`{ values: unknown[] }`). Individual values are deliberately NOT
+ * type-checked here — every consumer coerces entries to finite-or-`NaN`
+ * ({@link replaceExternalSeriesFeedMap} on replacement, `valueAt` on read), so
+ * a single `null` / `undefined` / `NaN` entry (e.g. QuickJS `JSON.stringify`
+ * serialising `NaN` → `null`) degrades to a runtime `NaN` at that one index
+ * instead of rejecting the whole feed.
  *
  * @since 1.9
  * @stable
@@ -33,14 +39,14 @@ export type ExternalSeriesSlot = {
  */
 export function isExternalSeriesFeed(value: unknown): value is ExternalSeriesFeedMap[string] {
     if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-    if (!("values" in value) || !Array.isArray(value.values)) return false;
-    return value.values.every((entry) => typeof entry === "number");
+    return "values" in value && Array.isArray(value.values);
 }
 
 /**
- * Return true when `value` has the public external feed map shape. Numeric
- * values are sanitised later per bar so `NaN` / `Infinity` inputs degrade to
- * runtime `NaN` instead of rejecting the entire feed.
+ * Return true when `value` has the public external feed map shape. Per
+ * {@link isExternalSeriesFeed}, feed values are sanitised later (per
+ * replacement / per bar read) so `null` / `NaN` / `Infinity` entries degrade
+ * to runtime `NaN` instead of rejecting the entire feed.
  *
  * @since 1.9
  * @stable
@@ -114,8 +120,16 @@ export function advanceExternalSeriesFeeds(
 }
 
 /**
- * Validate and freeze a whole external feed map replacement. Invalid runtime
- * values degrade to an empty map; callers decide whether to emit diagnostics.
+ * Validate and freeze a whole external feed map replacement. The replacement
+ * is tolerant PER ENTRY, matching the {@link isExternalSeriesFeed} shape
+ * contract: any array-shaped feed is kept and each of its values is coerced to
+ * a finite number or `NaN` (`null` / `undefined` / `NaN` / `±Infinity` →
+ * `NaN`). A single non-numeric value therefore degrades to a runtime `NaN` at
+ * that one index instead of discarding the ENTIRE map. This is load-bearing on
+ * the QuickJS host path, where `stringifyFrame`'s `JSON.stringify` serialises
+ * `NaN` → `null`: the old all-or-nothing guard turned one such value into every
+ * bar reading `NaN` (nothing renders). A top-level non-object still degrades to
+ * an empty map; callers decide whether to emit diagnostics.
  *
  * @since 1.9
  * @stable
@@ -124,11 +138,16 @@ export function advanceExternalSeriesFeeds(
  *     void feeds;
  */
 export function replaceExternalSeriesFeedMap(value: unknown): ExternalSeriesFeedMap {
-    if (!isExternalSeriesFeedMap(value)) return Object.freeze({});
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+        return Object.freeze({});
+    }
     const out: Record<string, { readonly values: ReadonlyArray<number> }> = {};
-    const feeds = value;
-    for (const [key, feed] of Object.entries(feeds)) {
-        out[key] = Object.freeze({ values: Object.freeze([...feed.values]) });
+    for (const [key, feed] of Object.entries(value)) {
+        if (!isExternalSeriesFeed(feed)) continue;
+        const values = feed.values.map((entry: unknown) =>
+            typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN,
+        );
+        out[key] = Object.freeze({ values: Object.freeze(values) });
     }
     return Object.freeze(out);
 }

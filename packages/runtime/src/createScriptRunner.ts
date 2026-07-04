@@ -380,9 +380,22 @@ function primaryOf(compiled: CompiledScriptObject | CompiledScriptBundle): Compi
     return isCompiledScriptBundle(compiled) ? compiled.primary : compiled;
 }
 
+function maxExternalFeedLength(feeds: ExternalSeriesFeedMap): number {
+    let max = 0;
+    for (const feed of Object.values(feeds)) {
+        if (feed.values.length > max) max = feed.values.length;
+    }
+    return max;
+}
+
 function buildPrimaryState(
     args: CreateScriptRunnerArgs,
     primary: CompiledScriptObject,
+    // Feeds a re-seed rebuild hands in for slot SIZING only (the live,
+    // post-`setExternalSeries` map). Absent on the fresh initial build — the
+    // args-resolved feeds are then the sole sizing source. See
+    // {@link resetStateForHistoryReseed}.
+    sizingExternalSeriesFeeds?: ExternalSeriesFeedMap,
 ): RunnerState {
     const capacity = resolveCapacity(primary.manifest);
     // The chart symbol is the adapter's `syminfo.ticker` when supplied — the
@@ -396,14 +409,32 @@ function buildPrimaryState(
     const now = args.now ?? Date.now;
     const overrides =
         args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
-    const externalSeriesSlots = createExternalSeriesSlots(
-        externalSeriesDescriptors(primary.manifest),
-        capacity,
-    );
     const externalSeriesFeeds = resolveInitialExternalSeriesFeeds(
         args,
         primary.manifest,
         overrides,
+    );
+    // Belt-and-suspenders sizing for external-series slots. The shared
+    // `capacity` is derived ONLY from OHLCV reads (`resolveCapacity`), so a
+    // consumer that touches OHLCV only through an external series collapses it
+    // to 1 — starving the external buffer and NaN-ing any `bound[n]` lookback.
+    // An external feed is a full historical array, so its length is the natural
+    // upper bound on how deep the script can index it; size each slot to at
+    // least that. Sizing considers BOTH the args-resolved feeds and any live
+    // feeds a re-seed hands in (post-`setExternalSeries`), so a re-seed that
+    // rebuilds through here never reintroduces capacity 1 when the live feed is
+    // longer than the load-time one. The OHLCV / main-stream capacity is left
+    // untouched.
+    const externalSeriesCapacity = Math.max(
+        capacity,
+        maxExternalFeedLength(externalSeriesFeeds),
+        sizingExternalSeriesFeeds === undefined
+            ? 0
+            : maxExternalFeedLength(sizingExternalSeriesFeeds),
+    );
+    const externalSeriesSlots = createExternalSeriesSlots(
+        externalSeriesDescriptors(primary.manifest),
+        externalSeriesCapacity,
     );
     const views = createRuntimeViews({
         syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields),
@@ -628,7 +659,11 @@ export function resetStateForHistoryReseed(state: RunnerState): void {
     const liveExternalSeriesFeeds = state.runtimeContext.externalSeriesFeeds;
     const livePlotOverrides = state.runtimeContext.plotOverrides;
 
-    const rebuilt = buildPrimaryState(args, primary);
+    // Hand the live feeds to the rebuild for slot SIZING so a re-seed after a
+    // `setExternalSeries` (which may bind a longer feed than the load-time one,
+    // e.g. from unbound → a full history) never reintroduces a capacity-1
+    // external buffer. The live feeds are restored as the runtime feeds below.
+    const rebuilt = buildPrimaryState(args, primary, liveExternalSeriesFeeds);
     if (isCompiledScriptBundle(args.compiled)) {
         attachBundle(rebuilt, args.compiled, args.capabilities, rebuilt.now);
     }

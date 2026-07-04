@@ -275,6 +275,7 @@ export function transformAndAnalyse(
         sourcePath,
         sourceFile,
         fileInputLoopBounds,
+        externalSeriesInputKeysFromDescriptors(fileInputs.inputs),
     );
     const fileRequestAnalysis = extractRequestAnalysis(
         sourceFile,
@@ -390,6 +391,23 @@ function inputLoopBoundsFromDescriptors(
     return bounds;
 }
 
+/**
+ * The input KEYS declared as `input.externalSeries(...)`. `extractMaxLookback`
+ * needs these to recognise `inputs.<key>[N]` (a `Series<number>` view read) as
+ * a real lookback and size the runtime buffer — see the analysis'
+ * `externalInputKeyOfExpr`. The descriptor's `kind` is the wire tag
+ * (`"external-series"`) set by `extractInputs`.
+ */
+function externalSeriesInputKeysFromDescriptors(
+    inputs: Readonly<Record<string, ExtractedDescriptor>>,
+): ReadonlySet<string> {
+    const keys = new Set<string>();
+    for (const [name, descriptor] of Object.entries(inputs)) {
+        if (descriptor.kind === "external-series") keys.add(name);
+    }
+    return keys;
+}
+
 function buildDrawnManifest(
     drawn: DrawnScript,
     depGraph: DepGraph,
@@ -410,7 +428,14 @@ function buildDrawnManifest(
     const capabilities = extractCapabilities(sourceFile, checker, kind, scope);
     const inputs = extractInputs(sourceFile, checker, sourcePath, scope);
     const inputLoopBounds = inputLoopBoundsFromDescriptors(inputs.inputs);
-    const lookback = extractMaxLookback(sourceFile, checker, sourcePath, scope, inputLoopBounds);
+    const lookback = extractMaxLookback(
+        sourceFile,
+        checker,
+        sourcePath,
+        scope,
+        inputLoopBounds,
+        externalSeriesInputKeysFromDescriptors(inputs.inputs),
+    );
     const requestAnalysis = extractRequestAnalysis(
         sourceFile,
         checker,

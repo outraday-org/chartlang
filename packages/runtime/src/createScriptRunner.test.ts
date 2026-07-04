@@ -299,6 +299,39 @@ describe("createScriptRunner", () => {
         expect(seen).toEqual([4, 5]);
     });
 
+    it("keeps an inputOverrides feed with a null entry, coercing that index to NaN", async () => {
+        // The override entry path shares the per-entry tolerance of
+        // `setExternalSeries`: a single QuickJS-style `NaN`→`null` value must
+        // NOT drop the whole feed — only that index degrades to NaN.
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "legacy-feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            inputOverrides: { feed: { values: [4, null, 6] } },
+        });
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+        await runner.onBarClose(makeBar(2));
+
+        expect(seen[0]).toBe(4);
+        expect(seen[1]).toBeNaN();
+        expect(seen[2]).toBe(6);
+    });
+
     it("replaces the external series head on ticks", async () => {
         const seen: number[] = [];
         const compiled = defineIndicator({
@@ -386,6 +419,77 @@ describe("createScriptRunner", () => {
         expect(seen[0]).toBe(1);
         expect(seen[1]).toBeNaN();
         expect(seen[2]).toBe(30);
+    });
+
+    it("sizes external-series slots to the feed length when compiler capacity collapses to 1", async () => {
+        const seen: number[] = [];
+        const base = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                bound: input.externalSeries({
+                    name: "bound",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                // A DEEP lookback the OHLCV-derived capacity (1 here) cannot
+                // serve — only the feed-length sizing keeps it finite.
+                seen.push(externalSeriesInput(inputs.bound)[20]);
+            },
+        });
+        const compiled: CompiledScriptObject = {
+            ...base,
+            manifest: { ...base.manifest, maxLookback: 0, seriesCapacities: Object.freeze({}) },
+        };
+        const values = Array.from({ length: 30 }, (_, i) => 100 + i);
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { bound: { values } },
+        });
+
+        for (let i = 0; i < 30; i += 1) await runner.onBarClose(makeBar(i));
+
+        // `bound[20]` at bar 20 is values[0]; at bar 29 it is values[9].
+        expect(seen[19]).toBeNaN();
+        expect(seen[20]).toBe(100);
+        expect(seen[29]).toBe(109);
+    });
+
+    it("re-seed rebuild keeps external slots sized to the live (post-setExternalSeries) feed", async () => {
+        const seen: number[] = [];
+        const base = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                bound: input.externalSeries({
+                    name: "bound",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.bound)[20]);
+            },
+        });
+        const compiled: CompiledScriptObject = {
+            ...base,
+            manifest: { ...base.manifest, maxLookback: 0, seriesCapacities: Object.freeze({}) },
+        };
+        const bars = Array.from({ length: 30 }, (_, i) => makeBar(i));
+        // Initial seed UNBOUND — no feed, so the load-time external slot would
+        // be capacity 1. A later bind + overlapping-history re-seed must NOT
+        // reintroduce that collapse.
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        await runner.onHistory(bars);
+
+        const values = Array.from({ length: 30 }, (_, i) => 200 + i);
+        runner.setExternalSeries({ bound: { values } });
+        seen.length = 0;
+        await runner.onHistory(bars); // overlapping first bar → full re-seed
+
+        expect(seen[20]).toBe(200);
+        expect(seen[29]).toBe(209);
     });
 
     it("emits input diagnostics once per mount key and keeps defaults", async () => {

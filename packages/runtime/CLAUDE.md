@@ -151,7 +151,21 @@
   before compute, tick replaces the head at the same cursor, and missing,
   short, or non-finite values write `NaN`. `setExternalSeries(feeds)` atomically
   replaces the whole feed map for subsequent computes and never merges partial
-  keys.
+  keys. Each external ring is sized to `max(OHLCV-derived capacity, feed
+  length)` — the shared `capacity` is OHLCV-only, so a consumer that touches
+  OHLCV solely through the feed collapses it to 1 and would starve `bound[n]`
+  reads; the reseed rebuild sizes from the LIVE feed so it never reintroduces
+  capacity 1. Feed validation is SHAPE-ONLY and per-entry tolerant on EVERY
+  entry path: `isExternalSeriesFeed` / `isExternalSeriesFeedMap` accept any
+  `{ values: unknown[] }` shape (entries are never type-checked), and
+  `replaceExternalSeriesFeedMap` — the single tolerance authority behind
+  `args.externalSeriesFeeds`, `resolveExternalSeries`, `setExternalSeries`,
+  AND the legacy `inputOverrides` feed path — keeps each array-shaped feed and
+  coerces each value to finite-or-`NaN`; a single `null`/`NaN` (e.g. QuickJS
+  `JSON.stringify` NaN→null) must NOT nuke the whole map nor trip an
+  `input-coercion-failed` diagnostic. Do not reintroduce a strict
+  all-entries-numeric guard on any one path — the QuickJS NaN→null bug class
+  applies to every serialised entry surface equally.
 - **`drain()` reassigns each emission array to `[]`, not
   `.length = 0`.** The adapter holds the snapshot's arrays; the
   runner gets fresh containers for the next step. `Object.freeze`

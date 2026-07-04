@@ -35,8 +35,12 @@ export type ExtractMaxLookbackResult = Readonly<{
  * Walk the source file's `ElementAccessExpression` nodes and infer
  * `maxLookback` plus any `dynamicFallback` capacity from non-literal index
  * reads on Phase-1 series shapes: `bar.<ohlcv>[N]`, `ta.<name>(...)[N]`,
- * and identifier-bound series variables (`const e = ta.ema(...); e[N];` or
- * `const s = state.series(...); s[N];`).
+ * identifier-bound series variables (`const e = ta.ema(...); e[N];` or
+ * `const s = state.series(...); s[N];`), and same-chart external-series
+ * inputs (`const bound = inputs.<key>; bound[N];` or `inputs.<key>[N]`) whose
+ * key is passed in `externalSeriesInputKeys` — the fed `Series<number>` view is
+ * backed by a runtime ring buffer, so an element-access read of it is a real
+ * lookback the buffer must be sized for.
  *
  * The optional `scope` parameter narrows both the series-variable
  * collection and the lookback walk to a single AST subtree (typically
@@ -56,12 +60,13 @@ export function extractMaxLookback(
     sourcePath: string,
     scope: ts.Node = sourceFile,
     inputLoopBounds: InputLoopBounds = new Map(),
+    externalSeriesInputKeys: ReadonlySet<string> = new Set(),
 ): ExtractMaxLookbackResult {
     let maxLookback = 0;
     const seriesCapacities: Record<string, number> = {};
     const diagnostics: CompileDiagnostic[] = [];
 
-    const seriesVarNames = collectSeriesVarNames(scope, checker);
+    const seriesVarNames = collectSeriesVarNames(scope, checker, externalSeriesInputKeys);
 
     const visit = (node: ts.Node, inSecurityCallback: boolean): void => {
         if (ts.isCallExpression(node)) {
@@ -100,7 +105,7 @@ export function extractMaxLookback(
             }
         }
         if (ts.isElementAccessExpression(node)) {
-            if (isSeriesShapedAccess(node, checker, seriesVarNames)) {
+            if (isSeriesShapedAccess(node, checker, seriesVarNames, externalSeriesInputKeys)) {
                 const argument = node.argumentExpression;
                 const constEnv = collectConstNumberEnv(argument, scope);
                 const bound = resolveIndexUpperBound(argument, node, {
@@ -209,7 +214,48 @@ function readBarPointLookback(call: ts.CallExpression): number {
     return 0;
 }
 
-function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): ReadonlySet<string> {
+/**
+ * Whether `expr` is a same-chart external-series input read — `inputs.<key>`
+ * or `inputs["<key>"]` for a `key` the manifest declared as
+ * `input.externalSeries(...)`. Such an input arrives in `compute` as a
+ * `Series<number>` view backed by a runtime ring buffer, so an element-access
+ * read of it (`bound[N]`) is a genuine lookback exactly like `bar.close[N]` —
+ * the compiler must size it, or the buffer collapses to the OHLCV-derived
+ * capacity (often 1 for a consumer that only touches OHLCV through the feed).
+ * Matched textually on the `inputs` binding the destructured `compute({ inputs })`
+ * contract guarantees. Note passing the input to a `ta.*` builtin
+ * (`ta.sma(bound, len)`) needs NO extra capacity — the primitive reads only
+ * `.current` and buffers its own window — so only direct element access counts.
+ */
+function externalInputKeyOfExpr(
+    expr: ts.Expression,
+    externalSeriesInputKeys: ReadonlySet<string>,
+): string | null {
+    if (
+        ts.isPropertyAccessExpression(expr) &&
+        ts.isIdentifier(expr.expression) &&
+        expr.expression.text === "inputs" &&
+        externalSeriesInputKeys.has(expr.name.text)
+    ) {
+        return expr.name.text;
+    }
+    if (
+        ts.isElementAccessExpression(expr) &&
+        ts.isIdentifier(expr.expression) &&
+        expr.expression.text === "inputs" &&
+        ts.isStringLiteralLike(expr.argumentExpression) &&
+        externalSeriesInputKeys.has(expr.argumentExpression.text)
+    ) {
+        return expr.argumentExpression.text;
+    }
+    return null;
+}
+
+function collectSeriesVarNames(
+    scope: ts.Node,
+    checker: ts.TypeChecker,
+    externalSeriesInputKeys: ReadonlySet<string>,
+): ReadonlySet<string> {
     const names = new Set<string>();
     const visit = (node: ts.Node): void => {
         if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
@@ -226,6 +272,31 @@ function collectSeriesVarNames(scope: ts.Node, checker: ts.TypeChecker): Readonl
                 if (calleeName?.startsWith("ta.") || calleeName === "state.series") {
                     names.add(node.name.text);
                 }
+            } else if (
+                initializer &&
+                externalInputKeyOfExpr(initializer, externalSeriesInputKeys) !== null
+            ) {
+                // `const bound = inputs.bound;` — the external-series view is
+                // series-shaped, so a later `bound[N]` is a real lookback.
+                names.add(node.name.text);
+            }
+        }
+        // `const { bound } = inputs;` — collect each destructured external-series
+        // input under its LOCAL name (honouring a `{ bound: b }` rename).
+        if (
+            ts.isVariableDeclaration(node) &&
+            ts.isObjectBindingPattern(node.name) &&
+            node.initializer &&
+            ts.isIdentifier(node.initializer) &&
+            node.initializer.text === "inputs"
+        ) {
+            for (const element of node.name.elements) {
+                if (!ts.isIdentifier(element.name)) continue;
+                const sourceKey =
+                    element.propertyName && ts.isIdentifier(element.propertyName)
+                        ? element.propertyName.text
+                        : element.name.text;
+                if (externalSeriesInputKeys.has(sourceKey)) names.add(element.name.text);
             }
         }
         ts.forEachChild(node, visit);
@@ -256,10 +327,17 @@ function isSeriesShapedAccess(
     node: ts.ElementAccessExpression,
     checker: ts.TypeChecker,
     seriesVarNames: ReadonlySet<string>,
+    externalSeriesInputKeys: ReadonlySet<string>,
 ): boolean {
     const expression = node.expression;
     if (ts.isPropertyAccessExpression(expression)) {
         if (OHLCV_FIELDS.has(expression.name.text)) return true;
+        // Direct `inputs.<externalSeriesKey>[N]` without an intermediate binding.
+        if (externalInputKeyOfExpr(expression, externalSeriesInputKeys) !== null) return true;
+    }
+    if (ts.isElementAccessExpression(expression)) {
+        // Direct `inputs["<externalSeriesKey>"][N]` without an intermediate binding.
+        if (externalInputKeyOfExpr(expression, externalSeriesInputKeys) !== null) return true;
     }
     if (ts.isCallExpression(expression)) {
         const calleeName = resolveCalleeName(expression, checker);

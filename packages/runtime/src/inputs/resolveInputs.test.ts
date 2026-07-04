@@ -101,20 +101,65 @@ function expectSeries(value: unknown): Series<number> {
 describe("resolveInputs", () => {
     it("validates external series feed shapes", () => {
         expect(isExternalSeriesFeed({ values: [1, Number.NaN] })).toBe(true);
+        // Shape-only tolerance: non-numeric ENTRIES are accepted here and
+        // coerced to NaN per entry downstream (replaceExternalSeriesFeedMap /
+        // valueAt) — e.g. the QuickJS host's JSON.stringify NaN→null.
+        expect(isExternalSeriesFeed({ values: [1, null, 3] })).toBe(true);
+        expect(isExternalSeriesFeed({ values: [1, "bad"] })).toBe(true);
         expect(isExternalSeriesFeed(null)).toBe(false);
         expect(isExternalSeriesFeed([])).toBe(false);
         expect(isExternalSeriesFeed({})).toBe(false);
         expect(isExternalSeriesFeed({ values: "bad" })).toBe(false);
-        expect(isExternalSeriesFeed({ values: [1, "bad"] })).toBe(false);
 
         expect(isExternalSeriesFeedMap({ feed: { values: [1] } })).toBe(true);
+        expect(isExternalSeriesFeedMap({ feed: { values: [1, null] } })).toBe(true);
         expect(isExternalSeriesFeedMap(null)).toBe(false);
         expect(isExternalSeriesFeedMap([])).toBe(false);
-        expect(isExternalSeriesFeedMap({ feed: { values: ["bad"] } })).toBe(false);
+        expect(isExternalSeriesFeedMap({ feed: { values: "bad" } })).toBe(false);
         expect(replaceExternalSeriesFeedMap(null)).toEqual({});
         expect(replaceExternalSeriesFeedMap({ feed: { values: [1] } })).toEqual({
             feed: { values: [1] },
         });
+    });
+
+    it("keeps an array-shaped feed per entry, coercing a non-numeric value to NaN", () => {
+        // A single non-`number` entry (here `null`, as the QuickJS host's
+        // JSON.stringify encodes NaN) must NOT nuke the whole feed map — the
+        // `x` feed survives with value index 1 degraded to runtime NaN.
+        const feeds = replaceExternalSeriesFeedMap({ x: { values: [1, null, 3] } });
+        expect(Object.keys(feeds)).toEqual(["x"]);
+        expect(feeds.x?.values[0]).toBe(1);
+        expect(feeds.x?.values[1]).toBeNaN();
+        expect(feeds.x?.values[2]).toBe(3);
+    });
+
+    it("coerces NaN / Infinity feed entries to NaN without dropping the feed", () => {
+        const feeds = replaceExternalSeriesFeedMap({
+            a: { values: [Number.NaN, Number.POSITIVE_INFINITY, 5] },
+            b: { values: [10] },
+        });
+        expect(Object.keys(feeds).sort()).toEqual(["a", "b"]);
+        expect(feeds.a?.values[0]).toBeNaN();
+        expect(feeds.a?.values[1]).toBeNaN();
+        expect(feeds.a?.values[2]).toBe(5);
+        expect(feeds.b?.values).toEqual([10]);
+    });
+
+    it("skips non-array-shaped / null / non-object / array feed entries but keeps valid siblings", () => {
+        const feeds = replaceExternalSeriesFeedMap({
+            good: { values: [1] },
+            badValues: { values: "nope" },
+            nullEntry: null,
+            numberEntry: 5,
+            arrayEntry: [1, 2, 3],
+        });
+        expect(Object.keys(feeds)).toEqual(["good"]);
+        expect(feeds.good?.values).toEqual([1]);
+    });
+
+    it("still degrades a top-level non-object feed map to an empty map", () => {
+        expect(replaceExternalSeriesFeedMap(42)).toEqual({});
+        expect(replaceExternalSeriesFeedMap([{ values: [1] }])).toEqual({});
     });
 
     it("uses defaults when overrides are absent or explicitly undefined", () => {
@@ -253,7 +298,7 @@ describe("resolveInputs", () => {
         });
 
         const resolved = resolveInputs(m, { value: null }, ctx);
-        resolveInputs(m, { value: { values: ["bad"] } }, ctx);
+        resolveInputs(m, { value: { values: "bad" } }, ctx);
 
         expect(resolved.value).toBe(ctx.externalSeriesSlots.get("value")?.view);
         expect(ctx.emissions.diagnostics).toEqual([
@@ -266,6 +311,16 @@ describe("resolveInputs", () => {
                 bar: null,
             },
         ]);
+
+        // An array-SHAPED override with non-numeric entries (QuickJS NaN→null)
+        // is a valid tolerant feed — accepted per entry, so no diagnostic.
+        const tolerantCtx = context();
+        tolerantCtx.externalSeriesSlots = createExternalSeriesSlots(
+            [{ inputKey: "value", feedName: "earnings" }],
+            1,
+        );
+        resolveInputs(m, { value: { values: [1, null, 3] } }, tolerantCtx);
+        expect(tolerantCtx.emissions.diagnostics).toEqual([]);
     });
 
     it("dedupes diagnostics per mount and key", () => {

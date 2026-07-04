@@ -156,6 +156,20 @@
   non-literal length contributes `0` (cannot be sized at compile time). This
   is independent of the `opts.offset` and `bar.point(-N, …)` rules and stacks
   via the shared `maxLookback` max.
+- **`extractMaxLookback` counts element reads of an `input.externalSeries`
+  input as lookback.** A same-chart external-series input arrives in `compute`
+  as a `Series<number>` view backed by a runtime ring, so `bound[N]`
+  (via `const bound = inputs.<key>`, a destructured `const { bound } = inputs`,
+  or a direct `inputs.<key>[N]` / `inputs["<key>"][N]`) is a real buffer
+  read — literal → `maxLookback`,
+  non-literal → `dynamicFallback = 5000`, exactly like `bar.close[N]`. The
+  external keys come from the manifest inputs (`kind === "external-series"`)
+  passed as `externalSeriesInputKeys`; the match is TEXTUAL on the `inputs`
+  binding. Passing the input to a `ta.*` builtin (`ta.sma(bound, len)`)
+  contributes `0` — the primitive reads only `source.current` and buffers its
+  own window, so the source ring needs no extra depth (literal OR dynamic
+  length). Without this sizing the runtime ring collapsed to the OHLCV capacity
+  (often 1) and a deep external read returned `NaN`.
 - **`extractMaxLookback` resolves bounded-loop & const series indices to a
   precise `maxLookback`.** Every series index runs through
   `resolveIndexUpperBound` (`analysis/resolveIndexBound.ts`): a numeric
