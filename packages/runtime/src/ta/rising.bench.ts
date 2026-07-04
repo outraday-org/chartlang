@@ -10,11 +10,7 @@ describe("ta.rising hot loop", () => {
     bench(
         "ta.rising over 10 000 bars × length=3",
         () => {
-            const sink = benchHotLoop(
-                10_000,
-                1,
-                (bar) => rising("slot", bar.close, 3).current,
-            );
+            const sink = benchHotLoop(10_000, 1, (bar) => rising("slot", bar.close, 3).current);
             if (!Number.isFinite(sink)) throw new Error("non-finite sink");
         },
         { iterations: 5 },

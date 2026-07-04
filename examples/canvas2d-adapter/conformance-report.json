@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.3.2",
-    "passed": 255,
+    "passed": 261,
     "failed": 0,
     "scenarios": [
         {
@@ -761,6 +761,12 @@
             "failures": []
         },
         {
+            "id": "plot-kind-candle",
+            "title": "PlotKind candle",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "plot-kind-candle-override",
             "title": "PlotKind candle override",
             "status": "pass",
@@ -799,6 +805,12 @@
         {
             "id": "plot-kind-horizontal-histogram-gated",
             "title": "PlotKind horizontal histogram gated",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "plot-kind-ohlc-bar",
+            "title": "PlotKind ohlc bar",
             "status": "pass",
             "failures": []
         },
@@ -1067,6 +1079,12 @@
             "failures": []
         },
         {
+            "id": "ta-cross",
+            "title": "ta.cross(ema9, ema21)",
+            "status": "pass",
+            "failures": []
+        },
+        {
             "id": "ta-crossover",
             "title": "ta.crossover(ta.sma(close,10), ta.sma(close,30))",
             "status": "pass",
@@ -1075,6 +1093,12 @@
         {
             "id": "ta-crossunder",
             "title": "ta.crossunder(ta.sma(close,10), ta.sma(close,30))",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-cum",
+            "title": "ta.cum(volume)",
             "status": "pass",
             "failures": []
         },
@@ -1117,6 +1141,12 @@
         {
             "id": "ta-eom",
             "title": "ta.eom(14)",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-falling",
+            "title": "ta.falling(close, 3)",
             "status": "pass",
             "failures": []
         },
@@ -1321,6 +1351,12 @@
         {
             "id": "ta-pvt",
             "title": "ta.pvt()",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "ta-rising",
+            "title": "ta.rising(close, 3)",
             "status": "pass",
             "failures": []
         },

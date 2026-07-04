@@ -147,10 +147,7 @@ const TIME_NOW_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: 
 // `ta.cross` / `ta.cum` — the pine-parity bidirectional cross (composed from
 // `crossover` / `crossunder`) and generic running sum. Both are `ta.*`
 // registry primitives AND slot-injected STATEFUL_PRIMITIVES entries.
-const CROSS_CUM_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze([
-    "cross",
-    "cum",
-] as const);
+const CROSS_CUM_TA_ADDITIONS: ReadonlyArray<string> = Object.freeze(["cross", "cum"] as const);
 
 const CROSS_CUM_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
     Object.freeze([
