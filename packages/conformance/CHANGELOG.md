@@ -1,5 +1,49 @@
 # @invinite-org/chartlang-conformance
 
+## 1.4.0
+
+### Minor Changes
+
+- 55ca8ff: Add conformance scenarios for `plotcandle` / `plotbar` custom OHLC series and
+  register the six new primitive scenarios.
+
+### Patch Changes
+
+- 5e2be68: Compiled bundles now carry the real manifest on their `default` export (no
+  longer a stub), and a shared `buildBundleFromModule` loader merges `__manifest`
+  and throws on a stub-shaped manifest instead of silently collapsing series
+  capacity to 1.
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5266c46]
+- Updated dependencies [5e2be68]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+  - @invinite-org/chartlang-adapter-kit@1.9.0
+  - @invinite-org/chartlang-core@1.8.0
+  - @invinite-org/chartlang-compiler@1.9.0
+  - @invinite-org/chartlang-pine-converter@0.7.0
+  - @invinite-org/chartlang-runtime@1.8.0
+
 ## 1.3.2
 
 ### Patch Changes

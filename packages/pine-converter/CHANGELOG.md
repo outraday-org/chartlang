@@ -1,5 +1,56 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.7.0
+
+### Minor Changes
+
+- f92d131: Allow non-stateful Pine loops bounded by `input.int` to emit runtime loops, and size compiler history lookback from the input `max`.
+- f92d131: Accept Pine v5 scripts through the existing converter subset with a downlevel warning instead of hard-rejecting the version directive.
+- f92d131: Support `time[n]` history. The scalar series builtin `time` (which remaps to a
+  non-indexable `bar.time`) is backed by a synthesized `state.series` slot fed
+  `bar.time` each bar, so `time[1]` indexes the slot. A bare `time` read still
+  lowers to `bar.time`.
+- f92d131: Back a history-indexed boolean local with `state.boolSeries` instead of the
+  numeric `state.series`. A promoted `=`-decl / direct-`ta.cross*` series whose
+  value is boolean (a comparison, `and`/`or`/`not`, or a boolean ternary) now
+  chooses its slot element type, so the per-bar `<slot>.value = <boolean>` write
+  and `<slot>[n]` reads type-check.
+- f92d131: Fold compile-time Pine color expressions in `input.color` defaults.
+- f92d131: Resolve a bare `na` in a color-valued expression to the transparent color
+  (`#00000000`) even without a `color` type annotation — e.g. an untyped
+  `c = cond ? color.green : na`. Previously the `na` arm defaulted to
+  `Number.NaN`, poisoning the value's type to `string | number`.
+- f92d131: Lower Pine `color.new` and `color.rgb` calls when they appear in free expressions.
+- f92d131: Rename a Pine variable whose name collides with a `compute(ctx)` host param
+  (`bgcolor = …` shadowing the `bgcolor(...)` builtin). The variable's
+  declaration and every reference take a fresh host-avoiding local (`bgcolor2`)
+  while the host call site keeps `bgcolor`, fixing the emitted duplicate
+  identifier. The canonical host-param list is synced with the `compute`
+  destructure.
+- f92d131: History-promote a top-level `=`-declared local whose value is rooted in a bare
+  OHLCV builtin (`chg = (close - close[1]) / close[1] * 100` then `chg[1]`). The
+  A1 promotion resolver now applies the `BUILTIN_SYMBOLS` fallback, so such a
+  series-qualified, history-indexed local lowers to an indexable `state.series`
+  slot instead of a plain `let` (which made `chg[1]` index a `number`).
+- f92d131: Emit a safe `Number.NaN` placeholder for a rejected `request.security` (an
+  out-of-subset symbol/timeframe) instead of the verbatim broken call, so the
+  rest of the emitted file still type-checks; the `request-security-not-mapped`
+  error still flags the feed. `request.security` is now series-qualified, so a
+  history-indexed rejected feed is slot-backed.
+- f92d131: Support `input.string` and literal-concatenated symbols in `request.security`.
+- f92d131: Lower a source input (`input.source` / bare `input(defval=close)`) as the
+  chosen bar series. A reference now emits `bar[inputs.<name> as SourceField]` —
+  an indexable, number-coercible `PriceSeries` — instead of a `(inputs.<name> as
+number)` cast, so `src[1]` history reads and `ta.*(src, …)` source args work.
+- f92d131: Map Pine `syminfo.prefix` (the chart symbol's exchange prefix) to chartlang's
+  `syminfo.exchange`, the matching `SymInfoView` field.
+- f92d131: Map Pine's numeric-first `timestamp(...)` builtin to chartlang `time.timestamp(...)`.
+- f92d131: Expose host-injected wall-clock time through `time.now()` and map Pine `timenow` to it.
+
+### Patch Changes
+
+- f92d131: Lower string-typed Pine `na` declarations to an empty-string default so downstream string calls compile.
+
 ## 0.6.0
 
 ### Minor Changes

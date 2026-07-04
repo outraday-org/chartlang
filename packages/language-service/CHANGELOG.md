@@ -1,5 +1,25 @@
 # @invinite-org/chartlang-language-service
 
+## 1.5.2
+
+### Patch Changes
+
+- 55ca8ff: Add value-carrying `candle` / `ohlc-bar` plot styles + validation for custom OHLC candle-series rendering.
+- 55ca8ff: Add `plotcandle` / `plotbar` author functions for custom OHLC candle-series plotting.
+- 55ca8ff: Add `ta.rising` / `ta.falling` / `ta.cross` / `ta.cum` core declarations.
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+  - @invinite-org/chartlang-adapter-kit@1.9.0
+  - @invinite-org/chartlang-core@1.8.0
+  - @invinite-org/chartlang-compiler@1.9.0
+
 ## 1.5.1
 
 ### Patch Changes

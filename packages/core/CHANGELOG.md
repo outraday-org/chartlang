@@ -1,5 +1,20 @@
 # @invinite-org/chartlang-core
 
+## 1.8.0
+
+### Minor Changes
+
+- 55ca8ff: Add value-carrying `candle` / `ohlc-bar` plot styles + validation for custom OHLC candle-series rendering.
+- 55ca8ff: Add `plotcandle` / `plotbar` author functions for custom OHLC candle-series plotting.
+- f92d131: Expose host-injected wall-clock time through `time.now()` and map Pine `timenow` to it.
+- 55ca8ff: Add `ta.cross` (bidirectional cross) and `ta.cum` (running sum) primitives.
+- 55ca8ff: Add `ta.rising` / `ta.falling` / `ta.cross` / `ta.cum` core declarations.
+- 55ca8ff: Add `ta.rising` / `ta.falling` monotonic-direction boolean primitives.
+- 5e2be68: Widen `ta.*` numeric source parameters to `number | Series<number>`
+  (`TaSource`) to match the runtime, which already accepts a per-bar scalar.
+  A computed source like `ta.ema((ma - ma[1]) / ma[1] * 100, n)` now
+  type-checks — no `state.series` wrapper required.
+
 ## 1.7.0
 
 ### Minor Changes
