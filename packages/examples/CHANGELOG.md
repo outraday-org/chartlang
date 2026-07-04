@@ -1,5 +1,12 @@
 # @invinite-org/chartlang-examples
 
+## 0.2.0
+
+### Minor Changes
+
+- 55ca8ff: Add four example catalogue entries for the new `ta.*` helpers (`close-rising`,
+  `close-falling`, `bidirectional-cross`, `cumulative-volume`).
+
 ## 0.1.0
 
 ### Minor Changes

@@ -1,5 +1,59 @@
 # @invinite-org/chartlang-runtime
 
+## 1.8.0
+
+### Minor Changes
+
+- 5266c46: Treat a `history` push that **overlaps** already-processed history on a
+  non-fresh runner (`state.barIndex > 0` and the batch's first bar not strictly
+  newer than the last closed bar) as a full **re-seed** instead of an append. A
+  forward-continuation batch (every bar strictly newer — the chunked-history
+  shape hosts emit, e.g. to interleave secondary closes) still appends,
+  byte-identically to before. The runner rebuilds its whole state (main +
+  secondary streams, ta / `state.*` slots, dep / sibling runners, external-series
+  slots) and replays the supplied bars from bar 0, so re-pushed bars land at
+  `0..N-1` — not `N..2N-1`. This is the durable fix for external-series feeds and
+  plot-override maps that changed after the first seed: the latest live
+  `setExternalSeries` / `setPlotOverrides` maps are **preserved** across the
+  re-seed and re-read from bar 0, while a fresh runner (`barIndex === 0`) stays
+  byte-identical to before.
+
+  Two behavior caveats:
+
+  - **Undrained pre-reseed emissions are dropped** — their bar indices conflict
+    with the replayed `0..N-1` range, and a host that re-pushes history has
+    abandoned the prior emission stream.
+  - **Secondary streams reset empty** — the runtime cannot know the host's
+    secondary history sources, so a `request.security` script re-seeded without a
+    secondary re-push reads warmup-`NaN` until the caller re-pushes the secondary
+    history.
+
+  A new `resetStateForHistoryReseed(state)` is exported from the runtime entry
+  (the re-seed mechanism; also the host-bundle preflight marker). The guard fires
+  identically through both `runner.onHistory(bars)` and
+  `runner.push({ kind: "history", bars })`. No `warmStart` is auto-run on re-seed.
+
+- 5e2be68: Compiled bundles now carry the real manifest on their `default` export (no
+  longer a stub), and a shared `buildBundleFromModule` loader merges `__manifest`
+  and throws on a stub-shaped manifest instead of silently collapsing series
+  capacity to 1.
+- 55ca8ff: Emit `candle` / `ohlc-bar` plot styles from `plotcandle` / `plotbar`, gated on adapter capability.
+- f92d131: Expose host-injected wall-clock time through `time.now()` and map Pine `timenow` to it.
+- 55ca8ff: Add `ta.cross` (bidirectional cross) and `ta.cum` (running sum) primitives.
+- 55ca8ff: Add `ta.rising` / `ta.falling` monotonic-direction boolean primitives.
+
+### Patch Changes
+
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+  - @invinite-org/chartlang-adapter-kit@1.9.0
+  - @invinite-org/chartlang-core@1.8.0
+
 ## 1.7.0
 
 ### Minor Changes

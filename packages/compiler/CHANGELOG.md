@@ -1,5 +1,29 @@
 # @invinite-org/chartlang-compiler
 
+## 1.9.0
+
+### Minor Changes
+
+- f92d131: Allow non-stateful Pine loops bounded by `input.int` to emit runtime loops, and size compiler history lookback from the input `max`.
+- 55ca8ff: Add `plotcandle` / `plotbar` author functions for custom OHLC candle-series plotting.
+- 5e2be68: Compiled bundles now carry the real manifest on their `default` export (no
+  longer a stub), and a shared `buildBundleFromModule` loader merges `__manifest`
+  and throws on a stub-shaped manifest instead of silently collapsing series
+  capacity to 1.
+- f92d131: Expose host-injected wall-clock time through `time.now()` and map Pine `timenow` to it.
+- 55ca8ff: Add `ta.rising` / `ta.falling` / `ta.cross` / `ta.cum` core declarations.
+
+### Patch Changes
+
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+  - @invinite-org/chartlang-core@1.8.0
+
 ## 1.8.0
 
 ### Minor Changes

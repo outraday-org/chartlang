@@ -1,5 +1,22 @@
 # @invinite-org/chartlang-adapter-kit
 
+## 1.9.0
+
+### Minor Changes
+
+- 55ca8ff: Add value-carrying `candle` / `ohlc-bar` plot styles + validation for custom OHLC candle-series rendering.
+
+### Patch Changes
+
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [f92d131]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [55ca8ff]
+- Updated dependencies [5e2be68]
+  - @invinite-org/chartlang-core@1.8.0
+
 ## 1.8.0
 
 ### Minor Changes
