@@ -50,7 +50,19 @@ Stage the lifecycle as:
    with a descriptive message and a deadline on
    `HostLimits.maxLoadTimeoutMs`.
 2. **`push`.** Forward `CandleEvent`s in delivery order. The runtime
-   inside the isolate calls `runner.push(event)` for each one.
+   inside the isolate calls `runner.push(event)` for each one. A `history`
+   event delivered to a runner that has already advanced past bar `0` is a
+   full **re-seed** when it **overlaps** already-processed history (its first
+   bar is not strictly newer than the last closed bar): the runtime rebuilds
+   runner state and replays the batch from bar `0`, preserving the latest
+   `setExternalSeries` / `setPlotOverrides` maps and dropping any undrained
+   emissions. A forward-continuation batch (every bar strictly newer — e.g.
+   chunked history loading) appends as before (see
+   [Execution semantics § History re-seed](../spec/semantics.md#history-re-seed)).
+   Secondary streams reset to empty on a re-seed — if the script uses
+   `request.security` / `request.lowerTf`, the host MUST re-push the secondary
+   `history` for each `streamKey` after re-pushing the main `history`, or those
+   requests read warmup `NaN` / empty buckets until the next secondary event.
 3. **`drain`.** Round-trip a request for the queued `RunnerEmissions`
    batch since the last drain. Revalidate plot and alert emissions on
    the way out with `validateEmission` from

@@ -72,7 +72,9 @@ test("converter converts live, compiles the output, and flags rejects", async ({
   // chart. The button is disabled and the reason is shown in its place.
   await expect(converter.locator("button.compile-button")).toBeDisabled()
   await expect(
-    converter.getByText("Fix the rejected construct above before compiling", { exact: false }),
+    converter.getByText("Fix the rejected construct reported below before compiling", {
+      exact: false,
+    }),
   ).toBeVisible()
 })
 

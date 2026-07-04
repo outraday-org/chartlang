@@ -112,6 +112,23 @@ export type RunnerState = {
      */
     depErroredThisBar: boolean;
     barIndex: number;
+    /**
+     * The `CreateScriptRunnerArgs` this state was built from. Stashed by
+     * {@link buildPrimaryState} so {@link resetStateForHistoryReseed} can
+     * rebuild the runner in place from `onHistoryImpl` — which has only
+     * `state` in scope, not `args` / `primary`. Absent on dep / sibling
+     * sub-runner states (built by `dep/DepRunner.ts`): they never take a
+     * `history` re-push, so a re-seed on such a state is a documented no-op.
+     * @since 1.10
+     */
+    args?: CreateScriptRunnerArgs;
+    /**
+     * The primary `CompiledScriptObject` this state was built from (the
+     * bundle primary, or the single compiled script). Paired with `args`
+     * for the in-place re-seed rebuild. Absent on sub-runner states.
+     * @since 1.10
+     */
+    primary?: CompiledScriptObject;
 };
 
 /**
@@ -480,6 +497,11 @@ function buildPrimaryState(
     state.runtimeContext.securityExprRunners = exprRunners.bySlot;
     state.runtimeContext.securityExprRunnersByFeed = exprRunners.byFeed;
     state.runtimeContext.requestSecurityExprSeries = new Map();
+    // Stash the rebuild inputs so a `history` re-push on a non-fresh runner
+    // can rebuild this state in place from `onHistoryImpl` (which sees only
+    // `state`). See `resetStateForHistoryReseed`.
+    state.args = args;
+    state.primary = primary;
     return state;
 }
 
@@ -543,6 +565,88 @@ function attachBundle(
     });
     primary.runtimeContext.depOutputStore = store;
     installDepOutputGlobal();
+}
+
+/**
+ * Re-seed a live runner's state for a `history` re-push. A `history` event
+ * on a non-fresh runner (`state.barIndex > 0`) whose bars OVERLAP the
+ * already-processed history (the caller in `execution/onHistory.ts` gates on
+ * `bars[0].time <=` the last closed bar's time — a strictly-newer forward
+ * continuation appends instead) is a full **re-seed**: the
+ * whole `RunnerState` is rebuilt via {@link buildPrimaryState} (fresh main +
+ * secondary streams, ta / `state.*` slots, dep / sibling runners,
+ * external-series slots, emissions) and the caller then replays the supplied
+ * bars from bar 0. This is the durable fix for feeds/overrides that changed
+ * after the first seed but could never be re-read for past bars.
+ *
+ * **Preserved (latest LIVE values, not the load-time seed):** the
+ * `externalSeriesFeeds` and `plotOverrides` maps — the whole point of a
+ * re-seed is to re-read the post-`setExternalSeries` / `setPlotOverrides`
+ * maps from bar 0. The persistence store handle, `now`, and capabilities ride
+ * through `state.args` by reference; `warmStart` is **not** auto-run (a
+ * re-seed mirrors a fresh load and leaves the snapshot untouched).
+ *
+ * **Rebuilt fresh:** everything else, including secondary streams (they start
+ * empty — the host re-pushes secondary history) and `diagnosedInputKeys`.
+ *
+ * **Dropped:** any undrained emissions queued before the re-seed — their bar
+ * indices conflict with the replayed `0..N-1` range, and a host that re-pushes
+ * history has abandoned the prior emission stream.
+ *
+ * Shape: an in-place `Object.assign(state, buildPrimaryState(...))`. The live
+ * `state` object identity is preserved (every `ScriptRunner` closure + every
+ * execution function holds this exact object), so no closure that captured it
+ * needs touching — EXCEPT the `runtimeContext.barIndex` closure, which
+ * `buildPrimaryState` bakes over its throwaway local and which is re-pointed
+ * at the live `state` after the assign (otherwise the replayed computes would
+ * read the discarded object's frozen `barIndex === 0`). The alternative — a
+ * mutable holder + `getState()` — would touch every closure and is rejected
+ * for a larger diff.
+ *
+ * Callable from `execution/onHistory.ts` via a direct value import: this
+ * closes a runtime import cycle (`createScriptRunner → execution/index →
+ * onHistory → createScriptRunner`), but the reference is resolved only at
+ * call time (this hoisted function runs during execution, long after every
+ * module has initialised), so the cycle is safe. `args` / `primary` are
+ * stashed on `state` by `buildPrimaryState`; a `state` that lacks them (a
+ * dep / sibling sub-runner, which never takes a `history` re-push) is a no-op.
+ *
+ * Exported so the symbol lands verbatim in bundled hosts (it doubles as the
+ * invinite preflight probe marker against `worker-boot.js`).
+ *
+ * @since 1.10
+ * @example
+ *     // await runner.onHistory(firstBars); // seeds bars 0..N-1
+ *     // runner.setExternalSeries(realFeeds);
+ *     // await runner.onHistory(firstBars); // re-seeds; replays with real feeds
+ */
+export function resetStateForHistoryReseed(state: RunnerState): void {
+    const { args, primary } = state;
+    if (args === undefined || primary === undefined) return;
+    // Capture the latest LIVE presentation + feed maps (post-setPlotOverrides /
+    // setExternalSeries) before the rebuild discards the old context.
+    const liveExternalSeriesFeeds = state.runtimeContext.externalSeriesFeeds;
+    const livePlotOverrides = state.runtimeContext.plotOverrides;
+
+    const rebuilt = buildPrimaryState(args, primary);
+    if (isCompiledScriptBundle(args.compiled)) {
+        attachBundle(rebuilt, args.compiled, args.capabilities, rebuilt.now);
+    }
+
+    // In-place swap: keep the live `state` identity, overwrite its fields with
+    // the freshly-built ones (this drops the old emissions + `barIndex`, and
+    // re-stashes `args` / `primary` so a SECOND re-seed still works).
+    Object.assign(state, rebuilt);
+
+    // `buildPrimaryState` baked the `barIndex` closure over the throwaway
+    // `rebuilt` object; re-point it at the live `state` so `onBarClose`'s
+    // `state.barIndex += 1` is visible to primitives during the replay.
+    // `Object.assign` is the no-`as` write past the `readonly barIndex` field.
+    Object.assign(state.runtimeContext, { barIndex: () => state.barIndex });
+
+    // Restore the preserved live maps onto the fresh context.
+    state.runtimeContext.externalSeriesFeeds = liveExternalSeriesFeeds;
+    state.runtimeContext.plotOverrides = livePlotOverrides;
 }
 
 /**

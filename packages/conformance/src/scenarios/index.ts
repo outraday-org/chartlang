@@ -101,6 +101,7 @@ import { DRAW_XABCD_PATTERN_SCENARIO } from "./drawXabcdPattern.scenario.js";
 import { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
 import { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.scenario.js";
 import { EXTERNAL_SERIES_FEED_SCENARIO } from "./externalSeriesFeed.scenario.js";
+import { HISTORY_RESEED_FEED_SCENARIO } from "./historyReseedFeed.scenario.js";
 import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
 import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
@@ -365,6 +366,7 @@ export { DRAW_VERTICAL_LINE_SCENARIO } from "./drawVerticalLine.scenario.js";
 export { EMA_CROSS_SCENARIO } from "./emaCross.scenario.js";
 export { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.scenario.js";
 export { EXTERNAL_SERIES_FEED_SCENARIO } from "./externalSeriesFeed.scenario.js";
+export { HISTORY_RESEED_FEED_SCENARIO } from "./historyReseedFeed.scenario.js";
 export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
 export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
@@ -871,6 +873,11 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEP_CROSSOVER_GATE_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     EXTERNAL_SERIES_FEED_SCENARIO,
+    // History re-seed — an overlapping `history` re-push into a non-fresh
+    // runner replays external-series feeds from bar 0 (the durable fix),
+    // dropping the undrained first-seed NaN emissions instead of appending
+    // at N..2N-1.
+    HISTORY_RESEED_FEED_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
     // Tier 3 plot/draw z-order — pins `plot(value, { z })` → `PlotEmission.z`
     // (negative z present on the wire, no-`z` slot omits the field), plus a

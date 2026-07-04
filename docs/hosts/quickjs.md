@@ -70,6 +70,22 @@ behave identically to the Worker host:
 Per-call overrides land in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` and are merged over the defaults.
 
+## History re-seed
+
+Identical to [the Worker host](./worker.md#history-re-seed):
+`push({ kind: "history", bars })` into a runner past bar 0 whose batch
+**overlaps** already-processed history (first bar not strictly newer than the
+last closed bar) is a full **re-seed**, replaying `bars` from bar 0
+(`emissions.fromBar === 0`) with the latest `setExternalSeries` /
+`setPlotOverrides` maps preserved and undrained pre-re-seed emissions dropped;
+a forward-continuation batch appends as before. The dispatcher forwards `history` frames
+through the JSON membrane unchanged, so the re-seed happens inside the guest
+runtime — cross-host byte-identical with the Worker host (pinned by
+`integration.test.ts`). **Secondary streams reset to empty**; re-push each
+secondary `history` (by `streamKey`) after the main one for
+`request.security` / `request.lowerTf` scripts. See
+[Execution semantics § History re-seed](../spec/semantics.md#history-re-seed).
+
 ## Sandbox matrix
 
 The QuickJS host enforces the following at the membrane (mirrored from

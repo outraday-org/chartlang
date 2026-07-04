@@ -17234,6 +17234,10 @@ async function onBarTick(state2, rawBar) {
 async function onHistory(state2, bars) {
   if (bars.length === 0)
     return;
+  const firstBar = bars[0];
+  if (state2.barIndex > 0 && firstBar !== void 0 && firstBar.time <= state2.mainStream.ohlcv.time.at(0)) {
+    resetStateForHistoryReseed(state2);
+  }
   const fromBar = state2.barIndex;
   const plots = state2.emissions.plots;
   const drawings = state2.emissions.drawings;
@@ -17926,6 +17930,8 @@ function buildPrimaryState(args, primary) {
   state2.runtimeContext.securityExprRunners = exprRunners.bySlot;
   state2.runtimeContext.securityExprRunnersByFeed = exprRunners.byFeed;
   state2.runtimeContext.requestSecurityExprSeries = /* @__PURE__ */ new Map();
+  state2.args = args;
+  state2.primary = primary;
   return state2;
 }
 function attachBundle(primary, bundle, capabilities2, now) {
@@ -17976,6 +17982,21 @@ function attachBundle(primary, bundle, capabilities2, now) {
   });
   primary.runtimeContext.depOutputStore = store;
   installDepOutputGlobal();
+}
+function resetStateForHistoryReseed(state2) {
+  const { args, primary } = state2;
+  if (args === void 0 || primary === void 0)
+    return;
+  const liveExternalSeriesFeeds = state2.runtimeContext.externalSeriesFeeds;
+  const livePlotOverrides = state2.runtimeContext.plotOverrides;
+  const rebuilt = buildPrimaryState(args, primary);
+  if (isCompiledScriptBundle(args.compiled)) {
+    attachBundle(rebuilt, args.compiled, args.capabilities, rebuilt.now);
+  }
+  Object.assign(state2, rebuilt);
+  Object.assign(state2.runtimeContext, { barIndex: () => state2.barIndex });
+  state2.runtimeContext.externalSeriesFeeds = liveExternalSeriesFeeds;
+  state2.runtimeContext.plotOverrides = livePlotOverrides;
 }
 function createScriptRunner(args) {
   const primary = primaryOf(args.compiled);

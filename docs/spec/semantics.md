@@ -26,7 +26,7 @@ The supported candle event kinds are:
 
 | Event kind | Runtime behavior |
 | --- | --- |
-| `history` | A batch of finalised main-stream bars. The runtime processes each bar as a close event in source order. |
+| `history` | A batch of finalised main-stream bars. On a fresh runner (bar index `0`), or when the batch is a forward continuation (its first bar is strictly newer than the last closed bar), the runtime processes each bar as a close event in source order. When the batch **overlaps** already-processed history on a non-fresh runner, the `history` event is a full **re-seed** — see [History re-seed](#history-re-seed) below. |
 | `close` | A finalised main-stream bar. The runtime appends it to every main OHLCV series, refreshes runtime views, runs `compute`, commits close-persistent state, then advances the bar index. |
 | `tick` | An in-progress update for the current main-stream bar. The runtime replaces the current head values for close, high, low, volume, and derived sources, refreshes runtime views, and runs `compute` without advancing the bar index. |
 
@@ -41,6 +41,40 @@ per-step emission queues, request alignment caches, drawing sub-id counters,
 and log budget. A runtime error raised through the script runtime namespace
 MUST clear renderable emissions from the active step and emit one
 `runtime-error-thrown` diagnostic.
+
+### History re-seed
+
+A `history` event delivered to a runner whose bar index is already `> 0` AND
+whose first bar **overlaps** already-processed history — its `time` is not
+strictly after the last closed bar's `time` — is a full **re-seed**, not an
+append. A conforming runtime MUST, before processing the event's bars:
+
+- Rebuild the runner's state — main and secondary stream buffers, TA and
+  `state.*` slot stores, dependency and sibling runners, and external-series
+  slots — to their initial empty shape, so the batch's bars replay from bar
+  index `0`.
+- **Preserve** the latest live external-series feed map and plot-override map
+  (the values most recently supplied by the host, not the load-time seed), so
+  a feed or override that changed after the first seed is re-read from bar `0`.
+  The persistent store handle is preserved by reference; the runtime MUST NOT
+  auto-run warm start on a re-seed.
+- **Reset secondary streams to empty.** The runtime cannot know the host's
+  secondary history sources, so a re-seeded `request.security` /
+  `request.lowerTf` reads warmup values (`NaN` / empty buckets) until the host
+  re-pushes the secondary history for the corresponding `streamKey`.
+- **Drop any undrained emissions** queued before the re-seed. Their bar
+  indices belong to the abandoned pre-reseed range and MUST NOT appear in the
+  post-reseed drain.
+
+A fresh runner (bar index `0`) processes `history` as the plain close-walk
+above, byte-identically to a runtime without re-seed support. A **forward
+continuation** — a batch whose first bar is strictly newer than the last
+closed bar — also takes the plain close-walk append path: this is the shape a
+host emits when it chunks one conceptual history load into several `history`
+events (for example, to interleave secondary-stream closes between main-stream
+chunks), and it MUST NOT trigger a re-seed. The re-seed MUST fire identically
+regardless of whether the event arrives through the `onHistory` entry point or
+a `history` `push`.
 
 ## Series and Indexing
 

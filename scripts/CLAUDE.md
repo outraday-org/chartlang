@@ -130,6 +130,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | Script | `pnpm` alias | Purpose |
 |---|---|---|
 | `scaffold.ts` | `pnpm scaffold` | Idempotent per-package §22.4 generator. |
+| `check-site.ts` | `pnpm check:site` | Conditional site e2e gate. Runs `site:e2e:install` + `site:e2e` (the Playwright suite) ONLY when `apps/site/` is touched — union of working-tree changes, untracked files, and commits ahead of `@{upstream}` (fallback `origin/main`, then `main`); otherwise prints a skip notice and exits 0. Deliberately NOT part of `check:content` (site rebuild + Chromium install are slow) — run it after `check:content` is clean; `/fix-errors` does this as its Phase 4. It is the only local gate mirroring CI's `E2E (apps/site/)` job. |
 | `adapters/registry.ts` | — | SSOT for the six example adapters (`ADAPTERS` + `githubFolder`); consumed by `gen-adapters.ts` (and Task 15's gallery). |
 | `gen-adapters.ts` | `pnpm adapters:generate` / `pnpm adapters:gate` | Bakes each example adapter into `packages/cli/src/generated/adapters/` as an offline version-pinned bundle for `chartlang add-adapter`; `--check` byte-diffs the committed tree. Never hand-edit the generated dir — re-run the generator. |
 | `docs-check.ts` | `pnpm docs:check` | §17.6 + §17.2 JSDoc gate (TS compiler API) + `@example` execution via the chartlang compiler. |

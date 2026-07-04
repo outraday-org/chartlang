@@ -52,6 +52,27 @@ are:
 `maxHeapBytes: 64 MiB`, `maxRingBufferBars: 5_000`,
 `maxLoadTimeoutMs: 30_000`).
 
+## History re-seed
+
+`push({ kind: "history", bars })` into a runner that has already advanced
+past bar 0 is a full **re-seed** when the batch **overlaps** already-processed
+history (its first bar is not strictly newer than the last closed bar): the
+runtime rebuilds runner state and replays `bars` from bar 0
+(`emissions.fromBar === 0`), so re-pushed bars land at `0..N-1` instead of
+`N..2N-1`. A forward-continuation batch (every bar strictly newer — the shape
+a host emits when it chunks one history load) appends as before. The worker
+forwards `history` frames verbatim, so it inherits the semantics with no
+host-side change. The
+re-seed **preserves** the latest `setExternalSeries` / `setPlotOverrides`
+maps (it exists precisely to re-read them from bar 0) and **drops** any
+undrained pre-re-seed emissions. See
+[Execution semantics § History re-seed](../spec/semantics.md#history-re-seed).
+
+Caveat — **secondary streams reset to empty** on a re-seed. If the script
+uses `request.security` / `request.lowerTf`, re-push each secondary
+`history` (by `streamKey`) after re-pushing the main `history`, or those
+requests read warmup `NaN` until the next secondary event arrives.
+
 ## Wiring a real Worker
 
 The worker host boots via `data:` URL on internal test runs; production

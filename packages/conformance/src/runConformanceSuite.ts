@@ -158,7 +158,42 @@ export type Scenario = {
      * effect starting with bar `atBar + 1`'s `compute`. `@since 1.9`.
      */
     readonly externalSeriesEvents?: ReadonlyArray<ScenarioExternalSeriesEvent>;
+    /**
+     * History re-seed mode. When set, the runner IGNORES the per-bar
+     * close/tick loop and instead pushes a `history` block (the first
+     * `bars` golden candles), swaps the whole feed map via
+     * `setExternalSeries(reseedFeeds)`, then re-pushes the SAME `history`
+     * block. The runtime treats the second push (into a now non-fresh
+     * runner, with overlapping bar times) as a full re-seed: it replays
+     * from bar 0 with the swapped feeds and drops the undrained
+     * first-seed emissions. Only the final
+     * drain is buffered, so assertions see exactly the replayed 0..bars-1
+     * range. Mutually exclusive with `eventStream` / `overrideEvents`
+     * (unused in this mode). `@since 1.10`.
+     */
+    readonly historyReseed?: ScenarioHistoryReseed;
     readonly assertions: ReadonlyArray<ScenarioAssertion>;
+};
+
+/**
+ * History re-seed configuration for {@link Scenario.historyReseed}. `bars`
+ * is the leading golden-candle count pushed as the history block on BOTH
+ * seeds; `reseedFeeds` is the whole feed map swapped in via
+ * `setExternalSeries` between the two pushes.
+ *
+ * @since 1.10
+ * @stable
+ * @example
+ *     import type { ScenarioHistoryReseed } from "@invinite-org/chartlang-conformance";
+ *     const r: ScenarioHistoryReseed = {
+ *         bars: 3,
+ *         reseedFeeds: { other: { values: [100, 200, 300] } },
+ *     };
+ *     void r;
+ */
+export type ScenarioHistoryReseed = {
+    readonly bars: number;
+    readonly reseedFeeds: ExternalSeriesFeedMap;
 };
 
 /**
@@ -772,6 +807,23 @@ async function resolveSource(scenario: Scenario): Promise<ResolvedSource> {
     };
 }
 
+/**
+ * Evaluate every assertion in `scenario` against the buffered emissions and
+ * collect the failures. Shared by the per-bar loop path and the
+ * {@link Scenario.historyReseed} path so both funnel through one evaluator.
+ */
+function evaluateBufferedRun(
+    scenario: Scenario,
+    run: BufferedRun,
+): ReadonlyArray<ConformanceFailure> {
+    const failures: ConformanceFailure[] = [];
+    for (const assertion of scenario.assertions) {
+        const failure = evalAssertion(scenario.id, run, assertion);
+        if (failure !== null) failures.push(failure);
+    }
+    return failures;
+}
+
 async function runOne(
     adapter: Adapter,
     scenario: Scenario,
@@ -818,9 +870,40 @@ async function runOne(
     const logs: LogEmission[] = [];
     const diagnostics: RuntimeDiagnostic[] = [];
 
+    const absorb = (drained: RunnerEmissions): void => {
+        for (const p of drained.plots) plots.push(p);
+        for (const d of drained.drawings) drawings.push(d);
+        for (const a of drained.alerts) alerts.push(a);
+        for (const a of drained.alertConditions) alertConditions.push(a);
+        for (const log of drained.logs) logs.push(log);
+        for (const d of drained.diagnostics) diagnostics.push(d);
+    };
+
     try {
         const scenarioCandles =
             scenario.candleLimit === undefined ? candles : candles.slice(0, scenario.candleLimit);
+        if (scenario.historyReseed !== undefined) {
+            // History re-seed path: push a `history` block with the mount
+            // feeds (NaN when `externalSeriesFeeds` is omitted), swap the whole
+            // feed map, then re-push the SAME block. The runtime re-seeds on
+            // the second push (non-fresh runner, overlapping bars), replaying from bar 0 with the
+            // swapped feeds and dropping the undrained first-seed emissions —
+            // so the single buffered drain carries exactly the replayed range.
+            const historyBars = scenarioCandles.slice(0, scenario.historyReseed.bars);
+            await runner.push({ kind: "history", bars: historyBars });
+            runner.setExternalSeries(scenario.historyReseed.reseedFeeds);
+            await runner.push({ kind: "history", bars: historyBars });
+            absorb(runner.drain());
+            return evaluateBufferedRun(scenario, {
+                plots,
+                drawings,
+                alerts,
+                alertConditions,
+                logs,
+                diagnostics,
+                plotSlotIds,
+            });
+        }
         const stream = scenario.eventStream ?? { kind: "close" };
         // Unify the interval-keyed `secondaryCandles` (back-compat) and the
         // composite-feed `secondaryFeeds` into one `streamKey → bars` list.
@@ -868,13 +951,7 @@ async function runOne(
                 }
             }
             eventIndex += 1;
-            const drained: RunnerEmissions = runner.drain();
-            for (const p of drained.plots) plots.push(p);
-            for (const d of drained.drawings) drawings.push(d);
-            for (const a of drained.alerts) alerts.push(a);
-            for (const a of drained.alertConditions) alertConditions.push(a);
-            for (const log of drained.logs) logs.push(log);
-            for (const d of drained.diagnostics) diagnostics.push(d);
+            absorb(runner.drain());
         }
     } finally {
         await runner.dispose();
@@ -885,7 +962,7 @@ async function runOne(
         }
     }
 
-    const run: BufferedRun = {
+    return evaluateBufferedRun(scenario, {
         plots,
         drawings,
         alerts,
@@ -893,13 +970,7 @@ async function runOne(
         logs,
         diagnostics,
         plotSlotIds,
-    };
-    const failures: ConformanceFailure[] = [];
-    for (const assertion of scenario.assertions) {
-        const failure = evalAssertion(scenario.id, run, assertion);
-        if (failure !== null) failures.push(failure);
-    }
-    return failures;
+    });
 }
 
 let cachedDefaultBars: GoldenBars | null = null;

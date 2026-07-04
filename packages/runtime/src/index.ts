@@ -22,7 +22,7 @@ export {
 } from "./views/index.js";
 export type { AdapterSymInfo, BarStateInputs, EventKind, RuntimeViews } from "./views/index.js";
 export { ACTIVE_RUNTIME_CONTEXT } from "./runtimeContext.js";
-export { createScriptRunner } from "./createScriptRunner.js";
+export { createScriptRunner, resetStateForHistoryReseed } from "./createScriptRunner.js";
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner.js";
 export { buildBundleFromModule } from "./loadBundle.js";
 export type { CompiledModuleExport } from "./loadBundle.js";

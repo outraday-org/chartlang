@@ -30,6 +30,7 @@ import {
     DRAW_TABLE_HAPPY_SCENARIO,
     EMA_CROSS_SCENARIO,
     EXTERNAL_SERIES_FEED_SCENARIO,
+    HISTORY_RESEED_FEED_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
     MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
@@ -304,6 +305,20 @@ describe("runConformanceSuite", () => {
         // `input.externalSeries` value.
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: [EXTERNAL_SERIES_FEED_SCENARIO],
+            candles: SMALL_BARS,
+        });
+        expect(report.failures).toEqual([]);
+        expect(report.failed).toBe(0);
+    }, 30_000);
+
+    it("runs the history-reseed scenario end-to-end (replay-from-0 + dropped NaN prefix)", async () => {
+        // Exercises the `historyReseed` branch in `runOne`: a NaN-feed history
+        // block, a whole-map `setExternalSeries` swap, then a re-push of the
+        // SAME block. The re-seed replays from bar 0 with the swapped feeds and
+        // drops the undrained first-seed emissions, so the single `plot-hash`
+        // pins exactly the three replayed [100,200,300] tuples.
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: [HISTORY_RESEED_FEED_SCENARIO],
             candles: SMALL_BARS,
         });
         expect(report.failures).toEqual([]);

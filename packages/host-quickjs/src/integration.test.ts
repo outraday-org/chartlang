@@ -339,6 +339,48 @@ async function runQuickJsWithExternalSeries(): Promise<string> {
     return JSON.stringify([initial, cleared, restored]);
 }
 
+async function runWorkerWithReseed(): Promise<string> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({
+        capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+        workerLike: worker,
+    });
+    await host.load({
+        moduleSource: EXTERNAL_SERIES_FIXTURE.source,
+        manifest: EXTERNAL_SERIES_FIXTURE.manifest,
+    });
+    // First seed with NO feeds → three NaN-valued plots at bars 0..2.
+    await host.push({ kind: "history", bars: bars(3) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const firstSeed = await host.drain();
+    // Swap in real feed values, then re-push the SAME history → re-seed:
+    // the bars replay from bar 0 with the live feed map (not appended).
+    host.setExternalSeries({ feed: { values: [100, 200, 300] } });
+    await host.push({ kind: "history", bars: bars(3) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const reseeded = await host.drain();
+    host.dispose();
+    return JSON.stringify([firstSeed, reseeded]);
+}
+
+async function runQuickJsWithReseed(): Promise<string> {
+    const host = createQuickJsHost({
+        capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+    });
+    await host.load({
+        moduleSource: EXTERNAL_SERIES_FIXTURE.source,
+        manifest: EXTERNAL_SERIES_FIXTURE.manifest,
+    });
+    await host.push({ kind: "history", bars: bars(3) });
+    const firstSeed = await host.drain();
+    host.setExternalSeries({ feed: { values: [100, 200, 300] } });
+    await host.push({ kind: "history", bars: bars(3) });
+    const reseeded = await host.drain();
+    host.dispose();
+    return JSON.stringify([firstSeed, reseeded]);
+}
+
 function multiSymbolCapabilities(): Capabilities {
     return {
         ...makeCapabilities(),
@@ -475,6 +517,21 @@ describe("host-quickjs integration parity", () => {
         expect(drained[0]?.plots[0]?.value).toBe(10);
         expect(drained[1]?.plots[0]?.value).toBeNull();
         expect(drained[2]?.plots[0]?.value).toBe(33);
+    });
+
+    it("matches host-worker emissions for a history re-seed after setExternalSeries", async () => {
+        const quickjs = await runQuickJsWithReseed();
+        const worker = await runWorkerWithReseed();
+        expect(quickjs).toBe(worker);
+        const drained = JSON.parse(quickjs) as ReadonlyArray<{
+            plots: ReadonlyArray<{ bar: number; value: number | null }>;
+        }>;
+        // First seed: NaN feeds → three null plots at bars 0..2.
+        expect(drained[0]?.plots.map((p) => p.bar)).toEqual([0, 1, 2]);
+        expect(drained[0]?.plots.map((p) => p.value)).toEqual([null, null, null]);
+        // Re-seed: real feeds replay from bar 0 (NOT appended at 3..5).
+        expect(drained[1]?.plots.map((p) => p.bar)).toEqual([0, 1, 2]);
+        expect(drained[1]?.plots.map((p) => p.value)).toEqual([100, 200, 300]);
     });
 
     it("matches host-worker emissions for a two-symbol composite-stream script", async () => {

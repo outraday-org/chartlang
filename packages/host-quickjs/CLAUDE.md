@@ -64,6 +64,16 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   host-worker `data:` URL invariant is browser-specific; QuickJS receives the
   module source through the JSON membrane and the dispatcher turns supported
   self-contained ESM into an in-realm script object.
+- **A `history` push that OVERLAPS already-processed history on a non-fresh
+  runner re-seeds (a forward continuation appends) — the dispatcher forwards
+  it verbatim.** Replay-from-bar-0 (with the latest live feed / override maps,
+  undrained emissions dropped) is a RUNTIME behavior
+  (`resetStateForHistoryReseed`) the guest inherits; the dispatcher has no
+  history special-casing. After a runtime change you MUST rebuild
+  (`build:dispatcher`) so the re-seed lands in `dist/dispatcher.js` — the
+  real-QuickJS `integration.test.ts` loads the bundle, and cross-host parity
+  with host-worker's re-seed is the conformance contract. `minify: false`
+  keeps `resetStateForHistoryReseed` verbatim in the bundle.
 - **`dispose()` clears pending drains after disposing the context.** A drain
   awaiting reply post-dispose stays unresolved forever; resolving it with empty
   emissions would hide lifecycle leaks.

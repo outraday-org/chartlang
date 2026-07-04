@@ -480,6 +480,79 @@ describe("createWorkerBoot", () => {
         expect(third.emissions.plots[0].value).toBe(30);
     });
 
+    it("re-seeds from bar 0 when history is re-pushed after setExternalSeries", async () => {
+        // A `history` re-push into a runner that already advanced past bar 0 is
+        // a full RE-SEED (runtime `resetStateForHistoryReseed`): the bars
+        // replay from bar 0 with the LATEST live feed map, not appended at
+        // N..2N-1. The worker boot forwards `candleEvent` frames verbatim, so
+        // it inherits the semantics — this pins that it stays wired.
+        const { scope, deliver, captured } = makeScope();
+        createWorkerBoot(scope);
+        const m: ScriptManifest = {
+            ...manifest(),
+            inputs: {
+                feed: {
+                    kind: "external-series",
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                },
+            },
+        };
+        const moduleSource = `
+            export default {
+                manifest: ${JSON.stringify(m)},
+                compute: ({ inputs, plot }) => {
+                    plot("feed:1:1#0", inputs.feed.current, {});
+                },
+            };
+        `;
+        // Load with NO feeds → the first seed reads NaN for every bar.
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource, manifest: m },
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+            limits: LIMITS,
+        });
+        await deliver({
+            kind: "candleEvent",
+            event: { kind: "history", bars: [bar(1, 1), bar(2, 2), bar(3, 3)] },
+        });
+        await deliver({ kind: "drain", nonce: 1 });
+        // Swap in real feed values, then re-push the SAME 3-bar history.
+        await deliver({ kind: "setExternalSeries", feeds: { feed: { values: [10, 20, 30] } } });
+        await deliver({
+            kind: "candleEvent",
+            event: { kind: "history", bars: [bar(1, 1), bar(2, 2), bar(3, 3)] },
+        });
+        await deliver({ kind: "drain", nonce: 2 });
+        // A trailing close lands at bar 3 — barIndex continuity after re-seed.
+        await deliver({ kind: "candleEvent", event: { kind: "close", bar: bar(4, 4) } });
+        await deliver({ kind: "drain", nonce: 3 });
+
+        const byNonce = (nonce: number) =>
+            captured.find((c) => c.kind === "emissions" && c.nonce === nonce);
+        const first = byNonce(1);
+        const second = byNonce(2);
+        const third = byNonce(3);
+        if (
+            first?.kind !== "emissions" ||
+            second?.kind !== "emissions" ||
+            third?.kind !== "emissions"
+        ) {
+            throw new Error("expected three emissions replies");
+        }
+        // First seed: NaN feeds → three null-valued plots at bars 0..2.
+        expect(first.emissions.plots.map((p) => p.bar)).toEqual([0, 1, 2]);
+        expect(first.emissions.plots.map((p) => p.value)).toEqual([null, null, null]);
+        // Re-seed: real feeds re-read from bar 0 → plots at bars 0..2 (NOT
+        // 3..5), and the emission batch reports `fromBar === 0`.
+        expect(second.emissions.plots.map((p) => p.bar)).toEqual([0, 1, 2]);
+        expect(second.emissions.plots.map((p) => p.value)).toEqual([10, 20, 30]);
+        expect(second.emissions.fromBar).toBe(0);
+        // The trailing close continues the barIndex at 3.
+        expect(third.emissions.plots.map((p) => p.bar)).toEqual([3]);
+    });
+
     it("posts 'fatal' for a setPlotOverrides before load", async () => {
         const { scope, deliver, waitFor } = makeScope();
         createWorkerBoot(scope);

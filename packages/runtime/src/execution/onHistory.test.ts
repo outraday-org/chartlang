@@ -3,12 +3,20 @@
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import { defineIndicator } from "@invinite-org/chartlang-core";
-import type { Bar } from "@invinite-org/chartlang-core";
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+import type { Bar, Series } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createScriptRunner } from "../createScriptRunner.js";
+import {
+    type RunnerState,
+    createScriptRunner,
+    resetStateForHistoryReseed,
+} from "../createScriptRunner.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
+
+function externalSeriesInput(value: unknown): Series<number> {
+    return value as Series<number>;
+}
 
 function makeCapabilities(): Capabilities {
     return {
@@ -186,16 +194,22 @@ describe("onHistory", () => {
         expect(out.alerts.map((a) => a.bar)).toEqual([0, 1, 2]);
     });
 
-    it("preserves pre-history queue entries (no silent drop of an undrained prior emission)", async () => {
+    it("forward continuation: history strictly after a close APPENDS and preserves the undrained emission", async () => {
+        // Re-seed semantics (@since 1.10) are OVERLAP-gated: a `history` push
+        // whose first bar lands strictly AFTER the last closed bar is a
+        // forward continuation (the chunked-history shape hosts emit, e.g.
+        // canvas2d's stream pump weaving secondary closes between main
+        // chunks) — it appends at 1..2 and the undrained bar-0 close emission
+        // survives, byte-identical to the pre-reseed behavior.
         const compiled = defineIndicator({
-            name: "preserve",
+            name: "continuation",
             apiVersion: 1,
             compute: () => {
                 const ctx = ACTIVE_RUNTIME_CONTEXT.current;
                 if (!ctx) return;
                 ctx.emissions.plots.push({
                     kind: "plot",
-                    slotId: "preserve.ts:1:1#0",
+                    slotId: "continuation.ts:1:1#0",
                     title: "x",
                     style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
                     bar: ctx.barIndex(),
@@ -213,11 +227,49 @@ describe("onHistory", () => {
         });
         // Run one bar via close so an emission lands in the queue, then DO NOT drain.
         await runner.onBarClose(makeBar(0));
-        // Now bulk-fill some history. Pre-existing emission must survive.
+        // Forward continuation (bars 1..2 are strictly newer): append, no re-seed.
         await runner.onHistory([makeBar(1), makeBar(2)]);
         const out = runner.drain();
         expect(out.plots).toHaveLength(3);
         expect(out.plots.map((p) => p.bar)).toEqual([0, 1, 2]);
+    });
+
+    it("re-seed: an OVERLAPPING history push after a close drops the undrained emission and replays from bar 0", async () => {
+        // The overlap gate: the pushed batch starts AT the last closed bar's
+        // time (not strictly after), so it is a re-seed — the undrained bar-0
+        // close emission is DROPPED and the two bars replay at 0..1.
+        const compiled = defineIndicator({
+            name: "reseed",
+            apiVersion: 1,
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                if (!ctx) return;
+                ctx.emissions.plots.push({
+                    kind: "plot",
+                    slotId: "reseed.ts:1:1#0",
+                    title: "x",
+                    style: { kind: "line", lineWidth: 1, lineStyle: "solid" },
+                    bar: ctx.barIndex(),
+                    time: 0,
+                    value: 1,
+                    color: null,
+                    meta: {},
+                    pane: "overlay",
+                });
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        // Run one bar via close so an emission lands in the queue, then DO NOT drain.
+        await runner.onBarClose(makeBar(0));
+        // Overlapping push (starts at bar 0's time): re-seed → emission dropped.
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        const out = runner.drain();
+        expect(out.plots).toHaveLength(2);
+        expect(out.plots.map((p) => p.bar)).toEqual([0, 1]);
+        expect(out.fromBar).toBe(0);
     });
 
     it("empty onHistory([]) leaves an undrained pre-history emission intact", async () => {
@@ -274,13 +326,304 @@ describe("onHistory", () => {
             compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
             capabilities: makeCapabilities(),
         });
-        // The compute above also leaks the undefined past the post-drain
-        // reset on the bar-0 `onBarClose` we run here, so the line-42 capture
-        // at the top of the subsequent `onHistory` sees `undefined` too.
-        await runner.onBarClose(makeBar(0));
+        // Use a TICK (which does not advance `barIndex`) so the subsequent
+        // `onHistory` stays on the fresh-runner append path (no re-seed, which
+        // would replace the emissions): the compute leaks `undefined` into the
+        // queue, so the initial-capture `?? []` at the top of `onHistory` sees
+        // `undefined`.
+        await runner.onBarTick(makeBar(0));
         await runner.onHistory([makeBar(1), makeBar(2)]);
         const out = runner.drain();
         // No throws and the accumulator landed at the runner-canonical `[]`.
         expect(out.alertConditions).toEqual([]);
+    });
+
+    it("re-seed: re-pushing the same history replays plots from bar 0 (not appended)", async () => {
+        const compiled = defineIndicator({
+            name: "reseed-zero",
+            apiVersion: 1,
+            compute: ({ plot, bar }) => {
+                plot("p:1:1#0", bar.close.current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        const bars = [makeBar(0), makeBar(1), makeBar(2), makeBar(3), makeBar(4)];
+
+        await runner.onHistory(bars);
+        const first = runner.drain();
+        expect(first.plots.map((p) => p.bar)).toEqual([0, 1, 2, 3, 4]);
+
+        // Second identical history → re-seed → replay at 0..4, NOT 5..9.
+        await runner.onHistory(bars);
+        const second = runner.drain();
+        expect(second.plots.map((p) => p.bar)).toEqual([0, 1, 2, 3, 4]);
+        expect(second.fromBar).toBe(0);
+        expect(second.plots.map((p) => p.value)).toEqual(bars.map((b) => b.close));
+    });
+
+    it("re-seed: external feeds are re-read from bar 0 (the invinite consumer scenario)", async () => {
+        const compiled = defineIndicator({
+            name: "feed-reseed",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ plot, inputs }) => {
+                plot("p:1:1#0", externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const bars = [makeBar(0), makeBar(1), makeBar(2)];
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+            // First seed reads an all-NaN feed → plots are NaN gaps.
+            externalSeriesFeeds: { feed: { values: [Number.NaN, Number.NaN, Number.NaN] } },
+        });
+
+        await runner.onHistory(bars);
+        expect(runner.drain().plots.map((p) => p.value)).toEqual([null, null, null]);
+
+        // Live feed now has real values; re-seed re-reads it from bar 0.
+        runner.setExternalSeries({ feed: { values: [10, 20, 30] } });
+        await runner.onHistory(bars);
+        expect(runner.drain().plots.map((p) => p.value)).toEqual([10, 20, 30]);
+    });
+
+    it("re-seed: plot overrides set live survive the re-seed", async () => {
+        const compiled = defineIndicator({
+            name: "override-reseed",
+            apiVersion: 1,
+            compute: ({ plot }) => {
+                plot("p:1:1#0", 1, { color: "#000" });
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        runner.drain();
+
+        // Live override, then re-push history → the replayed emissions carry it.
+        runner.setPlotOverrides({ "p:1:1#0": { visible: false, color: "#f00" } });
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        const out = runner.drain();
+        expect(out.plots).toHaveLength(2);
+        expect(out.plots.every((p) => p.color === "#f00" && p.visible === false)).toBe(true);
+    });
+
+    it("re-seed: state.* slots reset — accumulation matches the first seed exactly", async () => {
+        const compiled = defineIndicator({
+            name: "state-reseed",
+            apiVersion: 1,
+            compute: ({ plot, state }) => {
+                const acc = state.float("s:1:1#0", 0);
+                acc.value = acc.value + 1;
+                plot("p:1:1#0", acc.value);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        const bars = [makeBar(0), makeBar(1), makeBar(2)];
+
+        await runner.onHistory(bars);
+        const first = runner.drain().plots.map((p) => p.value);
+
+        await runner.onHistory(bars);
+        const second = runner.drain().plots.map((p) => p.value);
+
+        // No carry-over: the accumulator restarts at 0 on the re-seed.
+        expect(first).toEqual([1, 2, 3]);
+        expect(second).toEqual(first);
+    });
+
+    it("fresh runner: first-ever history is byte-identical across two fresh runners", async () => {
+        const define = () =>
+            defineIndicator({
+                name: "fresh",
+                apiVersion: 1,
+                compute: ({ plot, bar }) => {
+                    plot("p:1:1#0", bar.close.current);
+                },
+            });
+        const bars = [makeBar(0), makeBar(1), makeBar(2), makeBar(3), makeBar(4)];
+
+        const a = createScriptRunner({
+            compiled: { ...define(), manifest: { ...define().manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        await a.onHistory(bars);
+        const outA = a.drain();
+
+        const b = createScriptRunner({
+            compiled: { ...define(), manifest: { ...define().manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        await b.onHistory(bars);
+        const outB = b.drain();
+
+        expect(outA.plots).toEqual(outB.plots);
+        expect(outA.fromBar).toBe(0);
+        expect(outA.toBar).toBe(bars.length - 1);
+    });
+
+    it("re-seed: undrained pre-reseed emissions are dropped (only the second walk survives)", async () => {
+        const compiled = defineIndicator({
+            name: "drop-undrained",
+            apiVersion: 1,
+            compute: ({ plot, bar }) => {
+                plot("p:1:1#0", bar.close.current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+
+        // Push history but do NOT drain, then push history again.
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        const out = runner.drain();
+
+        expect(out.plots).toHaveLength(2);
+        expect(out.plots.map((p) => p.bar)).toEqual([0, 1]);
+    });
+
+    it("re-seed: secondary streams reset empty — request.security replays as NaN until re-pushed", async () => {
+        const intervals = [{ value: "1D", label: "1 day", group: "daily" }];
+        const base = defineIndicator({
+            name: "sec-reseed",
+            apiVersion: 1,
+            compute: () => {},
+        });
+        const compiled = {
+            manifest: { ...base.manifest, maxLookback: 10, requestedIntervals: ["1D"] },
+            compute: (({
+                plot,
+                request,
+            }: { readonly plot: unknown; readonly request: unknown }) => {
+                const daily = (
+                    request as {
+                        readonly security: (
+                            slotId: string,
+                            opts: { readonly interval: string },
+                        ) => { readonly close: { readonly current: number } };
+                    }
+                ).security("sec.chart.ts:1:1#0", { interval: "1D" });
+                (plot as (slotId: string, value: number) => void)("p:1:1#0", daily.close.current);
+            }) as never,
+        };
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), intervals, multiTimeframe: true },
+        });
+
+        // Seed: a daily bar before the main bar, then main history.
+        await runner.push({
+            kind: "history",
+            bars: [{ ...makeBar(0), time: makeBar(0).time - 60_000, close: 210, interval: "1D" }],
+            streamKey: "1D",
+        });
+        await runner.onHistory([makeBar(0)]);
+        expect(runner.drain().plots[0].value).toBe(210);
+
+        // Re-seed the main stream WITHOUT re-pushing the daily → secondary
+        // stream is empty again → the aligned security bar is NaN.
+        await runner.onHistory([makeBar(0)]);
+        expect(runner.drain().plots[0].value).toBeNull();
+    });
+
+    it("re-seed: fires identically via runner.onHistory and runner.push({ kind: 'history' })", async () => {
+        const bars = [makeBar(0), makeBar(1), makeBar(2), makeBar(3), makeBar(4)];
+        const define = () =>
+            defineIndicator({
+                name: "both-entrypoints",
+                apiVersion: 1,
+                compute: ({ plot, bar }) => {
+                    plot("p:1:1#0", bar.close.current);
+                },
+            });
+
+        // Second history via runner.onHistory(...)
+        const viaOnHistory = createScriptRunner({
+            compiled: { ...define(), manifest: { ...define().manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        await viaOnHistory.onHistory(bars);
+        viaOnHistory.drain();
+        await viaOnHistory.onHistory(bars);
+        const a = viaOnHistory.drain();
+
+        // Second history via runner.push({ kind: "history", bars })
+        const viaPush = createScriptRunner({
+            compiled: { ...define(), manifest: { ...define().manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        await viaPush.push({ kind: "history", bars });
+        viaPush.drain();
+        await viaPush.push({ kind: "history", bars });
+        const b = viaPush.drain();
+
+        expect(a.plots.map((p) => p.bar)).toEqual([0, 1, 2, 3, 4]);
+        expect(b.plots.map((p) => p.bar)).toEqual([0, 1, 2, 3, 4]);
+        expect(a.fromBar).toBe(0);
+        expect(b.fromBar).toBe(0);
+    });
+
+    it("re-seed: rebuilds a bundle's sibling runner and replays it from bar 0", async () => {
+        const sibling = defineIndicator({
+            name: "slow",
+            apiVersion: 1,
+            compute: ({ plot, bar }) => {
+                plot("s:1:1#0", bar.close.current);
+            },
+        });
+        const primary = defineIndicator({
+            name: "primary",
+            apiVersion: 1,
+            compute: ({ plot, bar }) => {
+                plot("p:1:1#0", bar.close.current);
+            },
+        });
+        const bundle = Object.freeze({
+            primary,
+            dependencies: [],
+            siblings: [{ exportName: "slow", compiled: sibling }],
+        });
+        const runner = createScriptRunner({ compiled: bundle, capabilities: makeCapabilities() });
+        const bars = [makeBar(0), makeBar(1), makeBar(2)];
+
+        await runner.onHistory(bars);
+        const first = runner.drain();
+        // Per bar: sibling then primary → both scripts emit at each bar.
+        expect(first.plots).toHaveLength(bars.length * 2);
+        expect(first.plots.map((p) => p.bar)).toEqual([0, 0, 1, 1, 2, 2]);
+
+        // Re-seed drives the `isCompiledScriptBundle` rebuild: the sibling
+        // runner is rebuilt fresh and replays from bar 0, not appended.
+        await runner.onHistory(bars);
+        const second = runner.drain();
+        expect(second.plots.map((p) => p.bar)).toEqual(first.plots.map((p) => p.bar));
+        expect(second.fromBar).toBe(0);
+        await runner.dispose();
+    });
+
+    it("resetStateForHistoryReseed is a no-op on a sub-runner state missing rebuild inputs", () => {
+        // Dep / sibling states carry no `args` / `primary` (they never take a
+        // `history` re-push). Calling the helper on such a state must safely
+        // no-op — this guards the early-return branch both ways.
+        const noArgs = { barIndex: 3 } as unknown as RunnerState;
+        expect(() => resetStateForHistoryReseed(noArgs)).not.toThrow();
+        const argsNoPrimary = { barIndex: 3, args: {} } as unknown as RunnerState;
+        expect(() => resetStateForHistoryReseed(argsNoPrimary)).not.toThrow();
     });
 });

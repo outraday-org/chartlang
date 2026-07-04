@@ -1,14 +1,16 @@
 ---
-description: Fix all chartlang gate failures via pnpm run check:content, then commit and run pnpm run check:committed.
+description: Fix all chartlang gate failures via pnpm run check:content, run the conditional site e2e gate (pnpm check:site), then commit and run pnpm run check:committed.
 ---
 
 # Fix Errors
 
 ## Purpose
 
-You are a code-quality fixer. Your task is to make the chartlang workspace pass the full content gate (`pnpm run check:content`), then commit the result and make the committed gate (`pnpm run check:committed`) pass. Source the initial failure list either from the user's pasted output or by running `pnpm run check:content` yourself, then iterate until the gate is clean.
+You are a code-quality fixer. Your task is to make the chartlang workspace pass the full content gate (`pnpm run check:content`), then the conditional site e2e gate (`pnpm check:site`), then commit the result and make the committed gate (`pnpm run check:committed`) pass. Source the initial failure list either from the user's pasted output or by running `pnpm run check:content` yourself, then iterate until the gates are clean.
 
 `check:content` runs the whole quality pipeline: `build`, `typecheck`, `lint`, `format:check`, `test`, `coverage:report`, `conformance` (+ `conformance:check`), `site:typecheck`, `site:build`, `bench:ci`, `docs:check`, `docs:gate`, `examples:gate`, `examples:sync`, `adapters:gate`, `docs:snippets`, `docs:build`, `hover:check`, `skills:gate`, `converter:docs:check`, and `readme:check`. A failure in any one stage fails the gate.
+
+`check:site` (`scripts/check-site.ts`) is the Playwright e2e suite for `apps/site/`, deliberately excluded from `check:content` because it rebuilds the site and needs a Chromium install. It self-skips (exit 0) when nothing under `apps/site/` changed relative to the upstream branch, so it is always cheap to call — but it is the ONLY local gate that catches a site UI/selector change breaking the CI `E2E (apps/site/)` job.
 
 ## Task
 
@@ -26,7 +28,7 @@ You are a code-quality fixer. Your task is to make the chartlang workspace pass 
    ```
 
    Then read `/tmp/gate.log` (e.g. `grep`/Read for the failing stage and file paths) to enumerate the failures. **Do not** pipe the run straight to `tail`/`head` — a pipe discards the gate's exit code and truncates the failure list, which is exactly what forces a wasteful second run. One run must yield both the failures and the pass/fail verdict. Note the failing stage and every file path involved. Because the gate is ordered and fails fast, an early stage failure (e.g. `build` or `typecheck`) may hide later ones — expect to re-run after fixing the first failing stage.
-   - **If this sourcing run already exits `0` (clean):** there is nothing to fix. Skip Phases 2–3 entirely and go straight to Phase 4 (commit, then `check:committed`). Do not re-run `check:content` to "confirm" — the captured exit code is authoritative.
+   - **If this sourcing run already exits `0` (clean):** there is nothing to fix in the content gate. Skip Phases 2–3 entirely and go straight to Phase 4 (`pnpm check:site` — the site e2e can be red even when `check:content` is clean). Do not re-run `check:content` to "confirm" — the captured exit code is authoritative.
 
 ### Phase 2: Fix
 
@@ -55,15 +57,23 @@ Run this phase **only after applying fixes in Phase 2** — if the Phase 1 sourc
 2. If any stage fails, return to Phase 2 with the new list.
 3. Repeat Phases 2–3 until `pnpm run check:content` exits cleanly. Each iteration is a single gate run — never re-run just to re-check the exit code.
 
-### Phase 4: Commit, then verify the committed gate
+### Phase 4: Conditional site e2e gate
 
-1. Once `pnpm run check:content` is clean, stage and commit the working tree. If on the default branch, branch first per repo policy. Use a concise message describing the fixes and end it with the required `Co-Authored-By` trailer.
+Run this phase once `check:content` is clean (including when the Phase 1 sourcing run was already clean).
+
+1. Run `pnpm check:site > /tmp/gate-site.log 2>&1; echo "EXIT: $?"`, then read `/tmp/gate-site.log`. The script self-skips (exit 0, "apps/site/ untouched") when nothing under `apps/site/` changed vs the upstream branch; otherwise it runs `site:e2e:install` + the full Playwright suite.
+2. If the e2e suite fails, fix the cause with the Phase 2 discipline. Decide which side is stale: a UI/copy/selector change with an un-updated spec means fix the spec under `apps/site/tests/e2e/`; a genuine regression means fix the app code. Never loosen an assertion just to pass.
+3. If a fix touched anything outside `apps/site/tests/`, re-run Phase 3 (`check:content`) first, then re-run `pnpm check:site`. Repeat until it exits 0.
+
+### Phase 5: Commit, then verify the committed gate
+
+1. Once `pnpm run check:content` and `pnpm check:site` are clean, stage and commit the working tree. If on the default branch, branch first per repo policy. Use a concise message describing the fixes and end it with the required `Co-Authored-By` trailer.
 2. Run `pnpm run check:committed`.
 3. If it fails, return to Phase 2, fix the cause, and amend or add a follow-up commit. Re-run `pnpm run check:committed` until it is clean.
 
-### Phase 5: Report
+### Phase 6: Report
 
-1. Summarize in 1–3 sentences: how many files were touched, which gate stages were failing and are now resolved, the commit SHA/message, and the final status of both `check:content` and `check:committed`.
+1. Summarize in 1–3 sentences: how many files were touched, which gate stages were failing and are now resolved, the commit SHA/message, and the final status of `check:content`, `check:site`, and `check:committed`.
 
 ## Constraints
 

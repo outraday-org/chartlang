@@ -56,6 +56,41 @@
   other field is `readonly`. `RuntimeContext.barIndex` is a
   `() => number` closure over `state.barIndex` so primitives always
   see the live counter.
+- **A `history` push that OVERLAPS already-processed history is a full
+  RE-SEED, not an append.** `onHistory` guards at its single choke point
+  (both `runner.onHistory()` and `runner.push({ kind: "history" })` route
+  through it): `barIndex > 0` AND `bars[0].time <= mainStream.ohlcv.time.at(0)`
+  (the batch's first bar does not land strictly after the last closed bar)
+  calls `resetStateForHistoryReseed(state)` before the walk, so the re-pushed
+  bars replay from bar 0 (`fromBar === 0`) instead of landing at `N..2N-1`.
+  A FORWARD CONTINUATION — every incoming bar strictly newer than the last
+  close, the shape a host emits when it CHUNKS one conceptual history load
+  (canvas2d's `createMultiStreamCandlePump` weaves secondary closes between
+  main-history chunks) — appends exactly as before the feature; gating on
+  `barIndex > 0` alone would re-seed every chunk after the first and wipe the
+  just-pushed secondary streams (the all-NaN weekly-EMA regression). **Preserved:** the latest LIVE `externalSeriesFeeds`
+  + `plotOverrides` maps (post-`setExternalSeries`/`setPlotOverrides` — the
+  whole point is to re-read them from bar 0) and the persistence handle / `now`
+  / caps (by reference via `state.args`; `warmStart` is NOT auto-run).
+  **Rebuilt fresh:** everything else — streams, ta/`state.*` slots, dep/sibling
+  runners, external-series slots, `diagnosedInputKeys`. **Dropped:** undrained
+  pre-reseed emissions (old bar indices conflict with the replayed range).
+  **Secondary streams reset empty — the caller re-pushes them** (the runtime
+  can't know the host's secondary sources). Mechanism: `buildPrimaryState`
+  stashes `args` / `primary` on `RunnerState`, and `resetStateForHistoryReseed`
+  does an in-place `Object.assign(state, buildPrimaryState(...))` (re-attaching
+  the bundle), then re-points ONLY the `runtimeContext.barIndex` closure at the
+  live `state` (it was baked over the throwaway rebuilt object; without the
+  re-point every replayed compute reads the discarded object's `barIndex === 0`).
+  `execution/onHistory.ts` value-imports the helper directly; this closes a
+  runtime import cycle (`createScriptRunner → execution/index → onHistory →
+  createScriptRunner`) that is SAFE because the hoisted helper is referenced
+  only at call time. A `state` without `args` / `primary` (a dep/sibling
+  sub-runner, which never reaches `onHistory`) is a no-op. Fresh runners
+  (`barIndex === 0`) and forward continuations stay byte-identical to the
+  pre-feature append path.
+  `resetStateForHistoryReseed` is exported from the entry (host-bundle
+  preflight marker).
 - **`ACTIVE_RUNTIME_CONTEXT.current` is set inside try/finally
   around every `compute` invocation.** Both `onBarClose` and
   `onBarTick` reset it to `null` in `finally` so a throwing

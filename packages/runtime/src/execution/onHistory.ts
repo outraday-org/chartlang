@@ -3,7 +3,7 @@
 
 import type { Bar } from "@invinite-org/chartlang-core";
 
-import type { RunnerState } from "../createScriptRunner.js";
+import { type RunnerState, resetStateForHistoryReseed } from "../createScriptRunner.js";
 import { onBarClose } from "./onBarClose.js";
 
 /**
@@ -27,6 +27,23 @@ import { onBarClose } from "./onBarClose.js";
  * Errors thrown by `compute` propagate immediately — subsequent bars
  * do not run. The host (Task 9) owns containment + reporting.
  *
+ * **Re-seed on an OVERLAPPING history push.** A `history` push whose runner
+ * has already consumed bars (`state.barIndex > 0`) AND whose first bar does
+ * not land strictly after the last closed bar (`bars[0].time <= last closed
+ * time`) is a full re-seed, not an append: {@link resetStateForHistoryReseed}
+ * rebuilds the whole `RunnerState` (streams, slots, dep/sibling runners,
+ * external-series slots) preserving the latest live `setExternalSeries` /
+ * `setPlotOverrides` maps, drops any undrained pre-reseed emissions, then this
+ * walk replays `bars` from bar 0 so `fromBar` lands at 0. A FORWARD
+ * CONTINUATION — every incoming bar strictly newer than the last close, the
+ * shape a host emits when it chunks one conceptual history load (e.g.
+ * canvas2d's `createMultiStreamCandlePump` weaving secondary closes between
+ * main-history chunks) — appends exactly as before the re-seed feature.
+ * Fresh runners (`barIndex === 0`) take the append path unchanged. The guard
+ * lives here — the single choke point both `runner.onHistory()` and
+ * `runner.push({ kind: "history" })` route through — so neither entry point
+ * can skip it.
+ *
  * @since 0.1
  * @example
  *     // import { onHistory } from "@invinite-org/chartlang-runtime";
@@ -35,6 +52,17 @@ import { onBarClose } from "./onBarClose.js";
  */
 export async function onHistory(state: RunnerState, bars: ReadonlyArray<Bar>): Promise<void> {
     if (bars.length === 0) return;
+    // Re-seed only when the batch OVERLAPS already-processed history (its
+    // first bar does not land strictly after the last closed bar). A forward
+    // continuation (all bars newer) is an append — hosts chunk history loads.
+    const firstBar = bars[0];
+    if (
+        state.barIndex > 0 &&
+        firstBar !== undefined &&
+        firstBar.time <= state.mainStream.ohlcv.time.at(0)
+    ) {
+        resetStateForHistoryReseed(state);
+    }
     const fromBar = state.barIndex;
     const plots = state.emissions.plots;
     const drawings = state.emissions.drawings;

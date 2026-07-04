@@ -72,6 +72,16 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   worker boot calls `runner.setExternalSeries(feeds)` directly; omitted
   keys clear previous feeds and later reads produce the runtime's `NaN`
   feed fallback.
+- **A `history` `candleEvent` that OVERLAPS already-processed history on a
+  non-fresh runner re-seeds (a forward continuation appends) — the boot
+  forwards it verbatim.** The re-seed (replay from bar 0 with the latest live
+  feed / override maps, undrained emissions dropped) is a RUNTIME behavior
+  (`resetStateForHistoryReseed`); the boot owns no history special-casing.
+  `resetStateForHistoryReseed` must survive verbatim in `dist/worker-boot.js`
+  (`minify: false`) — it is the downstream invinite preflight marker. Secondary
+  streams reset empty on re-seed, so a host driving `request.security` scripts
+  must re-push each secondary `history` after the main one. Pinned by
+  `createWorkerBoot.test.ts`.
 - **`dispose()` clears `pendingDrains` after terminating.** A
   drain awaiting a reply post-dispose stays unresolved forever
   (the worker is gone). Tests assert this — adding a "resolve

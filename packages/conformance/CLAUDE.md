@@ -146,6 +146,18 @@ plot hashes, alert counts, and diagnostic codes.
   bar `atBar + 1` onward while already-committed `[n]` history remains
   indexable. Keep this runtime-only; host parity stays in host integration
   tests.
+- **`Scenario.historyReseed` is the ONLY scenario mode that pushes `history`
+  events.** Every other scenario drives `runOne`'s per-bar close/tick loop;
+  the re-seed mode (`history-reseed-feed`) instead pushes a `history` block
+  (NaN mount feeds) → `setExternalSeries(reseedFeeds)` → re-pushes the SAME
+  block, then buffers ONLY the final drain. The runtime re-seeds on the second
+  push (non-fresh runner + overlapping bars — a forward continuation would
+  append), replaying from bar 0 with the swapped feeds and
+  dropping the undrained first-seed emissions — so the single pinned
+  `plot-hash` carries exactly the replayed `0..bars-1` range, never the doubled
+  NaN prefix nor an appended `N..2N-1`. The mode ignores `eventStream` /
+  `overrideEvents`. Cross-host re-seed parity stays in
+  `packages/host-quickjs/src/integration.test.ts`.
 - **The `plot-field` assertion inspects override-baked AND runtime-set
   presentation fields.** `plot-hash` deliberately hashes only
   `{ bar, value }` (color/width are excluded so existing hashes stay
