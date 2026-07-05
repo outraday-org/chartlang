@@ -1125,6 +1125,25 @@ declare module "@invinite-org/chartlang-core" {
         externalSeries<T>(args: Readonly<{ name: string; schema: Schema<T>; title?: string } & CommonInputOpts>): ExternalSeriesDescriptor<T>;
     }>;
     export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
+    export type ResolveInputValue<D> = D extends ExternalSeriesDescriptor<infer T>
+        ? Series<unknown extends T ? number : T>
+        : D extends EnumDescriptor<infer U>
+          ? U
+          : D extends { kind: "int" | "float" | "time" | "price" }
+            ? number
+            : D extends { kind: "bool" }
+              ? boolean
+              : D extends { kind: "source" }
+                ? SourceField
+                : D extends { kind: "color" | "string" | "symbol" | "interval" | "session" }
+                  ? string
+                  : unknown;
+    export type ResolvedInputs<I extends InputSchema> = Readonly<{
+        [K in keyof I]: ResolveInputValue<I[K]>;
+    }>;
+    export type ResolveComputeInputs<I extends InputSchema> = string extends keyof I
+        ? Readonly<Record<string, unknown>>
+        : ResolvedInputs<I>;
     export type MutableSlot<T> = {
         value: T;
     };
@@ -1543,9 +1562,9 @@ declare module "@invinite-org/chartlang-core" {
         table(opts: TableOpts): DrawingHandle;
     };
     export const draw: DrawNamespace;
-    export type ComputeContext = {
+    export type ComputeContext<TInputs = Readonly<Record<string, unknown>>> = {
         readonly bar: BarSeries;
-        readonly inputs: Readonly<Record<string, unknown>>;
+        readonly inputs: TInputs;
         readonly ta: TaNamespace;
         readonly plot: typeof plot;
         readonly hline: typeof hline;
@@ -1565,7 +1584,9 @@ declare module "@invinite-org/chartlang-core" {
         readonly runtime: RuntimeNamespace;
         readonly signal?: (conditionId: string, fired: boolean) => void;
     };
-    export type ComputeFn = (ctx: ComputeContext) => void;
+    export type ComputeFn<TInputs = Readonly<Record<string, unknown>>> = (
+        ctx: ComputeContext<TInputs>,
+    ) => void;
     export type CompiledScriptObject = {
         readonly manifest: ScriptManifest;
         readonly compute: ComputeFn;
@@ -1589,39 +1610,39 @@ declare module "@invinite-org/chartlang-core" {
     export function isCompiledScriptBundle(
         v: CompiledScriptObject | CompiledScriptBundle,
     ): v is CompiledScriptBundle;
-    export type DefineIndicatorOpts = Readonly<{
+    export type DefineIndicatorOpts<I extends InputSchema = InputSchema> = Readonly<{
         name: string;
         apiVersion: 1;
         overlay?: boolean;
-        inputs?: InputSchema;
-        compute: ComputeFn;
+        inputs?: I;
+        compute: ComputeFn<ResolveComputeInputs<I>>;
         maxDrawings?: DrawingCounts;
         outputs?: ReadonlyArray<OutputDeclaration>;
     }> & ScriptOverrides;
-    export type DefineAlertOpts = Readonly<{
+    export type DefineAlertOpts<I extends InputSchema = InputSchema> = Readonly<{
         name: string;
         apiVersion: 1;
-        inputs?: InputSchema;
-        compute: ComputeFn;
+        inputs?: I;
+        compute: ComputeFn<ResolveComputeInputs<I>>;
     }> & Omit<ScriptOverrides, "scale" | "format" | "precision">;
-    export type DefineAlertConditionOpts = Readonly<{
+    export type DefineAlertConditionOpts<I extends InputSchema = InputSchema> = Readonly<{
         name: string;
         apiVersion: 1;
-        inputs?: InputSchema;
+        inputs?: I;
         conditions: Readonly<Record<string, AlertConditionDescriptor>>;
-        compute: ComputeFn;
+        compute: ComputeFn<ResolveComputeInputs<I>>;
     }>;
-    export type DefineDrawingOpts = Readonly<{
+    export type DefineDrawingOpts<I extends InputSchema = InputSchema> = Readonly<{
         name: string;
         apiVersion: 1;
-        inputs?: InputSchema;
-        compute: ComputeFn;
+        inputs?: I;
+        compute: ComputeFn<ResolveComputeInputs<I>>;
         maxDrawings?: DrawingCounts;
     }> & Omit<ScriptOverrides, "maxBarsBack" | "scale">;
-    export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject;
-    export function defineAlert(opts: DefineAlertOpts): CompiledScriptObject;
-    export function defineAlertCondition(opts: DefineAlertConditionOpts): CompiledScriptObject;
-    export function defineDrawing(opts: DefineDrawingOpts): CompiledScriptObject;
+    export function defineIndicator<I extends InputSchema = InputSchema>(opts: DefineIndicatorOpts<I>): CompiledScriptObject;
+    export function defineAlert<I extends InputSchema = InputSchema>(opts: DefineAlertOpts<I>): CompiledScriptObject;
+    export function defineAlertCondition<I extends InputSchema = InputSchema>(opts: DefineAlertConditionOpts<I>): CompiledScriptObject;
+    export function defineDrawing<I extends InputSchema = InputSchema>(opts: DefineDrawingOpts<I>): CompiledScriptObject;
     export type StatefulPrimitiveEntry = Readonly<{ name: string; slot: boolean }>;
     export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry>;
     export const STATEFUL_PRIMITIVES_BY_NAME: ReadonlyMap<string, StatefulPrimitiveEntry>;

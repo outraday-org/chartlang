@@ -1,7 +1,13 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CompiledScriptObject, ComputeFn, DrawingCounts, InputSchema } from "../types.js";
+import type {
+    CompiledScriptObject,
+    ComputeFn,
+    DrawingCounts,
+    InputSchema,
+    ResolveComputeInputs,
+} from "../types.js";
 import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
 import type { OutputDeclaration } from "./dependency.js";
 import type { ScriptOverrides } from "./overrides.js";
@@ -22,12 +28,12 @@ import type { ScriptOverrides } from "./overrides.js";
  *         compute: () => {},
  *     };
  */
-export type DefineIndicatorOpts = Readonly<{
+export type DefineIndicatorOpts<I extends InputSchema = InputSchema> = Readonly<{
     name: string;
     apiVersion: 1;
     overlay?: boolean;
-    inputs?: InputSchema;
-    compute: ComputeFn;
+    inputs?: I;
+    compute: ComputeFn<ResolveComputeInputs<I>>;
     /** Per-bucket cap on `draw.*` emissions per bar. @since 0.3 */
     maxDrawings?: DrawingCounts;
     /**
@@ -62,7 +68,9 @@ export type DefineIndicatorOpts = Readonly<{
  * });
  * ```
  */
-export function defineIndicator(opts: DefineIndicatorOpts): CompiledScriptObject {
+export function defineIndicator<I extends InputSchema = InputSchema>(
+    opts: DefineIndicatorOpts<I>,
+): CompiledScriptObject {
     const capabilities: ReadonlyArray<"indicators"> = Object.freeze<["indicators"]>(["indicators"]);
     const requestedIntervals: ReadonlyArray<string> = Object.freeze<string[]>([]);
     const seriesCapacities: Readonly<Record<string, number>> = Object.freeze({});

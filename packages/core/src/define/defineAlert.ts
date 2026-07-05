@@ -1,7 +1,12 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { CompiledScriptObject, ComputeFn, InputSchema } from "../types.js";
+import type {
+    CompiledScriptObject,
+    ComputeFn,
+    InputSchema,
+    ResolveComputeInputs,
+} from "../types.js";
 import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
 import type { ScriptOverrides } from "./overrides.js";
 
@@ -20,11 +25,11 @@ type AlertOverrides = Omit<ScriptOverrides, "scale" | "format" | "precision">;
  *         compute: () => {},
  *     };
  */
-export type DefineAlertOpts = Readonly<{
+export type DefineAlertOpts<I extends InputSchema = InputSchema> = Readonly<{
     name: string;
     apiVersion: 1;
-    inputs?: InputSchema;
-    compute: ComputeFn;
+    inputs?: I;
+    compute: ComputeFn<ResolveComputeInputs<I>>;
 }> &
     AlertOverrides;
 
@@ -46,7 +51,9 @@ export type DefineAlertOpts = Readonly<{
  * });
  * ```
  */
-export function defineAlert(opts: DefineAlertOpts): CompiledScriptObject {
+export function defineAlert<I extends InputSchema = InputSchema>(
+    opts: DefineAlertOpts<I>,
+): CompiledScriptObject {
     const capabilities: ReadonlyArray<"alerts"> = Object.freeze<["alerts"]>(["alerts"]);
     const requestedIntervals: ReadonlyArray<string> = Object.freeze<string[]>([]);
     const seriesCapacities: Readonly<Record<string, number>> = Object.freeze({});

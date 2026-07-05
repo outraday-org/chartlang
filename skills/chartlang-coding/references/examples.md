@@ -131,7 +131,7 @@ export default defineIndicator({
     overlay: true,
     inputs: { length: input.int(50, { min: 2, max: 250 }) },
     compute({ bar, ta, inputs, plot }) {
-        plot(ta.ema(bar.close, inputs.length as number), {
+        plot(ta.ema(bar.close, inputs.length), {
             title: "line",
             color: "#3b82f6",
         });

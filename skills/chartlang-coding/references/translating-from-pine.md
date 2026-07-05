@@ -205,8 +205,8 @@ carry a `symbol`:
 |---|---|---|
 | `request.security(syminfo.tickerid, "1D", close)` | `request.security({ interval: "1D" }).close.current` | Chart's own symbol ⇒ `symbol` **omitted** (byte-identical to the higher-timeframe-only case). |
 | `request.security("NASDAQ:AAPL", "1D", close)` | `request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close.current` | A **literal** different symbol ⇒ `{ symbol, interval }` (multi-symbol). |
-| `sym = input.symbol("NASDAQ:QQQ")`<br>`tf = input.timeframe("D")`<br>`request.security(sym, tf, close)` | `request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close.current` | A symbol/timeframe bound to an **`input.symbol`/`input.timeframe`** lowers to an `inputs.<name>` reference (so the value stays user-editable); the compiler resolves the feed through the input default. `input.timeframe` → `input.interval`. |
-| `tf = input.timeframe("")`<br>`request.security(syminfo.tickerid, tf, close)` | `request.security({ interval: inputs.tf as string }).close.current` | An **empty** `input.timeframe("")` default is the **chart timeframe** (`input.interval("")`) — the primary stream, not a rejected default. |
+| `sym = input.symbol("NASDAQ:QQQ")`<br>`tf = input.timeframe("D")`<br>`request.security(sym, tf, close)` | `request.security({ symbol: inputs.sym, interval: inputs.tf }).close.current` | A symbol/timeframe bound to an **`input.symbol`/`input.timeframe`** lowers to an `inputs.<name>` reference (so the value stays user-editable); both resolve to `string` cast-free (the compiler still accepts the pine-converter's redundant `as string`). The compiler resolves the feed through the input default. `input.timeframe` → `input.interval`. |
+| `tf = input.timeframe("")`<br>`request.security(syminfo.tickerid, tf, close)` | `request.security({ interval: inputs.tf }).close.current` | An **empty** `input.timeframe("")` default is the **chart timeframe** (`input.interval("")`) — the primary stream, not a rejected default. |
 | `request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)` | `request.security({ interval: "1d" }).close.current` + info | The `gaps=` arg is **dropped** with `request-security-gaps-dropped` (info) — chartlang feeds are gap-filled by default. |
 | `request.security(someComputedTicker, "1D", close)` | _reject_ `request-security-not-mapped` | The symbol/timeframe must be a compile-time literal **or** an `input.symbol`/`input.timeframe`/`input.enum` value; a computed ticker (or an input of the wrong kind) can't lower. |
 | `[hi, lo] = request.security(syminfo.tickerid, "D", [high, low])` | `const hi = request.security({ interval: "1d" }).high.current`<br>`const lo = request.security({ interval: "1d" }).low.current` | **Tuple** form ⇒ one independent read per element, all sharing one feed; each name binds its own `const`. OHLCV → data form, `ta.*`/computed → callback form. A `_` element is dropped. |
@@ -494,7 +494,7 @@ metadata and Pine's conditional `active=` argument are dropped with
 - **A `ta.*` may appear anywhere in an expression — no manual `.current`.**
   A `ta.*` in a scalar slot (an operator operand, a ternary arm, a `math.*`
   argument) is projected to its per-bar scalar for you (`ta.rsi(close, 14) *
-  scale` → `ta.rsi(bar.close, 14).current * (inputs.scale as number)`), marked
+  scale` → `ta.rsi(bar.close, 14).current * inputs.scale`), marked
   by a `nested-ta-lowered` info. A `ta.*` fed as a *source* to another `ta.*`
   stays a series (`ta.sma(ta.atr(14), 5)` keeps the inner `ta.atr` bare). When
   you write chartlang by hand, follow the same rule: read `.current` only where

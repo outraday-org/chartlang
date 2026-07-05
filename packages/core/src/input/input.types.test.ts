@@ -4,6 +4,7 @@
 import { expectTypeOf } from "expect-type";
 import { describe, it } from "vitest";
 
+import type { ResolveInputValue, Series } from "../types.js";
 import { input } from "./input.js";
 import type {
     BoolDescriptor,
@@ -61,6 +62,16 @@ describe("input builder type surface", () => {
         expectTypeOf(input.externalSeries({ name: "feed", schema })).toEqualTypeOf<
             ExternalSeriesDescriptor<number>
         >();
+    });
+
+    it("resolves an omitted-generic external series to Series<number>", () => {
+        // No explicit `<T>` and a bare (un-annotated) schema literal leaves the
+        // descriptor generic as `unknown`; `ResolveInputValue` guards that back
+        // to the numeric runtime feed, so the compute-bag value is
+        // `Series<number>` (R4).
+        const schema = { kind: "external-series-schema" as const };
+        const desc = input.externalSeries({ name: "feed", schema });
+        expectTypeOf<ResolveInputValue<typeof desc>>().toEqualTypeOf<Series<number>>();
     });
 
     it("assigns descriptors to the shared union", () => {

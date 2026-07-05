@@ -7,6 +7,7 @@ import type {
     CompiledScriptObject,
     ComputeFn,
     InputSchema,
+    ResolveComputeInputs,
     ScriptManifest,
 } from "../types.js";
 import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
@@ -32,12 +33,12 @@ import { attachDepAccessorSentinels } from "./depAccessorSentinel.js";
  *     };
  *     void opts;
  */
-export type DefineAlertConditionOpts = Readonly<{
+export type DefineAlertConditionOpts<I extends InputSchema = InputSchema> = Readonly<{
     name: string;
     apiVersion: 1;
-    inputs?: InputSchema;
+    inputs?: I;
     conditions: Readonly<Record<string, AlertConditionDescriptor>>;
-    compute: ComputeFn;
+    compute: ComputeFn<ResolveComputeInputs<I>>;
 }>;
 
 function freezeCondition(
@@ -86,7 +87,9 @@ function freezeCondition(
  * });
  * ```
  */
-export function defineAlertCondition(opts: DefineAlertConditionOpts): CompiledScriptObject {
+export function defineAlertCondition<I extends InputSchema = InputSchema>(
+    opts: DefineAlertConditionOpts<I>,
+): CompiledScriptObject {
     const alertConditions = Object.freeze(
         Object.entries(opts.conditions).map(([id, descriptor]) => freezeCondition(id, descriptor)),
     );

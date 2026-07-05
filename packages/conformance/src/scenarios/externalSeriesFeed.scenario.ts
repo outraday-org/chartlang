@@ -25,7 +25,7 @@ export default defineIndicator({
 `;
 
 const CURRENT_HASH = "193c71b3e93ee89f3670f1ba5d3c9bbd3208baa2bc06a8c98063ad4d80a4c66c";
-const PREVIOUS_HASH = "4861f06520acfcf303d0c1f7eb08bdf24dd1154e70f04b2c85ada87793df6d69";
+const PREVIOUS_HASH = "921e8e33ae01e3402ddbd63fbd06a06a690836f7586006d20bb14fdae00b96a9";
 const SMA_HASH = "d30733da6beba51356e0b418bc2b5621c67ea2e7a911c6d4c50667aec88d85ab";
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([

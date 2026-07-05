@@ -75,7 +75,7 @@ for (let i = 0; i < 10; i++) {
 |---|---|---|
 | `while`, `do…while` | `unbounded-loop` | A literal-bounded `for`. |
 | `for…of`, `for…in` | `unbounded-loop` | A literal-bounded `for` indexing the array. |
-| `for (...; i < someInput; ...)` | `unbounded-loop` | A literal bound; if you need user-tuned iteration, cap with `Math.min(inputs.n as number, 200)` and loop to the literal cap. |
+| `for (...; i < someInput; ...)` | `unbounded-loop` | A literal bound; if you need user-tuned iteration, cap with `Math.min(inputs.n, 200)` and loop to the literal cap. |
 
 The allowed shape is `for (let i = <literal>; i </<= <literal>; i++)`
 (or `>` / `>=`). Both bound and step must be literal-derivable.

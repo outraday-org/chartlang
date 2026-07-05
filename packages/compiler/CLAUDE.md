@@ -72,10 +72,12 @@
   helper, `kind = "symbol"`), an absent property, or a genuinely-dynamic
   expression. `getInputDefault` / `getInputsEnumOptions` first `unwrapInputAccess`
   the expression — stripping enclosing parentheses + `as` casts — so the
-  pine-converter's input-bound feed emit `inputs.<name> as string` (the cast is
-  needed because a script's `compute` `inputs` is `Record<string, unknown>`, so
-  an un-cast read fails the `RequestSecurityOpts` typecheck) still resolves to
-  the descriptor default; a hand-written un-cast `inputs.<name>` is unchanged.
+  pine-converter's input-bound feed emit `inputs.<name> as string` (now a
+  **redundant** cast — the `compute` `inputs` bag is typed per-descriptor via
+  core's `ResolvedInputs`, so an `input.symbol` / `input.interval` read already
+  resolves to `string`; the cast stays legal and still round-trips through
+  `unwrapInputAccess`) still resolves to the descriptor default; a hand-written
+  un-cast `inputs.<name>` is unchanged.
   The **interval branch** (`resolveIntervals`) now mirrors this:
   a string literal, an `input.enum` (cartesian), or an `input.interval`
   **default** (`getInputDefault(..., "interval")`) — **reversed from the
@@ -305,6 +307,18 @@
     `serialiseExternalSeries` must explicitly copy those five metadata keys
     alongside `title`, with literal-only diagnostics, or adapter panel metadata
     silently drops for that one kind.
+  - **The `compute` `inputs` bag is typed per-descriptor — a shim lockstep
+    surface, and the shim is what actually types a script's `inputs`.** The
+    shim mirrors core's `ResolveInputValue` / `ResolvedInputs` /
+    `ResolveComputeInputs` map, the generic `ComputeContext<TInputs>` /
+    `ComputeFn<TInputs>`, and all four `Define*Opts<I>` + `define*<I extends
+    InputSchema = InputSchema>` decls, so `inputs.<key>` resolves to its runtime
+    value (`external-series` → `Series<number>`, `int` → `number`, …) with no
+    cast. Value types MUST equal `runtime/resolveInputs` output. The back-compat
+    default (`string extends keyof I ? Record<string,unknown> : …`) keeps a
+    no-inputs script's bag `Readonly<Record<string, unknown>>` — never widen it
+    to a distributed descriptor union. Editing core's map without the shim (or
+    vice-versa) breaks the observable typing.
 - **Callee resolution handles nested core namespaces.** `resolveCalleeName`
   must preserve full names such as `state.tick.float` in addition to
   one-hop names like `ta.ema`; callsite-id injection and loop diagnostics

@@ -5,7 +5,12 @@ import type { DependencyDeclaration, OutputDeclaration } from "./define/dependen
 import type { ScaleAxis, ValueFormat } from "./define/overrides.js";
 import type { DrawNamespace } from "./draw/draw.js";
 import type { WorldPoint } from "./draw/worldPoint.js";
-import type { InputDescriptor } from "./input/inputDescriptor.js";
+import type {
+    EnumDescriptor,
+    ExternalSeriesDescriptor,
+    InputDescriptor,
+    SourceField,
+} from "./input/inputDescriptor.js";
 import type { PlotKind } from "./plot/plot.js";
 import type { RequestNamespace } from "./request/index.js";
 import type { RuntimeNamespace } from "./runtime/index.js";
@@ -377,6 +382,78 @@ export type IntervalDescriptor = {
  *     void inputs;
  */
 export type InputSchema = Readonly<Record<string, InputDescriptor<unknown>>>;
+
+/**
+ * Resolve a single `input.*` descriptor to the value type the runtime hands the
+ * script's `compute` bag for that key. The arms mirror
+ * `runtime/src/inputs/resolveInputs.ts` exactly: `external-series` → the slot's
+ * `Series<T>` view (defaulting to `Series<number>` when the descriptor generic
+ * is omitted — an un-annotated `schema` literal leaves `T` as `unknown`, but the
+ * runtime feed is always numeric), `enum` → its option union, numeric kinds →
+ * `number`,
+ * `bool` → `boolean`, `source` → `SourceField`, and the string-family kinds →
+ * `string`. Type equals runtime output — that equality is the point (the bug
+ * this fixes was type ≠ runtime).
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     import { input } from "@invinite-org/chartlang-core";
+ *     type V = ResolveInputValue<ReturnType<typeof input.int>>; // number
+ *     const v: V = 20;
+ *     void v;
+ */
+export type ResolveInputValue<D> = D extends ExternalSeriesDescriptor<infer T>
+    ? Series<unknown extends T ? number : T>
+    : D extends EnumDescriptor<infer U>
+      ? U
+      : D extends { kind: "int" | "float" | "time" | "price" }
+        ? number
+        : D extends { kind: "bool" }
+          ? boolean
+          : D extends { kind: "source" }
+            ? SourceField
+            : D extends { kind: "color" | "string" | "symbol" | "interval" | "session" }
+              ? string
+              : unknown;
+
+/**
+ * Map a concrete author `inputs` schema to the per-descriptor value bag the
+ * script reads inside `compute`. Each key resolves through
+ * {@link ResolveInputValue}, so `inputs.<key>` is typed cast-free.
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     import { input } from "@invinite-org/chartlang-core";
+ *     const schema = { length: input.int(20) };
+ *     type Bag = ResolvedInputs<typeof schema>; // { readonly length: number }
+ *     const bag: Bag = { length: 20 };
+ *     void bag;
+ */
+export type ResolvedInputs<I extends InputSchema> = Readonly<{
+    [K in keyof I]: ResolveInputValue<I[K]>;
+}>;
+
+/**
+ * The `compute` `inputs` bag type for a constructor's inferred schema `I`. A
+ * concrete literal schema resolves per-descriptor via {@link ResolvedInputs};
+ * the general `InputSchema` (a script that omits `inputs`, whose `keyof`
+ * includes `string`) collapses to `Readonly<Record<string, unknown>>` so
+ * no-inputs scripts stay source-compatible instead of widening to a distributed
+ * union over every descriptor kind.
+ *
+ * @since 1.9
+ * @stable
+ * @example
+ *     import { input } from "@invinite-org/chartlang-core";
+ *     type Bag = ResolveComputeInputs<{ n: ReturnType<typeof input.int> }>;
+ *     const bag: Bag = { n: 3 };
+ *     void bag;
+ */
+export type ResolveComputeInputs<I extends InputSchema> = string extends keyof I
+    ? Readonly<Record<string, unknown>>
+    : ResolvedInputs<I>;
 
 /**
  * Discriminator for the Phase-1 adapter capability subset the script-side
@@ -819,9 +896,9 @@ export type AlertConditionDefinition = AlertConditionDescriptor &
  * @example
  *     const fn: ComputeFn = ({ bar, plot }) => { plot(bar.close); };
  */
-export type ComputeContext = {
+export type ComputeContext<TInputs = Readonly<Record<string, unknown>>> = {
     readonly bar: BarSeries;
-    readonly inputs: Readonly<Record<string, unknown>>;
+    readonly inputs: TInputs;
     readonly ta: TaNamespace;
     readonly plot: typeof import("./plot/plot.js").plot;
     readonly hline: typeof import("./plot/plot.js").hline;
@@ -883,7 +960,9 @@ export type ComputeContext = {
  * @example
  *     const fn: ComputeFn = (ctx) => { ctx.plot(ctx.bar.close); };
  */
-export type ComputeFn = (ctx: ComputeContext) => void;
+export type ComputeFn<TInputs = Readonly<Record<string, unknown>>> = (
+    ctx: ComputeContext<TInputs>,
+) => void;
 
 /**
  * The frozen object the `defineIndicator` / `defineAlert` constructors return.

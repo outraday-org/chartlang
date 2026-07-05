@@ -1010,7 +1010,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "opts",
-                "type": "DefineAlertOpts",
+                "type": "DefineAlertOpts<I>",
                 "doc": ""
             }
         ],
@@ -1028,7 +1028,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "opts",
-                "type": "DefineAlertConditionOpts",
+                "type": "DefineAlertConditionOpts<I>",
                 "doc": ""
             }
         ],
@@ -1068,7 +1068,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "opts",
-                "type": "DefineDrawingOpts",
+                "type": "DefineDrawingOpts<I>",
                 "doc": ""
             }
         ],
@@ -1097,7 +1097,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "paramTable": [
             {
                 "name": "opts",
-                "type": "DefineIndicatorOpts",
+                "type": "DefineIndicatorOpts<I>",
                 "doc": ""
             }
         ],
@@ -5044,6 +5044,39 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "// read a different instrument (requires Capabilities.multiSymbol)\nconst spy: RequestSecurityOpts = { symbol: \"AMEX:SPY\", interval: \"1D\" };\nvoid spy;"
         ],
         "since": "0.4",
+        "stability": "stable"
+    },
+    "ResolveComputeInputs": {
+        "fqn": "ResolveComputeInputs",
+        "kind": "type",
+        "title": "ResolveComputeInputs",
+        "summary": "/**\nThe `compute` `inputs` bag type for a constructor's inferred schema `I`. A\nconcrete literal schema resolves per-descriptor via  {@link ResolvedInputs} ;\nthe general `InputSchema` (a script that omits `inputs`, whose `keyof`\nincludes `string`) collapses to `Readonly<Record<string, unknown>>` so\nno-inputs scripts stay source-compatible instead of widening to a distributed\nunion over every descriptor kind.",
+        "examples": [
+            "import { input } from \"@invinite-org/chartlang-core\";\ntype Bag = ResolveComputeInputs<{ n: ReturnType<typeof input.int> }>;\nconst bag: Bag = { n: 3 };\nvoid bag;"
+        ],
+        "since": "1.9",
+        "stability": "stable"
+    },
+    "ResolvedInputs": {
+        "fqn": "ResolvedInputs",
+        "kind": "type",
+        "title": "ResolvedInputs",
+        "summary": "/**\nMap a concrete author `inputs` schema to the per-descriptor value bag the\nscript reads inside `compute`. Each key resolves through\n{@link ResolveInputValue} , so `inputs.<key>` is typed cast-free.",
+        "examples": [
+            "import { input } from \"@invinite-org/chartlang-core\";\nconst schema = { length: input.int(20) };\ntype Bag = ResolvedInputs<typeof schema>; // { readonly length: number }\nconst bag: Bag = { length: 20 };\nvoid bag;"
+        ],
+        "since": "1.9",
+        "stability": "stable"
+    },
+    "ResolveInputValue": {
+        "fqn": "ResolveInputValue",
+        "kind": "type",
+        "title": "ResolveInputValue",
+        "summary": "Resolve a single `input.*` descriptor to the value type the runtime hands the\nscript's `compute` bag for that key. The arms mirror\n`runtime/src/inputs/resolveInputs.ts` exactly: `external-series` → the slot's\n`Series<T>` view (defaulting to `Series<number>` when the descriptor generic\nis omitted — an un-annotated `schema` literal leaves `T` as `unknown`, but the\nruntime feed is always numeric), `enum` → its option union, numeric kinds →\n`number`,\n`bool` → `boolean`, `source` → `SourceField`, and the string-family kinds →\n`string`. Type equals runtime output — that equality is the point (the bug\nthis fixes was type ≠ runtime).",
+        "examples": [
+            "import { input } from \"@invinite-org/chartlang-core\";\ntype V = ResolveInputValue<ReturnType<typeof input.int>>; // number\nconst v: V = 20;\nvoid v;"
+        ],
+        "since": "1.9",
         "stability": "stable"
     },
     "rgb": {

@@ -394,6 +394,56 @@ export default defineIndicator({
         expect(typeErrors).toEqual([]);
     });
 
+    it("types an external-series input as `Series<number>` — canonical consumer compiles cast-free", () => {
+        // R7: `inputs.bound` is a `Series<number>` view (no `as Series<number>`)
+        // and `inputs.smoothLength` resolves to `number`, so this whole body
+        // type-checks through the ambient shim with zero diagnostics.
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "Bound SMA",
+    apiVersion: 1,
+    inputs: {
+        bound: input.externalSeries({ name: "bound", schema: { kind: "external-series-schema" } }),
+        smoothLength: input.int(5),
+    },
+    compute({ inputs, ta, plot }) {
+        const bound = inputs.bound;
+        const smoothed = ta.sma(bound, inputs.smoothLength);
+        plot(bound.current, { title: "Bound" });
+        plot(smoothed.current, { title: "Bound SMA", lineWidth: 2 });
+    },
+});
+`;
+        const result = transformAndAnalyse(source, { sourcePath: "bound-sma.chart.ts" });
+        const typeErrors = result.diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors).toEqual([]);
+    });
+
+    it("flags assigning an external-series input to a `number` as `type-error`", () => {
+        // Negative: the resolved bag types the view as `Series<number>`, so
+        // treating it as a plain number no longer compiles (the mis-port this
+        // feature guards against).
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "bad-bound",
+    apiVersion: 1,
+    inputs: {
+        bound: input.externalSeries({ name: "bound", schema: { kind: "external-series-schema" } }),
+    },
+    compute({ inputs, plot }) {
+        const n: number = inputs.bound;
+        plot(n);
+    },
+});
+`;
+        const result = transformAndAnalyse(source, { sourcePath: "bad-bound.chart.ts" });
+        const typeErrors = result.diagnostics.filter((d) => d.code === "type-error");
+        expect(typeErrors.length).toBeGreaterThan(0);
+        expect(typeErrors[0]?.severity).toBe("error");
+    });
+
     it("flows warnings through (dynamic-series-index) without bailing", () => {
         // The `dynamic-series-index` warning fires when a script reads a
         // Series at a non-literal index. `bar.close` is now an indexable

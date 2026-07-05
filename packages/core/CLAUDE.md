@@ -276,6 +276,29 @@
   when defined. The compiler's `program.ts` shim mirrors the mixin and builder
   opts in lockstep.
 
+- **The `compute` `inputs` bag is typed per input descriptor via
+  `ResolvedInputs`, in lockstep with the compiler shim.** `ResolveInputValue<D>`
+  (`types.ts`) maps one descriptor to the value the runtime writes to `out[key]`
+  in `runtime/src/inputs/resolveInputs.ts` — `external-series` → the slot's
+  `Series<T>` view (guarded to `Series<number>` when the descriptor generic is
+  omitted, since a bare `schema` literal leaves `T` as `unknown`), `enum<U>` →
+  `U`, `int`/`float`/`time`/`price` → `number`, `bool` → `boolean`,
+  `color`/`string`/`symbol`/`interval`/`session` → `string`, `source` →
+  `SourceField`. The four `define*` constructors are generic
+  `<I extends InputSchema = InputSchema>`; `compute:
+  ComputeFn<ResolveComputeInputs<I>>` threads the per-key bag, and the
+  back-compat guard `string extends keyof I ? Readonly<Record<string, unknown>>
+  : ResolvedInputs<I>` keeps a no-inputs (or non-literal) script's `inputs` at
+  `Readonly<Record<string, unknown>>` — never a distributed descriptor union.
+  `ComputeContext<TInputs>` / `ComputeFn<TInputs>` default to
+  `Readonly<Record<string, unknown>>` so `CompiledScriptObject.compute` (the
+  runtime-facing slot) is unchanged; `attachDepAccessorSentinels` widens its
+  param to `ComputeFn<never>` and does the single documented `as ComputeFn`
+  cast (the runtime always supplies the real per-descriptor values, mirroring
+  the `ta` widening cast). Value types MUST equal `resolveInputs` output —
+  type ≠ runtime is the exact bug this fixes. Casts on `inputs.<key>` reads are
+  now redundant (legal, not required); the `program.ts` shim mirrors the whole
+  mechanism.
 - **Coverage excludes `index.ts` (barrel) and any `types.ts` (declarations).**
   Real exported logic lives in dedicated files with co-located `*.test.ts`
   (unit) and `*.types.test.ts` (`expect-type`) layers. The two type-test

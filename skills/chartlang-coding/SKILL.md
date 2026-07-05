@@ -178,8 +178,8 @@ export default defineIndicator({
         color: input.color("#26a69a", { title: "Line color" }),
     },
     compute({ bar, inputs, ta, plot }) {
-        const ema = ta.ema(bar.close, inputs.length as number);
-        plot(ema, { color: inputs.color as string, title: "EMA" });
+        const ema = ta.ema(bar.close, inputs.length);
+        plot(ema, { color: inputs.color, title: "EMA" });
     },
 });
 ```
@@ -188,16 +188,19 @@ Thirteen input kinds ship in `apiVersion: 1`: `int`, `float`, `bool`,
 `string`, `enum`, `color`, `source`, `time`, `price`, `symbol`,
 `interval`, `externalSeries`, and `session` (an `"HH:MM-HH:MM"` window
 spec for `session.isOpen`, e.g. `input.session("0930-1600")`). `inputs.X`
-arrives at `compute` as a JSON value; the script narrows with `as
-number`/`as string`/`as boolean`. Only one `input.interval` per script
-(the user-pickable main timeframe).
+is **typed per descriptor** — `int`/`float`/`time`/`price` → `number`,
+`bool` → `boolean`, `enum<U>` → `U`, `color`/`string`/`symbol`/`interval`/
+`session` → `string`, `source` → `SourceField` — so you read it cast-free
+(an `as number` / `as string` cast stays legal but is no longer required).
+Only one `input.interval` per script (the user-pickable main timeframe).
 
-`input.externalSeries` is the exception to the JSON-value rule: it
-resolves to an indexable host-fed `Series<number>` (narrow with
-`as Series<number>`, read `.current` / `[n]`, feed it into `ta.*`
-directly). Bars the host has not fed read `NaN` — never test the
-resolved value with `typeof x === "number"`; it is a series view, so
-that check is always false.
+`input.externalSeries` resolves to an indexable host-fed `Series<number>`
+— read `.current` / `[n]` and feed it into `ta.*` directly, all cast-free
+(the old `as Series<number>` narrow is now redundant). Bars the host has
+not fed read `NaN`; a `number` field cannot hold the view, so `const n:
+number = inputs.<key>` is a **type error**, and never test the resolved
+value with `typeof x === "number"` — it is a series view, so that check is
+always false.
 
 Every builder accepts optional presentation metadata in its opts:
 `group?: string`, `inline?: string`, `tooltip?: string`,
@@ -378,8 +381,9 @@ Highlights of the surface:
   `(bar) => ta.ema(bar.close, 20)` ✅. Capturing an outer local —
   `(bar) => ta.ema(bar.close, k)` where `k` is a `compute` local — fails
   compile with `request-security-expr-captures-local`; read the input
-  inside the callback instead (`(bar) => ta.ema(bar.close, inputs.k as
-  number)`). `request.lowerTf` stays **data-only** (no callback form).
+  inside the callback instead (`(bar) => ta.ema(bar.close, inputs.k)` —
+  `inputs.k` is already typed `number`). `request.lowerTf` stays
+  **data-only** (no callback form).
 - `state.float(initial)`, `state.bool(...)`, `state.int(...)`,
   `state.string(...)` for cross-bar **scalar** state (`s.value` get/set, no
   indexing). `state.series(initial)` is the one writable **series** slot —

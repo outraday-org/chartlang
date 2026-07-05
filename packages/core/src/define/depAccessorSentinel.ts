@@ -49,10 +49,17 @@ export const depAccessorSentinel = (name: string): never => {
  *     void cs;
  */
 export const attachDepAccessorSentinels = (
-    base: Readonly<{ manifest: ScriptManifest; compute: ComputeFn }>,
+    base: Readonly<{ manifest: ScriptManifest; compute: ComputeFn<never> }>,
 ): CompiledScriptObject => ({
     manifest: base.manifest,
-    compute: base.compute,
+    // The four constructors are generic over their concrete `inputs` schema,
+    // so `opts.compute` is a `ComputeFn<ResolveComputeInputs<I>>` (its `inputs`
+    // param is narrower than the runtime's `Record<string, unknown>` bag).
+    // `ComputeFn<never>` accepts every such compute contravariantly with no
+    // cast at the call sites; widening it back to the runtime-facing `ComputeFn`
+    // is sound because the runtime always hands the real per-descriptor values
+    // — the documented `ta`-style widening cast (see runtime/CLAUDE.md).
+    compute: base.compute as ComputeFn,
     output: (name: string): Series<number> => depAccessorSentinel(`output("${name}")`),
     withInputs: (): CompiledScriptObject => depAccessorSentinel("withInputs"),
 });
