@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-core",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "type": "module",
     "license": "MIT",
     "description": "Types and primitives for chartlang scripts",
