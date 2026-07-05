@@ -1,5 +1,44 @@
 # @invinite-org/chartlang-compiler
 
+## 1.10.0
+
+### Minor Changes
+
+- df3f5b2: Type the `compute` `inputs` bag per input descriptor. `inputs.<key>` now
+  resolves to the exact value the runtime hands the script — `input.externalSeries`
+  → `Series<T>` (defaulting to `Series<number>` when the generic is omitted),
+  `int`/`float`/`time`/`price` → `number`, `bool` → `boolean`, `enum<U>` → `U`,
+  `color`/`string`/`symbol`/`interval`/`session` → `string`, `source` →
+  `SourceField` — so reads are cast-free (`inputs.bound.current`, `[n]`, and
+  feeding `ta.*` all type-check with no `as Series<number>` / `as number`). The
+  four `define*` constructors became generic over their `inputs` schema in
+  lockstep with the compiler's ambient shim; scripts that declare no `inputs`
+  keep `Readonly<Record<string, unknown>>`. Existing casts stay legal (now
+  redundant), while the previous silently-broken mis-port — treating an
+  external-series view as a plain `number` (`const n: number = inputs.bound`) —
+  is now a type error. Pure type surface: runtime output and the emitted manifest
+  are byte-identical.
+
+### Patch Changes
+
+- 1039309: Size history lookback for same-chart external-series input reads. An element
+  access of an `input.externalSeries` value — `const bound = inputs.bound;
+bound[N]`, a destructured `const { bound } = inputs; bound[N]`, or a direct
+  `inputs.bound[N]` / `inputs["bound"][N]` — now folds into `maxLookback`
+  (literal index) or trips the
+  `dynamicFallback` safety net (non-literal index), exactly like an OHLCV
+  `bar.close[N]` read. Previously such reads were unsized, collapsing the runtime
+  ring buffer to the OHLCV-derived capacity (often 1) so a deep read returned
+  `NaN`.
+
+  Passing an external series to a `ta.*` builtin (`ta.sma(bound, len)`) is
+  deliberately NOT sized: the primitive reads only the source's `.current` and
+  buffers its own window, so it needs no extra source capacity regardless of the
+  length being literal or dynamic.
+
+- Updated dependencies [df3f5b2]
+  - @invinite-org/chartlang-core@1.9.0
+
 ## 1.9.0
 
 ### Minor Changes
