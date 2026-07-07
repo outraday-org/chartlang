@@ -12,6 +12,7 @@
 // adapter is named here — ChartPane drives the swappable `activeAdapter` seam.
 
 import type { Bar } from "@invinite-org/chartlang-core"
+import { DEFAULT_EDITOR_FONT_SIZE } from "@invinite-org/chartlang-editor"
 import type { LspDiagnostic } from "@invinite-org/chartlang-language-service"
 import { createFileRoute } from "@tanstack/react-router"
 import { BellIcon } from "lucide-react"
@@ -21,6 +22,7 @@ import { toast } from "sonner"
 
 import { ChartPane } from "@/components/workspace/ChartPane"
 import { EditorPane } from "@/components/workspace/EditorPane"
+import { FontSizeControls } from "@/components/workspace/FontSizeControls"
 import {
   type CompiledArtifact,
   type CompileStatus,
@@ -103,6 +105,7 @@ function Workspace(): ReactElement {
   const [reloadKey, setReloadKey] = useState(0)
   const [editorKey, setEditorKey] = useState(0)
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null)
+  const [editorFontSize, setEditorFontSize] = useState(DEFAULT_EDITOR_FONT_SIZE)
 
   // Latest-source ref so async callbacks (save) read the current buffer
   // without re-creating handlers on every keystroke.
@@ -289,9 +292,11 @@ export default defineIndicator({
                 <BellIcon /> {alertCount}
               </Badge>
             ) : null}
+            <FontSizeControls fontSize={editorFontSize} onChange={setEditorFontSize} />
           </div>
           <div className="min-h-0 flex-1">
             <EditorPane
+              fontSize={editorFontSize}
               initialSource={source}
               key={`${editorKey}-${editorTheme}`}
               onSourceChange={setSource}

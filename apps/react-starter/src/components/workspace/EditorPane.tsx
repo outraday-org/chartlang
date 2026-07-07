@@ -52,6 +52,8 @@ export type EditorPaneProps = Readonly<{
   onSourceChange: (next: string) => void
   /** Resolved app theme; selects the CodeMirror theme extension. */
   theme: "light" | "dark"
+  /** Editor font size in px; reactively reconfigured by the package effect. */
+  fontSize: number
 }>
 
 /**
@@ -64,6 +66,7 @@ export function EditorPane(props: EditorPaneProps): ReactElement {
     <ChartlangEditor
       className="h-full overflow-hidden"
       extensions={props.theme === "dark" ? DARK_EXTENSIONS : LIGHT_EXTENSIONS}
+      fontSize={props.fontSize}
       onSourceChange={props.onSourceChange}
       service={props.service}
       source={props.initialSource}

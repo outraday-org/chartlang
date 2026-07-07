@@ -37,9 +37,71 @@
   min-height: 640px;
 }
 
+.cl-demo .pane-editor {
+  position: relative;
+}
+
 .cl-demo .editor-pane {
   height: 100%;
   overflow: auto;
+}
+
+/* ── Editor font-size control ───────────────────────────────────────── */
+
+.cl-demo .font-size-controls {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Reveal on hover, and keep visible while the preset popup is open (the
+   trigger retains focus, so `:focus-within` covers the portaled popup). */
+.cl-demo .pane-editor:hover .font-size-controls,
+.cl-demo .font-size-controls:focus-within {
+  opacity: 1;
+}
+
+.cl-demo .font-size-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.cl-demo .font-size-step:hover {
+  background: var(--muted);
+}
+
+.cl-demo .font-size-step:disabled {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.cl-demo .font-size-step:disabled:hover {
+  background: transparent;
+}
+
+.cl-demo .font-size-select {
+  min-width: 62px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .cl-demo .editor-pane .cm-editor {

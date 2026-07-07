@@ -130,6 +130,22 @@ describe("ChartlangEditor", () => {
         );
     });
 
+    it("seeds and live-updates the font size through the reactive prop", () => {
+        const { container, rerender } = render(
+            <ChartlangEditor fontSize={16} source="const value = 1;" />,
+        );
+
+        const view = findMountedView(container);
+        expect(view.state.doc.toString()).toBe("const value = 1;");
+
+        // Changing the prop reconfigures the mounted view in place — the
+        // same CM editor node survives (no remount).
+        rerender(<ChartlangEditor fontSize={20} source="const value = 1;" />);
+
+        expect(container.querySelectorAll(".cm-editor")).toHaveLength(1);
+        expect(findMountedView(container)).toBe(view);
+    });
+
     it("threads an injected service through to the linter and completions", async () => {
         let compileCalls = 0;
         const service = createTestLanguageService({

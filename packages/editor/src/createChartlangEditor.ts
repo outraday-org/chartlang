@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { javascript } from "@codemirror/lang-javascript";
-import { type Extension, EditorState } from "@codemirror/state";
+import { type Extension, Compartment, EditorState } from "@codemirror/state";
 import { EditorView, basicSetup } from "codemirror";
 
 import {
@@ -11,6 +11,8 @@ import {
     linterExtension,
     peekPanelExtension,
 } from "./extensions/index.js";
+import { clampEditorFontSize, DEFAULT_EDITOR_FONT_SIZE, editorFontSizeTheme } from "./fontSize.js";
+import { indentationExtension } from "./indentation.js";
 import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
 
 /**
@@ -29,6 +31,9 @@ import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
  *     editor.destroy();
  */
 export function createChartlangEditor(opts: ChartlangEditorOpts = {}): ChartlangEditor {
+    const fontSizeCompartment = new Compartment();
+    const initialFontSize = clampEditorFontSize(opts.fontSize ?? DEFAULT_EDITOR_FONT_SIZE);
+
     const state = EditorState.create({
         doc: opts.doc ?? "",
         extensions: [
@@ -36,12 +41,17 @@ export function createChartlangEditor(opts: ChartlangEditorOpts = {}): Chartlang
             javascript({ typescript: true }),
             ...languageServiceExtensions(opts),
             ...previewPanelExtensions(opts),
+            // Baked in by default; suppressed only when the consumer opts out.
+            ...(opts.indentation === false ? [] : [indentationExtension]),
             EditorView.updateListener.of((update) => {
                 if (update.docChanged) opts.onSourceChange?.(update.state.doc.toString());
             }),
-            // Consumer extensions land LAST so themes / read-only flags /
-            // custom keymaps can override the basicSetup defaults.
+            // Consumer extensions land before the font-size theme so themes /
+            // read-only flags / custom keymaps can still override the
+            // basicSetup defaults, but the font-size theme is appended LAST so
+            // the applied size always wins over any consumer theme's font CSS.
             ...(opts.extensions ?? []),
+            fontSizeCompartment.of(editorFontSizeTheme(initialFontSize)),
         ],
     });
     const view =
@@ -57,6 +67,13 @@ export function createChartlangEditor(opts: ChartlangEditorOpts = {}): Chartlang
         },
         setSource(source: string): void {
             view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+        },
+        setFontSize(px: number): void {
+            view.dispatch({
+                effects: fontSizeCompartment.reconfigure(
+                    editorFontSizeTheme(clampEditorFontSize(px)),
+                ),
+            });
         },
         setCapabilities(caps): void {
             void caps;

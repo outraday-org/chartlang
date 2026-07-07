@@ -45,6 +45,25 @@ describe("createChartlangEditor", () => {
         expect(parent.contains(editor.view.dom)).toBe(false);
     });
 
+    it("exposes setFontSize as a live, no-remount reconfigure on the handle", () => {
+        const parent = document.createElement("div");
+        const editor = createChartlangEditor({ doc: "const value = 1;", fontSize: 18, parent });
+        const mountedDom = editor.view.dom;
+
+        expect(typeof editor.setFontSize).toBe("function");
+
+        // Clamped extremes reconfigure the compartment without throwing and
+        // without swapping the mounted view / clobbering the document.
+        editor.setFontSize(11);
+        editor.setFontSize(30);
+
+        expect(editor.view.dom).toBe(mountedDom);
+        expect(parent.contains(editor.view.dom)).toBe(true);
+        expect(editor.view.state.doc.toString()).toBe("const value = 1;");
+
+        editor.destroy();
+    });
+
     it("allows callers to attach the view DOM themselves", () => {
         const editor = createChartlangEditor();
         const parent = document.createElement("div");

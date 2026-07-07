@@ -50,6 +50,10 @@ export type ChartlangEditorOpts = Readonly<{
     previewPanel?: boolean;
     previewRunner?: unknown;
     extensions?: ReadonlyArray<Extension>;
+    /** Initial editor font size in px. Clamped to [11, 22]. Defaults to 14. */
+    fontSize?: number;
+    /** Bake in the chartlang Tab/auto-indent keymap. Defaults to true. */
+    indentation?: boolean;
 }>;
 
 /**
@@ -65,6 +69,12 @@ export type ChartlangEditor = Readonly<{
     view: EditorView;
     destroy(): void;
     setSource(source: string): void;
+    /**
+     * Live-update the editor font size (px, clamped to [11, 22]). No remount.
+     *
+     * @since 2.4
+     */
+    setFontSize(px: number): void;
     /**
      * @deprecated No-op. Capability updates belong to the injected
      * language service.

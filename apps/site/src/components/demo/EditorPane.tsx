@@ -25,6 +25,7 @@ export type EditorPaneProps = Readonly<{
     initialSource: string;
     service: LanguageService;
     onSourceChange: (next: string) => void;
+    fontSize: number;
 }>;
 
 /**
@@ -39,6 +40,7 @@ export function EditorPane(props: EditorPaneProps): ReactElement {
         <ChartlangEditor
             className="editor-pane"
             extensions={EDITOR_EXTENSIONS}
+            fontSize={props.fontSize}
             onSourceChange={props.onSourceChange}
             service={props.service}
             source={props.initialSource}

@@ -35,6 +35,12 @@ export type ChartlangEditorProps = Readonly<{
     previewPanel?: ChartlangEditorOpts["previewPanel"];
     previewRunner?: ChartlangEditorOpts["previewRunner"];
     extensions?: ChartlangEditorOpts["extensions"];
+    /**
+     * Live editor font size in px (clamped to [11, 22]). Unlike `extensions`,
+     * this is a reactive seam — changing it reconfigures the mounted view
+     * without remounting.
+     */
+    fontSize?: ChartlangEditorOpts["fontSize"];
     className?: string;
 }>;
 
@@ -56,6 +62,7 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     const previewPanelRef = useRef(props.previewPanel);
     const previewRunnerRef = useRef(props.previewRunner);
     const extensionsRef = useRef(props.extensions);
+    const fontSizeRef = useRef(props.fontSize);
     const onSourceChangeRef = useRef(props.onSourceChange);
 
     targetCapabilitiesRef.current = props.targetCapabilities;
@@ -63,6 +70,7 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
     previewPanelRef.current = props.previewPanel;
     previewRunnerRef.current = props.previewRunner;
     extensionsRef.current = props.extensions;
+    fontSizeRef.current = props.fontSize;
     onSourceChangeRef.current = props.onSourceChange;
 
     const setContainer = useCallback((node: HTMLDivElement | null): void => {
@@ -86,6 +94,7 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
                 ? {}
                 : { previewRunner: previewRunnerRef.current }),
             ...(extensionsRef.current === undefined ? {} : { extensions: extensionsRef.current }),
+            ...(fontSizeRef.current === undefined ? {} : { fontSize: fontSizeRef.current }),
             onSourceChange: (next) => {
                 sourceRef.current = next;
                 onSourceChangeRef.current?.(next);
@@ -101,6 +110,10 @@ export function ChartlangEditor(props: ChartlangEditorProps): ReactElement {
             sourceRef.current = props.source;
         }
     }, [props.source]);
+
+    useEffect(() => {
+        if (props.fontSize !== undefined) editorRef.current?.setFontSize(props.fontSize);
+    }, [props.fontSize]);
 
     useEffect(() => {
         // Deprecated no-op kept for compatibility. Capability updates

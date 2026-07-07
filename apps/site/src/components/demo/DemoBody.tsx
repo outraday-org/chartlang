@@ -11,12 +11,14 @@
 
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar } from "@invinite-org/chartlang-core"
+import { DEFAULT_EDITOR_FONT_SIZE } from "@invinite-org/chartlang-editor"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 
 import { DEFAULT_ADAPTER_ID, isDemoAdapterId } from "./adapters/registry"
 import { ChartPane } from "./ChartPane"
 import { EditorPane } from "./EditorPane"
 import { ExampleBrowser } from "./ExampleBrowser"
+import { FontSizeControls } from "./FontSizeControls"
 import { type CompiledArtifact, createHybridLanguageService } from "./hybridLanguageService"
 import { DEMO_SCRIPTS } from "./scripts"
 
@@ -93,6 +95,9 @@ export default function DemoBody(): ReactElement {
   const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([])
   const [scriptId, setScriptId] = useState(initialScriptId)
   const [adapterId, setAdapterId] = useState(resolveInitialAdapterId)
+  // Ephemeral editor font size. Lives here (not in EditorPane) so it survives
+  // the `key`-driven EditorPane remount when the user picks another example.
+  const [editorFontSize, setEditorFontSize] = useState<number>(DEFAULT_EDITOR_FONT_SIZE)
   const script = DEMO_SCRIPTS.find((s) => s.id === scriptId) ?? DEMO_SCRIPTS[0]
   const setArtifactRef = useRef(setArtifact)
   setArtifactRef.current = setArtifact
@@ -151,7 +156,9 @@ export default function DemoBody(): ReactElement {
 
       <div className="panes">
         <section className="pane pane-editor">
+          <FontSizeControls fontSize={editorFontSize} onChange={setEditorFontSize} />
           <EditorPane
+            fontSize={editorFontSize}
             initialSource={script?.source ?? ""}
             key={script?.id ?? "none"}
             onSourceChange={() => {
