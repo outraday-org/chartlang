@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-host-worker",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "type": "module",
     "license": "MIT",
     "description": "Web Worker ScriptHost for the browser",

@@ -1,5 +1,16 @@
 # chartlang-site
 
+## 0.0.15
+
+### Patch Changes
+
+- Updated dependencies [89cac8e]
+  - @invinite-org/chartlang-core@1.10.0
+  - @invinite-org/chartlang-host-worker@1.4.2
+  - @invinite-org/chartlang-editor@2.3.6
+  - @invinite-org/chartlang-language-service@1.5.4
+  - @invinite-org/chartlang-pine-converter@0.7.0
+
 ## 0.0.14
 
 ### Patch Changes
