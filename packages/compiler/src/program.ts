@@ -807,6 +807,7 @@ declare module "@invinite-org/chartlang-core" {
         | { readonly kind: "step-line" }
         | { readonly kind: "horizontal-line" }
         | { readonly kind: "histogram"; readonly baseline?: number }
+        | { readonly kind: "area"; readonly fillAlpha?: number }
         | {
               readonly kind: "marker";
               readonly shape: PlotGlyphShape;

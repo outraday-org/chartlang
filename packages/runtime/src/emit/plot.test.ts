@@ -392,6 +392,37 @@ describe("plot — style selection (opts.style)", () => {
         }
     });
 
+    it("emits an area style when opts.style.kind === 'area' (default fillAlpha 0.2)", () => {
+        const caps = makeCaps({ plots: new Set(["line", "area"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 42, {
+            style: { kind: "area" },
+            lineWidth: 2,
+            lineStyle: "dotted",
+        });
+        expect(emissions.plots).toHaveLength(1);
+        const style = emissions.plots[0].style;
+        expect(style.kind).toBe("area");
+        if (style.kind === "area") {
+            expect(style.lineWidth).toBe(2);
+            expect(style.lineStyle).toBe("dotted");
+            expect(style.fillAlpha).toBe(0.2);
+        }
+    });
+
+    it("respects an explicit area fillAlpha", () => {
+        const caps = makeCaps({ plots: new Set(["line", "area"]) });
+        const { ctx, emissions } = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+        plot("a:1:1#0", 10, { style: { kind: "area", fillAlpha: 0.5 } });
+        const style = emissions.plots[0].style;
+        if (style.kind !== "area") throw new Error("expected area");
+        expect(style.fillAlpha).toBe(0.5);
+        expect(style.lineWidth).toBe(1);
+        expect(style.lineStyle).toBe("solid");
+    });
+
     it("falls back to line when opts.style is omitted", () => {
         const { ctx, emissions } = makeCtx();
         ACTIVE_RUNTIME_CONTEXT.current = ctx;

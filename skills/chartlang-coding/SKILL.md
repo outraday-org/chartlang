@@ -292,7 +292,10 @@ Highlights of the surface:
   pitchforks, harmonic patterns, Elliott waves, cycles.
 - `plot(value, opts?)` and `hline(level, opts?)` for per-bar value plots
   and horizontal lines. `plot`'s opts include `color` / `title` / `lineWidth` /
-  `lineStyle` / `style` / `z`, plus `visible?: boolean` — pass `visible: false`
+  `lineStyle` / `style` / `z` — `style` selects the render kind (`line`
+  default, `step-line`, `histogram` with a `baseline`, `area` with a
+  `fillAlpha` fill down to the adapter's baseline, plus the glyph and
+  override kinds) — and `visible?: boolean` — pass `visible: false`
   (or a boolean input toggle, `{ visible: showRsi }`) to hide the plot. Hiding
   SUPPRESSES the mark (removed from the chart AND the y-scale); it is NOT the
   same as plotting `NaN`, which leaves a gap in the line. Omitting `visible`

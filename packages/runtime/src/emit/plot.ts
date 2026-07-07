@@ -98,6 +98,13 @@ function buildStyle(opts: PlotOpts): PlotStyle {
             return { kind: "bar-color", color: style.color };
         case "horizontal-histogram":
             return { kind: "horizontal-histogram", buckets: style.buckets };
+        case "area":
+            return {
+                kind: "area",
+                lineWidth: opts.lineWidth ?? 1,
+                lineStyle: opts.lineStyle ?? "solid",
+                fillAlpha: style.fillAlpha ?? 0.2,
+            };
         case "line":
         case "step-line":
         case "horizontal-line":

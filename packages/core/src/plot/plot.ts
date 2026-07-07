@@ -104,7 +104,8 @@ export type HorizontalHistogramBucket = Readonly<{
  * from sibling {@link PlotOpts} fields (`lineWidth` / `lineStyle`) for
  * line-like styles.
  *
- * `histogram.baseline` defaults to `0` when omitted.
+ * `histogram.baseline` defaults to `0` when omitted; `area.fillAlpha`
+ * defaults to `0.2`.
  *
  * @formula  N/A — script-facing style input
  * @since 0.2
@@ -119,6 +120,19 @@ export type PlotOptsStyle =
     | { readonly kind: "step-line" }
     | { readonly kind: "horizontal-line" }
     | { readonly kind: "histogram"; readonly baseline?: number }
+    /**
+     * Filled area under the plotted line — the polyline stroked on top of
+     * a translucent fill down to the adapter's baseline. `fillAlpha` is
+     * the fill opacity in `[0, 1]` (defaults to `0.2` at emit time);
+     * `lineWidth` / `lineStyle` come from the sibling {@link PlotOpts}
+     * fields like the other line-family arms.
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     plot(ta.rsi(bar.close, 14), { style: { kind: "area", fillAlpha: 0.25 } });
+     */
+    | { readonly kind: "area"; readonly fillAlpha?: number }
     | {
           readonly kind: "marker";
           readonly shape: PlotGlyphShape;
