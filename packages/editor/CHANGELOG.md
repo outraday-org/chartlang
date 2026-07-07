@@ -1,5 +1,16 @@
 # @invinite-org/chartlang-editor
 
+## 2.4.0
+
+### Minor Changes
+
+- 32eb444: Add editor font-size control (`opts.fontSize`, `editor.setFontSize()`, the
+  reactive `<ChartlangEditor fontSize>` prop, `editorFontSizeTheme`, and the
+  `DEFAULT_/MIN_/MAX_EDITOR_FONT_SIZE` + `EDITOR_FONT_SIZE_PRESETS` +
+  `clampEditorFontSize` helpers) and bake in the chartlang Tab/auto-indent
+  keymap (`indentationExtension`, on by default, opt out with
+  `opts.indentation: false`).
+
 ## 2.3.6
 
 ### Patch Changes
