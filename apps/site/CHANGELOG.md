@@ -1,5 +1,12 @@
 # chartlang-site
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [32eb444]
+  - @invinite-org/chartlang-editor@2.4.0
+
 ## 0.0.15
 
 ### Patch Changes
