@@ -383,6 +383,31 @@ export default defineIndicator({
         expect(Object.isFrozen(result)).toBe(true);
     });
 
+    it("type-checks the area plot style arm through the ambient shim", async () => {
+        // `{ kind: "area", fillAlpha? }` is an author-selectable PlotOptsStyle
+        // arm (core 1.10) — the shim must mirror it in lockstep or scripts
+        // selecting it fail with `type-error`. A successful compile proves
+        // zero type diagnostics; the manifest pin proves the callsite-kind
+        // extractor recognises the literal.
+        const AREA = `
+import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "area",
+    apiVersion: 1,
+    compute({ bar, ta, plot }) {
+        plot(ta.rsi(bar.close, 14), { title: "rsi", style: { kind: "area", fillAlpha: 0.25 } });
+        plot(ta.ema(bar.close, 20), { title: "ema", style: { kind: "area" } });
+    },
+});
+`;
+        const result = await compile(AREA, {
+            apiVersion: 1,
+            sourcePath: "area.chart.ts",
+        });
+        expect(Object.isFrozen(result)).toBe(true);
+        expect(result.manifest.plots?.map((p) => p.kind)).toEqual(["area", "area"]);
+    });
+
     it("type-checks the destructured ctx.bgcolor/ctx.barcolor through the shim ComputeContext", async () => {
         // The runtime binds bgcolor/barcolor on ComputeContext, so the shim's
         // ComputeContext must carry both fields (in lockstep with core). This
