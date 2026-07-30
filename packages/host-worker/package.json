@@ -9,16 +9,20 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./idb": {
             "types": "./dist/idb.d.ts",
-            "import": "./dist/idb.js"
+            "import": "./dist/idb.js",
+            "default": "./dist/idb.js"
         },
         "./worker-boot": {
             "types": "./dist/worker-boot.d.ts",
-            "import": "./dist/worker-boot.js"
-        }
+            "import": "./dist/worker-boot.js",
+            "default": "./dist/worker-boot.js"
+        },
+        "./package.json": "./package.json"
     },
     "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {

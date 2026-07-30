@@ -9,12 +9,15 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./canvas": {
             "types": "./dist/canvas/index.d.ts",
-            "import": "./dist/canvas/index.js"
-        }
+            "import": "./dist/canvas/index.js",
+            "default": "./dist/canvas/index.js"
+        },
+        "./package.json": "./package.json"
     },
     "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
     "scripts": {

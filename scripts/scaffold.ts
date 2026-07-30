@@ -135,9 +135,6 @@ const SUBPATH_EXPORTS: Record<string, Record<string, SubpathExport>> = {
             import: "./dist/diagnostics/index.js",
         },
     },
-    "packages/conformance": {
-        "./package.json": "./package.json",
-    },
 };
 
 const MIT_HEADER =
@@ -173,7 +170,15 @@ function pkgJson(dir: string, name: string, description: string): string {
                 ".": {
                     types: "./dist/index.d.ts",
                     import: "./dist/index.js",
+                    // LAST condition, deliberately: Node matches `exports`
+                    // conditions in declaration order, and without a `default`
+                    // the `require` condition set (`node`/`require`/`default`)
+                    // matches nothing, so `require.resolve` of the package
+                    // throws ERR_PACKAGE_PATH_NOT_EXPORTED. Hosts resolve the
+                    // package that way to read its installed version.
+                    default: "./dist/index.js",
                 },
+                "./package.json": "./package.json",
             },
             files: ["dist", "README.md", "CHANGELOG.md"],
             scripts: {
@@ -201,7 +206,11 @@ function pkgJson(dir: string, name: string, description: string): string {
             ".": {
                 types: "./dist/index.d.ts",
                 import: "./dist/index.js",
+                // See the private-package body above: `default` must be LAST and
+                // must exist, or CJS `require.resolve` of the package throws.
+                default: "./dist/index.js",
             },
+            "./package.json": "./package.json",
             ...SUBPATH_EXPORTS[dir],
         },
         files: ["dist", "README.md", "CHANGELOG.md"],
