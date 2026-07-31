@@ -81,7 +81,10 @@ GitHub-specific configuration: CI workflow and pull-request template.
   `changeset publish` when none remain. Keep write permissions job-local
   and ensure `NPM_TOKEN` is configured in repo secrets before merging
   release PRs. Manual fallback is `pnpm publish:release` from a maintainer
-  machine.
+  machine. It runs on **Node 22** (not 20): its `pnpm build` step builds
+  every workspace project including `apps/site` + `apps/react-starter`,
+  whose `engines.node` is `>=22`, so Node 20 emitted an "Unsupported
+  engine" WARN for both on every release.
 - **`changeset publish` is non-atomic, and that is safe to re-run.** It
   publishes packages one at a time; if one fails (e.g. an E403 because the
   `NPM_TOKEN` is scoped to `@invinite-org` and the package name is outside

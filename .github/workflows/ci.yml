@@ -214,7 +214,13 @@ jobs:
               with: { fetch-depth: 0 }
             - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v4
-              with: { node-version: 20, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+              # Node 22, not 20: `pnpm build` builds every workspace project,
+              # including `apps/site` + `apps/react-starter` whose
+              # `engines.node` is `>=22`. On Node 20 pnpm emits an
+              # "Unsupported engine" WARN for both (harmless today — they are
+              # `private` and never published — but it is noise, and Node 20 is
+              # deprecated on GitHub runners).
+              with: { node-version: 22, cache: pnpm, registry-url: "https://registry.npmjs.org" }
             - run: pnpm install --frozen-lockfile
             - run: pnpm build
             - id: changesets
