@@ -1,5 +1,15 @@
 # @invinite-org/chartlang-examples
 
+## 0.2.1
+
+### Patch Changes
+
+- 795f544: Add a `default` condition to every `exports` entry and a `./package.json`
+  subpath so CJS `require.resolve` no longer throws
+  `ERR_PACKAGE_PATH_NOT_EXPORTED`. Hosts resolve the installed compiler to read
+  its version through `require.resolve`; without a `require`/`default`-matching
+  condition that resolution failed. ESM `import` resolution is unchanged.
+
 ## 0.2.0
 
 ### Minor Changes
