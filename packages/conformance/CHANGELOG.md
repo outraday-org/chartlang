@@ -1,5 +1,22 @@
 # @invinite-org/chartlang-conformance
 
+## 1.4.1
+
+### Patch Changes
+
+- Updated dependencies [166222f]
+- Updated dependencies [166222f]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+- Updated dependencies [bc93986]
+- Updated dependencies [bc93986]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+  - @invinite-org/chartlang-core@1.11.0
+  - @invinite-org/chartlang-pine-converter@0.8.0
+  - @invinite-org/chartlang-compiler@1.12.0
+  - @invinite-org/chartlang-runtime@1.10.0
+
 ## 1.4.0
 
 ### Minor Changes

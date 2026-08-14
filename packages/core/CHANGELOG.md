@@ -1,5 +1,89 @@
 # @invinite-org/chartlang-core
 
+## 1.11.0
+
+### Minor Changes
+
+- 166222f: Add the optional `ScriptManifest.compilerVersion` field.
+
+  The `StateStoreKey` tuple has always carried a `compilerVersion` slot with no
+  artifact-side source for it, leaving every consumer to guess. The manifest now
+  declares the slot's source directly.
+
+  The field is **optional on purpose**: `defineAlertCondition` builds a
+  `ScriptManifest` at script runtime inside the compiled bundle, where no
+  compiler exists. An absent value means "unknown", never a version — consumers
+  keying a cache on it should treat absence as a bypass rather than defaulting to
+  a placeholder string.
+
+- bc93986: `SessionCalendar`: pluggable holiday / half-day awareness for the session helpers
+
+  Until now no part of chartlang knew a market holiday from a Tuesday, so the
+  ~13 US half days a year read as full sessions and a post-13:00 Black Friday
+  tick counted as regular session.
+
+  `packages/core/src/time/sessionCalendar.ts` adds the interface — chartlang owns
+  it, the consumer owns the data:
+
+  - `SessionCalendarDay` — one exception day, discriminated on `kind`:
+    `{ dayKey, kind: "closed" }` or `{ dayKey, kind: "halfDay", closeMinutes }`.
+    `dayKey` is the local `"YYYY-MM-DD"` key; `closeMinutes` is a **local
+    exchange minute-of-day**, not UTC, so it flows through the same wall-clock
+    conversion that already solves DST.
+  - `SessionCalendar` — the O(1) `lookup(dayKey)` handle.
+  - `createSessionCalendar(days)` — builds it once, and REJECTS a `halfDay`
+    whose `closeMinutes` is not an integer in `[0, 1440]` rather than failing
+    open later.
+
+  `nySessionBounds`, `regularSession`, `extendedSession`, `isOpen` and the frozen
+  `session` namespace each take the calendar as an optional trailing argument
+  (never module state). Omit it and behaviour is byte-identical — asserted by a
+  property test over arbitrary zones and instants, not just a few dates. A
+  `closed` day yields no session; a `halfDay` truncates the window end, including
+  the extended window, because the consumer supplies exactly one close minute and
+  synthesising an after-hours tail would be fabricated data. The weekend branch
+  still runs first, so a row for a Saturday is inert, and a day the calendar does
+  not mention is unchanged.
+
+  The rows are the WIRE form on purpose: a `lookup()` method cannot cross a
+  worker or QuickJS membrane, so both hosts carry `SessionCalendarDay[]` on their
+  `load` frame and rebuild the interface on the far side. Because both the
+  host-facing predicates and the script-facing runtime accessor need the shape,
+  `sessionCalendar.ts` is the one `src/time/` module the package root barrel
+  exports — it is pure data and drags no `Intl` into the runtime bundle.
+
+- 166222f: `StateSnapshot` carries an explicit `barIndex`; wire version bumped to 2
+
+  `StateSnapshot` gains a required `barIndex` — the absolute index of the last
+  bar folded into the snapshot, or `-1` when none — so a restored runner knows
+  exactly which bar it stands on. The cursor was previously derived from the
+  snapshot stream's `filled` count, which is exact only until the ring wraps;
+  `captureStateSnapshot` now stamps `barIndex` and `restoreStateSnapshot`
+  resumes at `barIndex + 1`, exact for saturated rings too.
+
+  `snapshotVersion` moves 1 → 2 and the runtime validator rejects version-1
+  payloads (they predate the field). There is no migration: a rejected snapshot
+  means a full replay, which is what a rejected snapshot has always meant. The
+  compiler's ambient script-facing mirror of the type is updated to match.
+
+- bc93986: `StateStoreKey` identity helpers + a typed `SnapshotError`
+
+  `stateStoreKeyId(key)` is the canonical string form of a `StateStoreKey` —
+  fixed field order, joined `requestedIntervals` — so two structurally equal
+  keys written in different literal orders always serialise identically.
+  `stateStoreKeysEqual(a, b)` compares two optional keys through it, treating a
+  pair of absent keys as a match and an absent-vs-present pair as a mismatch.
+  `idbStateStore` now addresses its records through the shared helper instead of
+  a private copy; the emitted string is byte-identical, so existing records stay
+  addressable.
+
+  `SnapshotError` (with the structural `isSnapshotError` guard) is the typed
+  failure both hosts raise when a snapshot verb is refused — called before
+  `load`, called after the first push, a key mismatch, or a payload the
+  validator rejects. The guard matches on `name` rather than `instanceof` so it
+  stays true across a worker / QuickJS membrane and across duplicated package
+  copies.
+
 ## 1.10.1
 
 ### Patch Changes

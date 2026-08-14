@@ -18,4 +18,4 @@
  *     const v: string = COMPILER_VERSION;
  *     void v;
  */
-export const COMPILER_VERSION: string = "1.11.1";
+export const COMPILER_VERSION: string = "1.12.0";

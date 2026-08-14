@@ -1,5 +1,47 @@
 # @invinite-org/chartlang-compiler
 
+## 1.12.0
+
+### Minor Changes
+
+- 166222f: Stamp `manifest.compilerVersion` on every compiled artifact.
+
+  `buildManifest` now emits the compiler's own package version on each manifest
+  it builds (including sibling manifests), so a consumer can key an artifact
+  cache — or fill the `compilerVersion` slot of a `StateStoreKey` — from
+  `compiled.manifest` alone, with no `package.json` read and no
+  `require.resolve`. The value also rides the serialized `__manifest` tail, so it
+  crosses the host-worker and QuickJS boundaries with the manifest it belongs to.
+
+  The constant lives in a generated `src/version.generated.ts` emitted from
+  `package.json` by `pnpm compiler:version:generate`; `pnpm compiler:version:gate`
+  fails the build on drift, and the generator is chained into
+  `pnpm changeset:version` so a release commit can never ship a stale stamp. The
+  compiler's ambient `@invinite-org/chartlang-core` shim mirrors the new manifest
+  field in lockstep.
+
+### Patch Changes
+
+- 166222f: `StateSnapshot` carries an explicit `barIndex`; wire version bumped to 2
+
+  `StateSnapshot` gains a required `barIndex` — the absolute index of the last
+  bar folded into the snapshot, or `-1` when none — so a restored runner knows
+  exactly which bar it stands on. The cursor was previously derived from the
+  snapshot stream's `filled` count, which is exact only until the ring wraps;
+  `captureStateSnapshot` now stamps `barIndex` and `restoreStateSnapshot`
+  resumes at `barIndex + 1`, exact for saturated rings too.
+
+  `snapshotVersion` moves 1 → 2 and the runtime validator rejects version-1
+  payloads (they predate the field). There is no migration: a rejected snapshot
+  means a full replay, which is what a rejected snapshot has always meant. The
+  compiler's ambient script-facing mirror of the type is updated to match.
+
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+  - @invinite-org/chartlang-core@1.11.0
+
 ## 1.11.1
 
 ### Patch Changes
