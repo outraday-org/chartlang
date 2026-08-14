@@ -14,7 +14,7 @@ export default defineIndicator({
         label: input.string("Trend", { title: "Line label" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const label = inputs.label as string;
+        const label = inputs.label;
         plot(ta.ema(bar.close, 20), { color: "#26a69a", title: label, lineWidth: 2 });
     },
 });

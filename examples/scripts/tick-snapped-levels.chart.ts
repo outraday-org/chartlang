@@ -22,7 +22,7 @@ export default defineIndicator({
         // tick grid so the lines land on real, tradable price levels. `math` is
         // a module-scope import (not a `compute` field); `syminfo` is the field
         // supplying the tick size.
-        const fraction = (inputs.bandPercent as number) / 100;
+        const fraction = inputs.bandPercent / 100;
         const resistance = math.roundToMintick(bar.close * (1 + fraction), syminfo.mintick);
         const support = math.roundToMintick(bar.close * (1 - fraction), syminfo.mintick);
         draw.horizontalLine(resistance, { color: "#ef4444", lineStyle: "dashed" });

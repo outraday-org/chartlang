@@ -49,6 +49,7 @@ function key(id: string): StateStoreKey {
 function snapshot(savedAt: number, payload = "payload"): StateSnapshot {
     return {
         lastBarTime: savedAt - 1_000,
+        barIndex: 2,
         streams: {
             "1m": {
                 interval: "1m",
@@ -65,7 +66,7 @@ function snapshot(savedAt: number, payload = "payload"): StateSnapshot {
             },
         },
         savedAt,
-        snapshotVersion: 1,
+        snapshotVersion: 2,
         primary: { slots: { payload } },
     };
 }

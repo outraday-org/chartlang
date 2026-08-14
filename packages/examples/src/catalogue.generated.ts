@@ -323,7 +323,7 @@ const baseTrend = defineIndicator({
     overlay: true,
     inputs: { length: input.int(20, { min: 2, max: 250 }) },
     compute({ bar, ta, inputs, plot }) {
-        plot(ta.ema(bar.close, inputs.length as number), { title: "line" });
+        plot(ta.ema(bar.close, inputs.length), { title: "line" });
     },
 });
 
@@ -941,7 +941,7 @@ export default defineIndicator({
         // tick grid so the lines land on real, tradable price levels. \`math\` is
         // a module-scope import (not a \`compute\` field); \`syminfo\` is the field
         // supplying the tick size.
-        const fraction = (inputs.bandPercent as number) / 100;
+        const fraction = inputs.bandPercent / 100;
         const resistance = math.roundToMintick(bar.close * (1 + fraction), syminfo.mintick);
         const support = math.roundToMintick(bar.close * (1 - fraction), syminfo.mintick);
         draw.horizontalLine(resistance, { color: "#ef4444", lineStyle: "dashed" });
@@ -1067,7 +1067,7 @@ export default defineIndicator({
         // ticker. \`.split(...).map(...)\` is plain JS array work — only stateful
         // \`ta.*\` / \`draw.*\` calls are loop-restricted — so every \`str.*\` step
         // runs freely inside the callback.
-        const raw = inputs.tags as string;
+        const raw = inputs.tags;
         const rows = str.split(raw, ",").map((token) => {
             const tag = str.trim(token); // drop the stray spaces around each token
             const clean = str.replace(tag, "#", ""); // strip a leading hash (first occurrence)
@@ -1111,7 +1111,7 @@ export default defineIndicator({
     overlay: true,
     inputs: { length: input.int(50, { min: 2, max: 250 }) },
     compute({ bar, ta, inputs, plot }) {
-        plot(ta.ema(bar.close, inputs.length as number), {
+        plot(ta.ema(bar.close, inputs.length), {
             title: "line",
             color: "#3b82f6",
         });
@@ -1137,7 +1137,7 @@ export default defineIndicator({
     },
     compute({ bar, ta, plot, state, timeframe, inputs }) {
         if (!timeframe.isdaily) return;
-        const rsi = ta.rsi(bar.close, inputs.length as number);
+        const rsi = ta.rsi(bar.close, inputs.length);
         const barsSince = state.int(0);
         const overbought = rsi.current > 70;
         const oversold = rsi.current < 30;
@@ -1165,7 +1165,7 @@ export default defineIndicator({
         offsetPercent: input.float(2, { min: 0, max: 50, step: 0.1, title: "Offset (%)" }),
     },
     compute({ bar, syminfo, plot, inputs }) {
-        const target = bar.close * (1 + (inputs.offsetPercent as number) / 100);
+        const target = bar.close * (1 + inputs.offsetPercent / 100);
         if (!Number.isFinite(syminfo.mintick)) {
             plot(target, { color: "#10b981", title: "Target (raw)" });
             return;
@@ -2743,7 +2743,7 @@ export default defineIndicator({
         // Bucketize volume from the picked time anchor forward and plot the
         // point of control — the price level holding the most volume (NaN
         // until the anchor→current window has positive volume).
-        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor as number, rowSize: 24 });
+        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor, rowSize: 24 });
         plot(vp.poc, { color: "#ab47bc", title: "Anchored POC" });
     },
 });
@@ -2767,8 +2767,8 @@ export default defineIndicator({
         // plus the value-area high/low band; the defaults span the full range
         // (epoch start → year 2100) so the demo renders without picking.
         const vp = ta.fixedRangeVolumeProfile({
-            from: inputs.from as number,
-            to: inputs.to as number,
+            from: inputs.from,
+            to: inputs.to,
             rowSize: 24,
         });
         plot(vp.poc, { color: "#ab47bc", title: "Fixed Range POC" });
@@ -5088,7 +5088,7 @@ export default defineIndicator({
         length: input.int(20, { min: 2, max: 200, title: "SMA length" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const length = inputs.length as number;
+        const length = inputs.length;
         plot(ta.sma(bar.close, length), { color: "#26a69a", title: "SMA", lineWidth: 2 });
     },
 });
@@ -5113,7 +5113,7 @@ export default defineIndicator({
     compute({ bar, ta, plot, inputs }) {
         // \`ta.*\` returns a \`Series<number>\` (not number-coercible), so the band
         // arithmetic reads each series' \`.current\` scalar.
-        const mult = inputs.mult as number;
+        const mult = inputs.mult;
         const basis = ta.sma(bar.close, 20);
         const dev = ta.stdev(bar.close, 20);
         plot(basis, { color: "#90caf9", title: "Basis", lineWidth: 2 });
@@ -5139,7 +5139,7 @@ export default defineIndicator({
         showMa: input.bool(true, { title: "Show EMA" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const showMa = inputs.showMa as boolean;
+        const showMa = inputs.showMa;
         plot(showMa ? ta.ema(bar.close, 20) : Number.NaN, {
             color: "#26a69a",
             title: "EMA(20)",
@@ -5165,7 +5165,7 @@ export default defineIndicator({
         label: input.string("Trend", { title: "Line label" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const label = inputs.label as string;
+        const label = inputs.label;
         plot(ta.ema(bar.close, 20), { color: "#26a69a", title: label, lineWidth: 2 });
     },
 });
@@ -5187,7 +5187,7 @@ export default defineIndicator({
         maType: input.enum("ema", ["ema", "sma", "wma"], { title: "MA type" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const maType = inputs.maType as string;
+        const maType = inputs.maType;
         const ma =
             maType === "sma"
                 ? ta.sma(bar.close, 20)
@@ -5215,7 +5215,7 @@ export default defineIndicator({
         col: input.color("#26a69a", { title: "Line color" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const col = inputs.col as string;
+        const col = inputs.col;
         plot(ta.ema(bar.close, 20), { color: col, title: "EMA(20)", lineWidth: 2 });
     },
 });
@@ -5264,7 +5264,7 @@ export default defineIndicator({
         tf: input.interval("1D", { title: "Tuned-for timeframe" }),
     },
     compute({ bar, ta, plot, inputs, timeframe }) {
-        const tf = inputs.tf as string;
+        const tf = inputs.tf;
         const matches = timeframe.period === tf;
         plot(ta.sma(bar.close, 20), {
             color: matches ? "#26a69a" : "#94a3b8",
@@ -5292,7 +5292,7 @@ export default defineIndicator({
         level: input.price(125, { title: "Guide level" }),
     },
     compute({ hline, inputs }) {
-        const level = inputs.level as number;
+        const level = inputs.level;
         hline(level, { color: "#ef5350", lineStyle: "dashed", title: "Level" });
     },
 });
@@ -5315,7 +5315,7 @@ export default defineIndicator({
         anchor: input.time(1_700_000_000_000, { title: "Anchor time", pickFromChart: true }),
     },
     compute({ draw, inputs }) {
-        const anchor = inputs.anchor as number;
+        const anchor = inputs.anchor;
         draw.verticalLine(anchor, { color: "#f59e0b", lineStyle: "dashed" });
     },
 });
@@ -5328,8 +5328,8 @@ const INPUT_SYMBOL_SECURITY = `// Copyright (c) 2026 Invinite. Licensed under th
 // tuned for; the SMA is tinted teal when the chart's own \`bar.symbol\` matches
 // it, grey otherwise. At the default ("GOLDEN") on the demo's GOLDEN bars the
 // line reads teal. (Feeding \`inputs.sym\` straight into \`request.security\` is
-// avoided here: the resolved input is typed \`unknown\`, and the cast it would
-// need defeats the compiler's static \`input.symbol\` symbol resolution.)
+// avoided here: the resolved input is a plain \`string\`, but the compiler's
+// static symbol analyser only accepts a string literal or an \`input.enum\`.)
 
 import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
 
@@ -5341,7 +5341,7 @@ export default defineIndicator({
         sym: input.symbol("GOLDEN", { title: "Tuned-for symbol" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const sym = inputs.sym as string;
+        const sym = inputs.sym;
         const matches = bar.symbol === sym;
         plot(ta.sma(bar.close, 20), {
             color: matches ? "#26a69a" : "#94a3b8",
@@ -6189,7 +6189,7 @@ export default defineAlertCondition({
         },
     },
     compute({ bar, ta, inputs, signal }) {
-        const ema = ta.ema(bar.close, inputs.length as number);
+        const ema = ta.ema(bar.close, inputs.length);
         signal?.("up", ta.crossover(bar.close, ema).current);
         signal?.("down", ta.crossunder(bar.close, ema).current);
     },

@@ -339,6 +339,22 @@
   references. The same goes for `compile`'s `moduleSource` — esbuild's
   `transform` output is deterministic with fixed flags and the
   `__manifest` JSON keys land in `buildManifest` insertion order.
+- **`manifest.compilerVersion` is stamped unconditionally and must never
+  become a `buildManifest` argument.** `manifest.ts` reads
+  `COMPILER_VERSION` from the generated `src/version.generated.ts`, so the
+  compiler build is the only thing that can answer it and a caller cannot
+  forge it — which is what makes an ABSENT value on a manifest mean "not
+  built by a compiler" (see `packages/core/CLAUDE.md`). Determinism holds
+  because the constant is fixed per build; determinism *across* compiler
+  versions was never a property. **Three files move in lockstep:**
+  `packages/core/src/types.ts` (`ScriptManifest`), the `program.ts` ambient
+  shim's `ScriptManifest` mirror, and this stamp.
+  `src/version.generated.ts` is emitted from `packages/compiler/package.json`
+  by `pnpm compiler:version:generate` — never hand-edit it. That generator is
+  chained into the root `changeset:version` script **between**
+  `changeset version` and `biome format --write .`; drop it from there and
+  every release ships a constant one version behind and red-lights the
+  `compiler:version:gate` on the release PR.
 - **`__manifest` shape is `export const`.** `bundle.ts`'s
   `formatManifestAssignment` emits `export const __manifest = …;` so the
   runtime can recover the manifest via dynamic `import(...)`. The `.d.ts`

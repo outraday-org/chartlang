@@ -21,7 +21,7 @@ export default defineIndicator({
         // Bucketize volume from the picked time anchor forward and plot the
         // point of control — the price level holding the most volume (NaN
         // until the anchor→current window has positive volume).
-        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor as number, rowSize: 24 });
+        const vp = ta.anchoredVolumeProfile({ anchor: inputs.anchor, rowSize: 24 });
         plot(vp.poc, { color: "#ab47bc", title: "Anchored POC" });
     },
 });

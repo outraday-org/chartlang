@@ -17,7 +17,7 @@ export default defineIndicator({
         tf: input.interval("1D", { title: "Tuned-for timeframe" }),
     },
     compute({ bar, ta, plot, inputs, timeframe }) {
-        const tf = inputs.tf as string;
+        const tf = inputs.tf;
         const matches = timeframe.period === tf;
         plot(ta.sma(bar.close, 20), {
             color: matches ? "#26a69a" : "#94a3b8",

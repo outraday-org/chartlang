@@ -14,7 +14,7 @@ export default defineIndicator({
         col: input.color("#26a69a", { title: "Line color" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const col = inputs.col as string;
+        const col = inputs.col;
         plot(ta.ema(bar.close, 20), { color: col, title: "EMA(20)", lineWidth: 2 });
     },
 });

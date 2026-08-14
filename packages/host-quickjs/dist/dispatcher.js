@@ -17297,6 +17297,9 @@ function isJsonValue2(value) {
 function isSnapshotNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
+function isBarIndex(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= -1;
+}
 function isBufferArray(value) {
   return Array.isArray(value) && value.every((entry) => entry === null || isSnapshotNumber(entry));
 }
@@ -17324,7 +17327,9 @@ function isRunnerSnapshotMap(value) {
 function validateSnapshot(snap) {
   if (!isRecord2(snap))
     return false;
-  if (snap.snapshotVersion !== 1)
+  if (snap.snapshotVersion !== 2)
+    return false;
+  if (!isBarIndex(snap.barIndex))
     return false;
   if (!isSnapshotNumber(snap.lastBarTime) || !isSnapshotNumber(snap.savedAt))
     return false;
@@ -17599,9 +17604,10 @@ function captureStateSnapshot(state2, savedAt) {
   const dependencies = captureDependencies(state2);
   const candidate = {
     lastBarTime: state2.mainStream.bar.time,
+    barIndex: state2.barIndex - 1,
     streams,
     savedAt,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
     primary: { slots: primarySectionSlots(state2) },
     ...siblings === void 0 ? {} : { siblings },
     ...dependencies === void 0 ? {} : { dependencies }
@@ -17666,10 +17672,10 @@ function restoreDependencySections(state2, dependencies) {
   }
 }
 function restoreStateSnapshot(state2, snapshot6) {
+  state2.barIndex = Math.max(state2.barIndex, snapshot6.barIndex + 1);
   const stream = resolveMainStreamSnapshot(snapshot6, state2.mainStream.bar.interval);
   if (stream !== void 0) {
     state2.mainStream.restoreFromSnapshot(stream);
-    state2.barIndex = Math.max(state2.barIndex, stream.filled);
   }
   for (const [secondaryKey, secondary] of state2.runtimeContext.secondaryStreams) {
     const secondarySnapshot = snapshot6.streams[secondaryKey];

@@ -115,24 +115,36 @@ const DOCS_LINKS: Record<string, string> = {
     "examples/webgl-adapter": "docs/adapters/reference/webgl.md",
 };
 
-// Per-package subpath exports appended after the "." entry. The scaffold is
-// idempotent, so these only materialise on regeneration — but the map keeps
-// scaffold.ts the source of truth for every package.json exports shape.
-type SubpathExport = { types: string; import: string } | string;
+// Per-package subpath exports appended after the "." entry. `write()` below
+// returns early when the target file already exists, so this map ONLY seeds
+// newly-created packages — a subpath added to a package that has already been
+// scaffolded must be hand-edited into that package's `package.json` AND
+// mirrored here, or the next re-scaffold is born wrong. `default` is required
+// for the same reason it is on the "." entry (see the comment there): without
+// it CJS `require.resolve` of the subpath throws ERR_PACKAGE_PATH_NOT_EXPORTED.
+type SubpathExport = { types: string; import: string; default: string } | string;
 
 const SUBPATH_EXPORTS: Record<string, Record<string, SubpathExport>> = {
     "packages/core": {
         "./time": {
             types: "./dist/time/index.d.ts",
             import: "./dist/time/index.js",
+            default: "./dist/time/index.js",
         },
     },
-    // Forward reservation for Task 17/18 (`./diagnostics` formatter surface);
-    // the placeholder `src/diagnostics/index.ts` ships empty in Task 1.
+    // `./diagnostics` is the formatter surface the CLI consumes; `./node` is
+    // the fs-touching `convertFile` wrapper, split out so the package root
+    // stays free of `node:*` imports and resolves in a browser.
     "packages/pine-converter": {
         "./diagnostics": {
             types: "./dist/diagnostics/index.d.ts",
             import: "./dist/diagnostics/index.js",
+            default: "./dist/diagnostics/index.js",
+        },
+        "./node": {
+            types: "./dist/node.d.ts",
+            import: "./dist/node.js",
+            default: "./dist/node.js",
         },
     },
 };

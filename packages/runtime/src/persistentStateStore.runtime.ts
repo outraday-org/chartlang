@@ -109,7 +109,13 @@ function captureDependencies(
  * TA slots live in `primary.slots` because the bundle's deps and siblings
  * share the primary's `mainStream` (Task-4 invariant).
  *
- * @since 0.5 — widened to per-runner sections in 0.7.
+ * `state.barIndex` counts closed bars — `onBarClose` increments it AFTER
+ * the compute body, and every capture site runs after that increment — so
+ * the last bar folded into the snapshot is `state.barIndex - 1`. That is
+ * what `StateSnapshot.barIndex` carries, hence `-1` on a runner that has
+ * not closed a bar yet.
+ *
+ * @since 0.5 — widened to per-runner sections in 0.7, stamps `barIndex` in 1.10.
  * @internal
  * @example
  *     // const snapshot = captureStateSnapshot(state, Date.now());
@@ -122,9 +128,10 @@ export function captureStateSnapshot(state: RunnerState, savedAt: number): State
     const dependencies = captureDependencies(state);
     const candidate: StateSnapshot = {
         lastBarTime: state.mainStream.bar.time,
+        barIndex: state.barIndex - 1,
         streams,
         savedAt,
-        snapshotVersion: 1,
+        snapshotVersion: 2,
         primary: { slots: primarySectionSlots(state) },
         ...(siblings === undefined ? {} : { siblings }),
         ...(dependencies === undefined ? {} : { dependencies }),
@@ -252,7 +259,14 @@ function restoreDependencySections(
  *
  * Legacy flat-shape snapshots (pre-0.7) restore into the primary only.
  *
- * @since 0.5 — widened to per-runner sections in 0.7.
+ * The runner's cursor comes from the snapshot's explicit `barIndex` (the
+ * last bar folded in), so the next bar the host feeds is `barIndex + 1` —
+ * exact even for a wrapped ring, whose `filled` count saturates at the
+ * ring capacity. `Math.max` keeps the cursor from rewinding a runner that
+ * has already consumed more bars than the snapshot holds, and makes a
+ * bar-less snapshot (`barIndex === -1`) a no-op.
+ *
+ * @since 0.5 — widened to per-runner sections in 0.7, cursor from `barIndex` in 1.10.
  * @internal
  * @example
  *     // restoreStateSnapshot(state, snapshot);
@@ -260,10 +274,10 @@ function restoreDependencySections(
  *     void restored;
  */
 export function restoreStateSnapshot(state: RunnerState, snapshot: StateSnapshot): void {
+    state.barIndex = Math.max(state.barIndex, snapshot.barIndex + 1);
     const stream = resolveMainStreamSnapshot(snapshot, state.mainStream.bar.interval);
     if (stream !== undefined) {
         state.mainStream.restoreFromSnapshot(stream);
-        state.barIndex = Math.max(state.barIndex, stream.filled);
     }
     for (const [secondaryKey, secondary] of state.runtimeContext.secondaryStreams) {
         const secondarySnapshot = snapshot.streams[secondaryKey];

@@ -24,6 +24,12 @@ function isSnapshotNumber(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
 }
 
+// The captured cursor: an integer bar index, or the `-1` sentinel for a
+// snapshot taken before any bar closed.
+function isBarIndex(value: unknown): value is number {
+    return typeof value === "number" && Number.isInteger(value) && value >= -1;
+}
+
 function isBufferArray(value: unknown): value is ReadonlyArray<number | null> {
     return (
         Array.isArray(value) && value.every((entry) => entry === null || isSnapshotNumber(entry))
@@ -54,6 +60,12 @@ function isRunnerSnapshotMap(value: unknown): boolean {
 /**
  * Validate a PLAN §6.9 persistent state snapshot before restore/save.
  *
+ * Only `snapshotVersion: 2` is accepted. Version-1 payloads predate the
+ * required `barIndex` field and are rejected outright (no migration): a
+ * rejected snapshot means the host replays from scratch, which is what a
+ * rejection has always meant. `barIndex` must be an integer `>= -1`, the
+ * `-1` sentinel meaning "captured before any bar closed".
+ *
  * Accepts two shapes:
  *
  * - **Legacy flat shape** (pre-0.7): `slots: Record<string, JsonValue>`
@@ -74,7 +86,8 @@ function isRunnerSnapshotMap(value: unknown): boolean {
  */
 export function validateSnapshot(snap: unknown): snap is StateSnapshot {
     if (!isRecord(snap)) return false;
-    if (snap.snapshotVersion !== 1) return false;
+    if (snap.snapshotVersion !== 2) return false;
+    if (!isBarIndex(snap.barIndex)) return false;
     if (!isSnapshotNumber(snap.lastBarTime) || !isSnapshotNumber(snap.savedAt)) return false;
     if (!isRecord(snap.streams)) return false;
     if (!Object.values(snap.streams).every((stream) => isStreamSnapshot(stream))) return false;

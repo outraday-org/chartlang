@@ -48,10 +48,12 @@ links straight to the [diagnostics reference](./diagnostics.md).
 
 ## Programmatic API
 
-The package exports a synchronous `convert` and an async `convertFile`.
+The package root exports the synchronous `convert`; the async `convertFile`
+lives on the `/node` sub-export, because it is the only API that touches
+`node:fs/promises` and the root entry is kept browser-safe.
 
 ```ts
-import { convert, convertFile } from "@invinite-org/chartlang-pine-converter";
+import { convert } from "@invinite-org/chartlang-pine-converter";
 import type { ConvertOpts, ConvertResult } from "@invinite-org/chartlang-pine-converter";
 
 // Synchronous, in-memory. Never touches the filesystem.
@@ -66,6 +68,8 @@ result.diagnostics; // readonly Diagnostic[] — always defined
 ```
 
 ```ts
+import { convertFile } from "@invinite-org/chartlang-pine-converter/node";
+
 // Async fs wrapper: reads `path`, converts, and (when `outPath` is set
 // and output is non-null) writes the result. REJECTS on an I/O error —
 // an I/O failure is distinct from a clean conversion with error diagnostics.
@@ -90,7 +94,8 @@ yourself with `@invinite-org/chartlang-compiler`.
 - `strictMode?: boolean` — upgrade warnings to errors (default `false`).
 - `targetApiVersion?: 1` — pinned to `1` in v1.
 
-`ConvertFileOpts = ConvertOpts & { outPath?: string }`.
+`ConvertFileOpts = ConvertOpts & { outPath?: string }`, exported from the
+`/node` sub-export alongside `convertFile`.
 
 ### Diagnostics formatters
 
@@ -119,6 +124,8 @@ error-severity entry (the CLI does this and exits `1`).
 
 ## Runtime notes
 
-`convertFile` uses `node:fs/promises`, so it requires a Node-like host.
-`convert` is pure in-memory string processing with no `node:*` imports, so
-it runs anywhere ES modules run (browsers, Deno, workers).
+`convertFile` uses `node:fs/promises`, so it requires a Node-like host —
+which is why it sits behind the `/node` sub-export rather than the package
+root. The root entry is pure in-memory string processing with no `node:*`
+imports at any depth of its module graph (enforced by a test), so it runs
+anywhere ES modules run (browsers, Deno, workers).

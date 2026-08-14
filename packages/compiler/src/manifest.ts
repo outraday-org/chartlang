@@ -12,6 +12,8 @@ import type {
     SecurityExpressionDescriptor,
 } from "@invinite-org/chartlang-core";
 
+import { COMPILER_VERSION } from "./version.generated.js";
+
 type ValueFormat = "price" | "volume" | "percent" | "compact";
 type ScaleAxis = "price" | "left" | "right" | "new";
 type ManifestInputDescriptors = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
@@ -141,6 +143,11 @@ export function buildManifest(args: {
         userPickableInterval: args.userPickableInterval,
         seriesCapacities,
         maxLookback: args.maxLookback,
+        // Unconditional and not caller-supplied: the compiler build is the only
+        // thing that can answer this, and a `buildManifest` arg would let a
+        // caller forge it. Absent on a manifest therefore always means "not
+        // built by this compiler", never "the caller forgot".
+        compilerVersion: COMPILER_VERSION,
         ...(args.overlay === undefined ? {} : { overlay: args.overlay }),
         ...(args.maxBarsBack === undefined ? {} : { maxBarsBack: args.maxBarsBack }),
         ...(args.format === undefined ? {} : { format: args.format }),

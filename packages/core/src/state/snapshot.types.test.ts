@@ -27,9 +27,10 @@ const runnerSnapshot: RunnerSnapshot = {
 
 const snapshot: StateSnapshot = {
     lastBarTime: 1_700_000_060_000,
+    barIndex: 2,
     streams: { main: streamSnapshot },
     savedAt: 1_700_000_120_000,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
     primary: runnerSnapshot,
 };
 
@@ -56,6 +57,11 @@ describe("snapshot type surface", () => {
         expectTypeOf(snapshot.streams.main).toEqualTypeOf<StreamSnapshot>();
     });
 
+    it("carries the restore cursor as a required plain number", () => {
+        expectTypeOf(snapshot.barIndex).toEqualTypeOf<number>();
+        expectTypeOf<StateSnapshot["barIndex"]>().toEqualTypeOf<number>();
+    });
+
     it("keeps RunnerSnapshot structurally JSON-clean", () => {
         expectTypeOf(runnerSnapshot).toMatchTypeOf<JsonValue>();
         expectTypeOf(runnerSnapshot.slots).toMatchTypeOf<Readonly<Record<string, JsonValue>>>();
@@ -74,10 +80,11 @@ describe("snapshot type surface", () => {
     it("pins literal wire versions", () => {
         const invalidSnapshot = {
             lastBarTime: 1,
+            barIndex: 0,
             streams: {},
             savedAt: 2,
-            // @ts-expect-error snapshotVersion 1 is the only supported wire version.
-            snapshotVersion: 0,
+            // @ts-expect-error snapshotVersion 2 is the only supported wire version.
+            snapshotVersion: 1,
             primary: { slots: {} },
         } satisfies StateSnapshot;
 
@@ -133,9 +140,10 @@ describe("snapshot type surface", () => {
 
         const readonlySnapshot = {
             lastBarTime: 1_700_000_000_000,
+            barIndex: 0,
             streams: { main: readonlyStream },
             savedAt: 1_700_000_060_000,
-            snapshotVersion: 1,
+            snapshotVersion: 2,
             primary: { slots: { "script.ts:1:1#0": { current: 100.5 } } },
         } as const satisfies StateSnapshot;
 

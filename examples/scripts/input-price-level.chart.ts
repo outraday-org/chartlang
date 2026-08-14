@@ -15,7 +15,7 @@ export default defineIndicator({
         level: input.price(125, { title: "Guide level" }),
     },
     compute({ hline, inputs }) {
-        const level = inputs.level as number;
+        const level = inputs.level;
         hline(level, { color: "#ef5350", lineStyle: "dashed", title: "Level" });
     },
 });

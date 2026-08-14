@@ -5788,9 +5788,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "StateSnapshot",
         "summary": "Canonical persistent-store snapshot.",
         "examples": [
-            "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nstreams: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 1,\nprimary: { slots: {} },\n};\nvoid s;"
+            "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nbarIndex: 4,\nstreams: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 2,\nprimary: { slots: {} },\n};\nvoid s;"
         ],
-        "since": "0.5 — widened to per-runner sections in 0.7",
+        "since": "0.5 — widened to per-runner sections in 0.7, `barIndex` added in 1.11",
         "stability": "stable"
     },
     "StateStoreKey": {

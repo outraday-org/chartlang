@@ -2387,8 +2387,17 @@ that has no byte-identical chartlang analogue.
   reached only by a synthetic span pointing past EOF) are covered by dedicated
   single- and multi-line cases in `format.test.ts`.
 
-### CLI + API (`src/index.ts` `convertFile`)
+### CLI + API (`src/node.ts` `convertFile`)
 
+- **The package ROOT must stay free of `node:*` at every depth of its import
+  graph** — it is consumed from a browser (`apps/site`'s converter playground,
+  invinite's Pine-import surface). `convertFile` is the one fs-touching API and
+  therefore lives in `src/node.ts` behind the `./node` sub-export, NOT in the
+  root barrel. `nodeFreeEntry.test.ts` walks the TS import graph from
+  `src/index.ts` and fails on any `node:` specifier or any bare dependency
+  outside an (empty) allowlist; it also asserts the walk still detects
+  `node:fs/promises` from `src/node.ts`, so a resolution bug cannot pass as a
+  clean graph.
 - **`convertFile(path, opts?: ConvertFileOpts): Promise<ConvertResult>` is the
   ONLY async public entry; `convert` stays synchronous.** It reads `path` as
   UTF-8, strips the extra `outPath` field, forwards the rest as `ConvertOpts`
@@ -2402,15 +2411,25 @@ that has no byte-identical chartlang analogue.
   convert-relevant option survives** so the forward call passes nothing,
   preserving the `exactOptionalPropertyTypes` contract (`convert` never sees an
   explicit `undefined` field). `ConvertFileOpts = ConvertOpts & { outPath? }`.
-- **`@invinite-org/chartlang-pine-converter/diagnostics` is the formatter
-  sub-export the CLI consumes** (`formatDiagnosticReport`/`formatDiagnosticsJson`
-  + `DiagnosticReport`); the package root keeps the `convert`/`convertFile` +
-  public-type surface. Both entries are declared once in `scripts/scaffold.ts`'s
-  `SUBPATH_EXPORTS` and re-run into `package.json` — do not hand-edit the
-  `exports` map. `convertFile`'s `node:fs/promises` use adds `@types/node` as a
-  devDependency (the package's first `node:*` import).
-- **Coverage.** `convertFile` lives in the coverage-excluded `src/index.ts`
-  barrel; its branches are still exercised by `convertFile.test.ts` (fs
-  roundtrip, outPath-absent no-write, null-output no-write, strict forward, I/O
-  reject). `subexport.test.ts` asserts the `./diagnostics` formatter surface
-  resolves.
+- **The CLI consumes TWO sub-exports:** `/node` for `convertFile` +
+  `ConvertFileOpts`, and `/diagnostics` for the formatters
+  (`formatDiagnosticReport`/`formatDiagnosticsJson` + `DiagnosticReport`). The
+  package root keeps `convert` + the public-type surface only.
+- **`exports` is HAND-EDITED; `scripts/scaffold.ts` is a create-only mirror.**
+  Its `write()` returns early when the file exists, so `pnpm scaffold` never
+  rewrites an existing `package.json` — a new subpath must be added to BOTH
+  (the scaffold copy only matters if the package is ever regenerated).
+- **Every `exports` entry needs a `default` condition, listed LAST.** Node
+  matches conditions in declaration order and `require.resolve` resolves under
+  `["node", "require", "default"]`, so a `{types, import}`-only entry throws
+  `ERR_PACKAGE_PATH_NOT_EXPORTED` — invinite's install probe is literally
+  `require.resolve(".../chartlang-pine-converter/node")`.
+  `nodeFreeEntry.test.ts` gates this on every conditional entry.
+- **`@types/node` stays a devDependency** — `src/node.ts` and the test files
+  need it.
+- **Coverage.** `src/node.ts` is NOT coverage-excluded (the vitest exclude list
+  covers `src/**/index.ts`, and `node.ts` is not a barrel), so `convertFile` +
+  `stripOutPath` must hold 100% on their own. `convertFile.test.ts` (importing
+  from `./node.js`) supplies it: fs roundtrip, outPath-absent no-write,
+  null-output no-write, strict forward, I/O reject. `subexport.test.ts` asserts
+  the `./diagnostics` formatter surface resolves.

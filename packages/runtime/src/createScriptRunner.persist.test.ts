@@ -131,11 +131,11 @@ describe("createScriptRunner persistence", () => {
         expect(warm.drain().diagnostics).toEqual([]);
     });
 
-    it("warmStart ignores malformed loaded snapshots", async () => {
+    it("warmStart ignores malformed loaded snapshots (here: a version-1 payload)", async () => {
         const store: PersistentStateStore = {
             key: key(),
             async load() {
-                return JSON.parse('{"snapshotVersion":2}');
+                return JSON.parse('{"snapshotVersion":1}');
             },
             async save() {},
             async clear() {},
@@ -164,9 +164,10 @@ describe("createScriptRunner persistence", () => {
             async load() {
                 return {
                     lastBarTime: makeBar(0).time,
+                    barIndex: 7,
                     streams: {},
                     savedAt: 1,
-                    snapshotVersion: 1,
+                    snapshotVersion: 2,
                     primary: { slots: {} },
                 };
             },
@@ -188,7 +189,11 @@ describe("createScriptRunner persistence", () => {
 
         await runner.warmStart(makeBar(1).time);
 
-        expect(runner.drain().diagnostics.map((d) => d.code)).toEqual(["state-snapshot-restored"]);
+        // The cursor comes from the snapshot's own `barIndex`, so it survives a
+        // snapshot that carries no stream buffers at all.
+        const diagnostics = runner.drain().diagnostics;
+        expect(diagnostics.map((d) => d.code)).toEqual(["state-snapshot-restored"]);
+        expect(diagnostics[0]?.bar).toBe(8);
     });
 
     it("warmStart can restore a matching direct stream interval", async () => {

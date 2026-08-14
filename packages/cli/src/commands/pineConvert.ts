@@ -4,12 +4,12 @@
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
-import { convertFile } from "@invinite-org/chartlang-pine-converter";
-import type { ConvertFileOpts } from "@invinite-org/chartlang-pine-converter";
 import {
     formatDiagnosticReport,
     formatDiagnosticsJson,
 } from "@invinite-org/chartlang-pine-converter/diagnostics";
+import { convertFile } from "@invinite-org/chartlang-pine-converter/node";
+import type { ConvertFileOpts } from "@invinite-org/chartlang-pine-converter/node";
 
 import { printHelp } from "./help.js";
 

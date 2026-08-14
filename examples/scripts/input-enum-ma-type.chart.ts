@@ -14,7 +14,7 @@ export default defineIndicator({
         maType: input.enum("ema", ["ema", "sma", "wma"], { title: "MA type" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const maType = inputs.maType as string;
+        const maType = inputs.maType;
         const ma =
             maType === "sma"
                 ? ta.sma(bar.close, 20)

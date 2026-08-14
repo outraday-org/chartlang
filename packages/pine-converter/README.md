@@ -26,10 +26,13 @@ pnpm add @invinite-org/chartlang-pine-converter
 - `convert(source, opts?) → ConvertResult` — synchronous source-to-source
   conversion. Returns `{ output, manifest, diagnostics }`; `output` is the
   chartlang `.chart.ts` string (or `null` when lex/parse fails fatally).
-- `convertFile(path, opts?) → Promise<ConvertResult>` — async fs wrapper:
-  reads `path`, converts, and writes the output to `opts.outPath` when set.
-- Types: `ConvertOpts`, `ConvertFileOpts`, `ConvertResult`, `ConvertManifest`,
-  `Diagnostic`, `DiagnosticSeverity`, `SourceSpan`, `ConverterCapabilities`.
+- Types: `ConvertOpts`, `ConvertResult`, `ConvertManifest`, `Diagnostic`,
+  `DiagnosticSeverity`, `SourceSpan`, `ConverterCapabilities`.
+- Sub-export `@invinite-org/chartlang-pine-converter/node` —
+  `convertFile(path, opts?) → Promise<ConvertResult>`, the async fs wrapper
+  that reads `path`, converts, and writes the output to `opts.outPath` when
+  set, plus the `ConvertFileOpts` type. This is the only entry that imports
+  `node:*`; the package root is browser-safe.
 - Sub-export `@invinite-org/chartlang-pine-converter/diagnostics` —
   `formatDiagnostic`, `formatDiagnosticReport`, `formatDiagnosticsJson`,
   `DiagnosticReport`, `upgradeWarningsToErrors`.

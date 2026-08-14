@@ -1,13 +1,58 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { StateStoreKey } from "@invinite-org/chartlang-core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { compile } from "./api.js";
 import { buildManifest } from "./manifest.js";
+import { COMPILER_VERSION } from "./version.generated.js";
 
 describe("buildManifest", () => {
+    it("stamps the compiler version on every manifest it builds", () => {
+        const manifest = buildManifest({
+            name: "demo",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+        });
+        expect(manifest.compilerVersion).toBe(COMPILER_VERSION);
+        // The stamp is the package's real version, never a pinned placeholder
+        // (contrast `pine-converter`'s `PACKAGE_VERSION = "0.0.0"`).
+        expect(COMPILER_VERSION).not.toBe("0.0.0");
+        expect(COMPILER_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+    });
+
+    it("stamps sibling manifests too, so every emitted manifest is attributable", () => {
+        const sibling = buildManifest({
+            name: "sib",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+        });
+        const manifest = buildManifest({
+            name: "demo",
+            kind: "indicator",
+            capabilities: ["indicators"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+            inputs: {},
+            siblings: [sibling],
+        });
+        expect(manifest.siblings?.[0]?.compilerVersion).toBe(COMPILER_VERSION);
+    });
+
     it("returns a recursively-frozen manifest", () => {
         const manifest = buildManifest({
             name: "demo",
@@ -289,6 +334,36 @@ export default defineIndicator({
     },
 });
 `;
+
+describe("manifest.compilerVersion (compiled)", () => {
+    it("reaches both the returned manifest and the serialized __manifest tail", async () => {
+        const { manifest, moduleSource } = await compile(PLOTS_SOURCE, {
+            apiVersion: 1,
+            sourcePath: "plots.chart.ts",
+        });
+        expect(manifest.compilerVersion).toBe(COMPILER_VERSION);
+        expect(moduleSource).toContain(`"compilerVersion":${JSON.stringify(COMPILER_VERSION)}`);
+    });
+
+    it("lets a consumer build a full StateStoreKey from the manifest alone", async () => {
+        const { manifest } = await compile(PLOTS_SOURCE, {
+            apiVersion: 1,
+            sourcePath: "plots.chart.ts",
+        });
+        // No require.resolve, no package.json read — the two identity fields a
+        // cache key needs both come off `compiled.manifest`.
+        const identity: Pick<
+            StateStoreKey,
+            "apiVersion" | "compilerVersion" | "requestedIntervals"
+        > = {
+            apiVersion: manifest.apiVersion,
+            compilerVersion: manifest.compilerVersion ?? "unknown",
+            requestedIntervals: manifest.requestedIntervals,
+        };
+        expect(identity.compilerVersion).toBe(COMPILER_VERSION);
+        expect(identity.compilerVersion).not.toBe("unknown");
+    });
+});
 
 describe("manifest.plots (compiled)", () => {
     it("lists one entry per plot/hline callsite in source order with kind + literal title", async () => {

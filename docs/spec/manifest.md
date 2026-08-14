@@ -27,6 +27,7 @@ MUST round-trip through `JSON.stringify` and `structuredClone` unchanged.
 | `userPickableInterval` | Yes | boolean | `true` when the input schema contains one `input.interval(...)`; otherwise `false`. |
 | `seriesCapacities` | Yes | record of non-negative integers | Extra per-series history capacities inferred by the compiler. The v1 dynamic-index fallback key is `dynamicFallback: 5000`, present **only** for a series index the compiler cannot prove bounded (provably-bounded indices fold into `maxLookback` instead). |
 | `maxLookback` | Yes | non-negative integer | Largest **provably-bounded** numeric series lookback the compiler found — a literal, a bounded-loop induction variable, a `const` numeric literal, or an affine combination of those, not only literal lookbacks. Runtime main-series capacity is at least `maxLookback + 1`. |
+| `compilerVersion` | No | string | Version of the compiler that produced this manifest. A conforming compiler MUST stamp its own package version on every manifest it builds. **Absent means unknown, never a version** — a manifest built at script runtime inside the bundle (`defineAlertCondition`) has no compiler to ask, and a pre-1.11 manifest predates the stamp. Consumers keying an artifact cache or a persistent-store `compilerVersion` on it MUST treat the absent case as a cache bypass. `@since 1.11`. |
 | `maxDrawings` | No | drawing-count object | Per-bucket drawing budget requested by `defineIndicator` or `defineDrawing`. Buckets are `lines`, `labels`, `boxes`, `polylines`, and `other`. |
 | `maxBarsBack` | No | non-negative integer | Author-declared historical lookback override. Alerts and indicators may declare it; drawing scripts do not use it. |
 | `format` | No | `"price"` \| `"volume"` \| `"percent"` \| `"compact"` | Value-formatting hint for axis labels, legends, and cursors. Alert scripts do not use it. |
@@ -261,6 +262,8 @@ union: `int`, `float`, `bool`, `string`, `enum`, `color`, `source`, `time`,
 - `requestedIntervals` is the sorted, deduplicated union of static request
   intervals and `requiresIntervals`.
 - `alertConditions` ids match the ids that runtime `signal(...)` may emit.
+- `compilerVersion`, when the manifest came from a compiler, is that
+  compiler's own package version — not a placeholder and not caller-supplied.
 - Arrays and nested records are copied and recursively frozen by the compiler
   before returning the manifest.
 - The manifest round-trips through `JSON.stringify` and `structuredClone`

@@ -14,7 +14,7 @@ export default defineIndicator({
         length: input.int(20, { min: 2, max: 200, title: "SMA length" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const length = inputs.length as number;
+        const length = inputs.length;
         plot(ta.sma(bar.close, length), { color: "#26a69a", title: "SMA", lineWidth: 2 });
     },
 });

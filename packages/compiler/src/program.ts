@@ -926,9 +926,10 @@ declare module "@invinite-org/chartlang-core" {
     }>;
     export type StateSnapshot = Readonly<{
         lastBarTime: number;
+        barIndex: number;
         streams: Readonly<Record<string, StreamSnapshot>>;
         savedAt: number;
-        snapshotVersion: 1;
+        snapshotVersion: 2;
         primary: RunnerSnapshot;
         siblings?: Readonly<Record<string, RunnerSnapshot>>;
         dependencies?: Readonly<Record<string, RunnerSnapshot>>;
@@ -1329,6 +1330,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly userPickableInterval: boolean;
         readonly seriesCapacities: Readonly<Record<string, number>>;
         readonly maxLookback: number;
+        readonly compilerVersion?: string;
         readonly overlay?: boolean;
         readonly maxDrawings?: DrawingCounts;
         readonly maxBarsBack?: number;

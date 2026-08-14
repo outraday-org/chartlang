@@ -71,8 +71,10 @@ function makeBar(i: number): Bar {
     };
 }
 
-function withLookback<T extends ReturnType<typeof defineIndicator>>(c: T): T {
-    return { ...c, manifest: { ...c.manifest, maxLookback: 50 } };
+// The ring capacity is `maxLookback + 1` (`resolveCapacity`), so the lookback
+// is also the knob that decides whether a run saturates (wraps) the ring.
+function withLookback<T extends ReturnType<typeof defineIndicator>>(c: T, maxLookback = 50): T {
+    return { ...c, manifest: { ...c.manifest, maxLookback } };
 }
 
 function counterIndicator(name: string): ReturnType<typeof defineIndicator> {
@@ -256,10 +258,11 @@ describe("persistent state snapshot restore", () => {
     it("rehydrates the primary from a legacy flat-shape snapshot", async () => {
         const flatSnapshot = {
             lastBarTime: 1_700_000_000_000,
+            barIndex: 0,
             streams: {},
             slots: { "counter:state": { committed: 13, tentative: 13 } },
             savedAt: 1,
-            snapshotVersion: 1,
+            snapshotVersion: 2,
         };
         const store: PersistentStateStore = {
             key: key(),
@@ -298,9 +301,10 @@ describe("persistent state snapshot restore", () => {
             async load() {
                 return {
                     lastBarTime: 1_700_000_000_000,
+                    barIndex: 0,
                     streams: {},
                     savedAt: 1,
-                    snapshotVersion: 1,
+                    snapshotVersion: 2,
                     primary: { slots: {} },
                     siblings: {
                         ghost: {
@@ -333,9 +337,10 @@ describe("persistent state snapshot restore", () => {
             async load() {
                 return {
                     lastBarTime: 1_700_000_000_000,
+                    barIndex: 0,
                     streams: {},
                     savedAt: 1,
-                    snapshotVersion: 1,
+                    snapshotVersion: 2,
                     primary: { slots: {} },
                     dependencies: {
                         ghost: { slots: { "dep:ghost/x:state": { committed: 1, tentative: 1 } } },
@@ -358,5 +363,69 @@ describe("persistent state snapshot restore", () => {
             "state-snapshot-restored",
         ]);
         expect(diagnostics[0]?.message).toMatch(/unknown dependency "ghost"/);
+    });
+});
+
+describe("persistent state snapshot bar cursor", () => {
+    // Seed a runner with `bars` closes, then hand back the snapshot it saved on
+    // dispose plus the bar index a warm runner resumes at (read off the
+    // `state-snapshot-restored` diagnostic, which is stamped from the restored
+    // `state.barIndex`).
+    async function roundTrip(opts: {
+        readonly bars: number;
+        readonly maxLookback: number;
+    }): Promise<{ readonly saved: StateSnapshot; readonly restoredCursor: number }> {
+        const store = inMemoryPersistentStateStore({ key: key() });
+        const seed = createScriptRunner({
+            compiled: withLookback(counterIndicator("cursor"), opts.maxLookback),
+            capabilities: makeCapabilities(),
+            persistentStateStore: store,
+            now: () => 1,
+        });
+        for (let i = 0; i < opts.bars; i += 1) {
+            await seed.onBarClose(makeBar(i));
+        }
+        await seed.dispose();
+
+        const saved = await store.load();
+        if (saved === null) throw new Error("expected a saved snapshot");
+
+        const warm = createScriptRunner({
+            compiled: withLookback(counterIndicator("cursor"), opts.maxLookback),
+            capabilities: makeCapabilities(),
+            persistentStateStore: store,
+        });
+        await warm.warmStart(makeBar(opts.bars).time);
+        const diagnostics = warm.drain().diagnostics;
+        const restored = diagnostics.find((d) => d.code === "state-snapshot-restored");
+        if (restored === undefined) throw new Error("expected a restored diagnostic");
+
+        return { saved, restoredCursor: restored.bar };
+    }
+
+    it("stamps the last folded bar and resumes at barIndex + 1 for an unsaturated ring", async () => {
+        const { saved, restoredCursor } = await roundTrip({ bars: 5, maxLookback: 50 });
+
+        expect(saved.snapshotVersion).toBe(2);
+        expect(saved.streams["1m"]?.filled).toBe(5);
+        expect(saved.barIndex).toBe(4);
+        expect(restoredCursor).toBe(5);
+    });
+
+    it("stays exact for a saturated ring, whose filled count has wrapped", async () => {
+        const { saved, restoredCursor } = await roundTrip({ bars: 10, maxLookback: 3 });
+
+        // The ring holds 4 bars, so `filled` — the pre-1.10 cursor source —
+        // saturates at 4 while the run is 10 bars deep.
+        expect(saved.streams["1m"]?.filled).toBe(4);
+        expect(saved.barIndex).toBe(9);
+        expect(restoredCursor).toBe(10);
+    });
+
+    it("stamps -1 when no bar was folded in, and restoring it never rewinds", async () => {
+        const { saved, restoredCursor } = await roundTrip({ bars: 0, maxLookback: 50 });
+
+        expect(saved.barIndex).toBe(-1);
+        expect(restoredCursor).toBe(0);
     });
 });

@@ -3,11 +3,15 @@
 
 export { createChartlangEditor } from "./createChartlangEditor.js";
 export {
+    DEFAULT_SCRIPT_FILE_NAME,
     completionExtension,
+    definitionExtension,
     hoverExtension,
     linterExtension,
     peekPanelExtension,
+    signatureHelpExtension,
 } from "./extensions/index.js";
+export type { DefinitionExtensionOpts } from "./extensions/index.js";
 export { chartlangDark } from "./theme.js";
 export { indentationExtension } from "./indentation.js";
 export {

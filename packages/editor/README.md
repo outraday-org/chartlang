@@ -23,7 +23,9 @@ pnpm add @invinite-org/chartlang-editor
 | `hoverExtension(getService)` | Language-service hover integration. |
 | `completionExtension(getService)` | Completion source, including intervals. |
 | `linterExtension(getService, onCompiled?, debounceMs?)` | Async diagnostics with gutter. |
-| `peekPanelExtension(previewRunner?)` | Preview-panel extension, mounted by `createChartlangEditor` only when `previewPanel` or `previewRunner` is supplied. |
+| `signatureHelpExtension(getService)` | Cursor-following signature tooltip. Default-on; opt out with `signatureHelp: false`. |
+| `definitionExtension(getService, opts?)` | Go-to-definition on Cmd/Ctrl-click + `F12`. Jumps for a `<binding>.output("title")` accessor; shows the hover doc for a stdlib symbol. Default-on; opt out with `definition: false`. |
+| `peekPanelExtension(previewRunner?)` | Preview-panel extension, mounted by `createChartlangEditor` only when `previewPanel` or `previewRunner` is supplied. Unrelated to `definitionExtension`. |
 
 ### Subpath entries
 

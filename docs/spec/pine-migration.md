@@ -366,7 +366,8 @@ Status meanings:
 | `line.new`, `box.new`, `label.new`, `table.new` | Pivot Points, ZigZag, Support/Resistance, dashboards | `draw.*` plus `DrawingHandle.update/remove` | covered: [drawings example](#_2-drawings---labeled-range), [drawing lifecycle](/spec/semantics#drawing-handle-lifecycle) |
 | Bounded literal arrays and matrices | ZigZag, Market Structure, Volume Profile variants | Bounded literal arrays and ordinary TypeScript objects | covered-inline: literals/objects are valid where they stay in the grammar subset |
 | Persistent numeric collection (a bounded `var array<float>`/`<int>` ring) | ZigZag swing buffers, rolling-window medians, event-value logs | `state.array<number>(capacity)` — a bounded FIFO ring with a compile-time literal capacity | covered: [persistent collections](#persistent-collections-and-large-arrays) |
-| Persistent maps, matrices, and non-numeric collections | `map.new`, `matrix.new`, `array<bool>`/`array<string>` | `state.map` / matrices / non-numeric persistent collections are not v1 | not-supported: [persistent collections](#persistent-collections-and-large-arrays) |
+| Persistent keyed collection (a bounded `var map<K, V>`) | Level registries, per-key event tallies, dashboards keyed by label | `state.map(capacity)` — a keyed store with a compile-time literal capacity and oldest-insert eviction | covered: [persistent collections](#persistent-collections-and-large-arrays) |
+| Persistent matrices and non-numeric collections | `matrix.new`, `array<bool>`/`array<string>` | Matrices / non-numeric persistent collections are not v1 | not-supported: [persistent collections](#persistent-collections-and-large-arrays) |
 | Loops over history or drawing sets | Pivot Point levels, table rows, ZigZag segments | Bounded `for` loops with literal numeric bounds; no stateful calls inside loops | covered-inline: [grammar loop rules](/spec/grammar#typescript-subset) |
 | Pine libraries (`library()`, `import`) | PineCoders libraries, community utility packages | Normal bundled TypeScript helper modules only; Pine library scripts are not v1 | not-supported: [Pine library scripts](#pine-library-scripts) |
 | Strategy primitives (`strategy.*`) | RSI Strategy, SuperTrend Strategy, Chandelier strategy variants | No order, fill, P&L, or equity-curve language in v1 | not-supported: [strategy primitives](#strategy-primitives) |
@@ -419,9 +420,21 @@ JSON-clean — no new wire format. A non-literal capacity is a compile error
 (`state-array-capacity-not-literal`); a capacity outside the bound is
 `state-array-capacity-exceeds-max` (`MAX_STATE_ARRAY_CAPACITY` = 100 000).
 
-Still deferred until a key/clone serialization policy is agreed:
-`state.map(...)`, matrices, **non-numeric** persistent collections
-(`bool` / `string` / object element types), and large mutable collections.
+A bounded **keyed** persistent collection is supported too:
+`state.map(capacity)` is the chartlang equivalent of a Pine
+`var map<K, V>` — `set` / `get` / `has` / `delete` / `clear` / `size`, bounded
+to `capacity` entries, evicting the oldest-inserted key when a new key arrives
+at capacity. Keys are `string | number` and v1 values are `number`; iteration
+is bounded indexing (`keyAt(i)` over `size`), not iterators. It rides the same
+compile-time literal-capacity guard as
+`state.array` (same `state-array-capacity-not-literal` /
+`state-array-capacity-exceeds-max` diagnostics, same
+`MAX_STATE_ARRAY_CAPACITY` ceiling), which is what keeps its snapshot
+JSON-clean and its per-tick rollback bounded.
+
+Still deferred until a clone/serialization policy is agreed: matrices,
+**non-numeric** persistent collections (`bool` / `string` / object element
+types), and large mutable collections.
 
 ### Imperative Drawing Mutation Differences
 

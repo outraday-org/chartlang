@@ -126,8 +126,11 @@
   the compiler API. The published `dist/` ships against the
   consumer's `typescript` install.
 - **`pine-convert` is a thin in-process layer over
-  `@invinite-org/chartlang-pine-converter`'s `convertFile` + its
-  `/diagnostics` formatters — it owns NO conversion logic.**
+  `@invinite-org/chartlang-pine-converter`'s TWO sub-exports — `/node`
+  for `convertFile` + `ConvertFileOpts` (the package root is
+  deliberately `node:`-free, so `convertFile` is NOT importable from
+  it) and `/diagnostics` for the formatters. It owns NO conversion
+  logic.**
   `commands/pineConvert.ts` parses flags via `node:util.parseArgs`
   (same precedent as `runCompile`), builds `ConvertFileOpts`, and
   routes output: `--out` writes the file (nothing converted to

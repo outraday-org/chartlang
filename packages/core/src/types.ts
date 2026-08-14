@@ -630,6 +630,25 @@ export type ScriptManifest = {
     readonly seriesCapacities: Readonly<Record<string, number>>;
     readonly maxLookback: number;
     /**
+     * Version of `@invinite-org/chartlang-compiler` that produced this
+     * manifest. The compiler stamps it on every manifest it builds, so a
+     * consumer can key an artifact cache — or fill the `compilerVersion`
+     * slot of a `StateStoreKey` — from the manifest alone, with no
+     * `package.json` read and no `require.resolve`.
+     *
+     * **Absent means unknown, never a version.** A manifest constructed at
+     * script runtime inside the bundle (`defineAlertCondition`) has no
+     * compiler to ask, and a manifest emitted by a pre-1.11 compiler
+     * predates the stamp. Treat the absent case as a cache bypass.
+     *
+     * @since 1.11
+     * @stable
+     * @example
+     *     const v: ScriptManifest["compilerVersion"] = "1.12.0";
+     *     void v;
+     */
+    readonly compilerVersion?: string;
+    /**
      * `overlay: false` on `defineIndicator(...)` is persisted here as the
      * script-level default pane signal. Absent / `true` means the script
      * defaults to the price overlay pane; `false` means the runtime

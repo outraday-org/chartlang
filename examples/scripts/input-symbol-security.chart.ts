@@ -5,8 +5,8 @@
 // tuned for; the SMA is tinted teal when the chart's own `bar.symbol` matches
 // it, grey otherwise. At the default ("GOLDEN") on the demo's GOLDEN bars the
 // line reads teal. (Feeding `inputs.sym` straight into `request.security` is
-// avoided here: the resolved input is typed `unknown`, and the cast it would
-// need defeats the compiler's static `input.symbol` symbol resolution.)
+// avoided here: the resolved input is a plain `string`, but the compiler's
+// static symbol analyser only accepts a string literal or an `input.enum`.)
 
 import { defineIndicator, input, plot, ta } from "@invinite-org/chartlang-core";
 
@@ -18,7 +18,7 @@ export default defineIndicator({
         sym: input.symbol("GOLDEN", { title: "Tuned-for symbol" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const sym = inputs.sym as string;
+        const sym = inputs.sym;
         const matches = bar.symbol === sym;
         plot(ta.sma(bar.close, 20), {
             color: matches ? "#26a69a" : "#94a3b8",

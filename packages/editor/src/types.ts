@@ -2,17 +2,18 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Extension } from "@codemirror/state";
-import type { EditorView } from "codemirror";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { CompiledScriptObject } from "@invinite-org/chartlang-core";
 import type { ChartlangLanguageService } from "@invinite-org/chartlang-language-service";
+import type { EditorView } from "codemirror";
 
 /**
  * Options accepted by the framework-agnostic CodeMirror editor factory.
  *
  * `service` injects a consumer-provided {@link ChartlangLanguageService}.
  * The factory never constructs an internal service, so hover,
- * completions, diagnostics, and capability-aware interval suggestions are
+ * completions, diagnostics, signature help, go-to-definition, and
+ * capability-aware interval suggestions are
  * available only when a service is supplied. Browser consumers who
  * compile server-side use this seam to wire a hybrid service (local hover
  * / completions, remote `compileToDiagnostics`).
@@ -54,6 +55,16 @@ export type ChartlangEditorOpts = Readonly<{
     fontSize?: number;
     /** Bake in the chartlang Tab/auto-indent keymap. Defaults to true. */
     indentation?: boolean;
+    /**
+     * Mount the cursor-following signature-help tooltip. Defaults to true,
+     * matching hover / completions; requires `service`. @since 2.5
+     */
+    signatureHelp?: boolean;
+    /**
+     * Mount go-to-definition (Cmd/Ctrl-click + `F12`). Defaults to true,
+     * matching hover / completions; requires `service`. @since 2.5
+     */
+    definition?: boolean;
 }>;
 
 /**

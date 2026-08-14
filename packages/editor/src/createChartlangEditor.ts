@@ -2,16 +2,18 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { javascript } from "@codemirror/lang-javascript";
-import { type Extension, Compartment, EditorState } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, basicSetup } from "codemirror";
 
 import {
     completionExtension,
+    definitionExtension,
     hoverExtension,
     linterExtension,
     peekPanelExtension,
+    signatureHelpExtension,
 } from "./extensions/index.js";
-import { clampEditorFontSize, DEFAULT_EDITOR_FONT_SIZE, editorFontSizeTheme } from "./fontSize.js";
+import { DEFAULT_EDITOR_FONT_SIZE, clampEditorFontSize, editorFontSizeTheme } from "./fontSize.js";
 import { indentationExtension } from "./indentation.js";
 import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
 
@@ -19,7 +21,9 @@ import type { ChartlangEditor, ChartlangEditorOpts } from "./types.js";
  * Create a framework-agnostic CodeMirror 6 chartlang editor.
  *
  * Pass `opts.service` to enable language-service-backed hover,
- * completions, and diagnostics. Without an injected service the editor
+ * completions, diagnostics, signature help, and go-to-definition (the last
+ * two opt out via `signatureHelp: false` / `definition: false`). Without an
+ * injected service the editor
  * mounts as a browser-safe CodeMirror shell and never imports the
  * compiler-backed language-service graph.
  *
@@ -88,6 +92,10 @@ function languageServiceExtensions(opts: ChartlangEditorOpts): ReadonlyArray<Ext
         hoverExtension(() => service),
         completionExtension(() => service),
         linterExtension(() => service, opts.onCompiled, opts.lintDebounceMs),
+        // Both default ON, like hover / completions; suppressed only when the
+        // consumer opts out.
+        ...(opts.signatureHelp === false ? [] : [signatureHelpExtension(() => service)]),
+        ...(opts.definition === false ? [] : [definitionExtension(() => service)]),
     ];
 }
 

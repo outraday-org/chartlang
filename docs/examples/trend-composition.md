@@ -20,7 +20,7 @@ const baseTrend = defineIndicator({
     overlay: true,
     inputs: { length: input.int(20, { min: 2, max: 250 }) },
     compute({ bar, ta, inputs, plot }) {
-        plot(ta.ema(bar.close, inputs.length as number), { title: "line" });
+        plot(ta.ema(bar.close, inputs.length), { title: "line" });
     },
 });
 

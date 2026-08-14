@@ -20,12 +20,21 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   name with no `bin` field, whereas that package publishes as
   `@invinite-org/create-chartlang` with a `bin`. Adding it would break the
   zero-diff guarantee. See `packages/create-chartlang/CLAUDE.md`.
-- `SUBPATH_EXPORTS` entries can be **forward-reserved** before the matching
-  `src/<subpath>/` ships real exports — the map is the authoritative
-  `package.json#exports` shape, and an empty subpath module is fine until
-  the later task populates it (see `packages/pine-converter` `./diagnostics`).
-  Doing this in the scaffold avoids a hand-edit to the generated
-  `package.json` when the real exports land.
+- `SUBPATH_EXPORTS` is **create-only, not a live mirror**: `write()` returns
+  early when the target file already exists, so `pnpm scaffold` NEVER rewrites
+  an existing `package.json`. A subpath added to a package that has already
+  been scaffolded must be **hand-edited into that package's `exports` map** and
+  then mirrored here so a future regeneration is not born wrong — both edits,
+  same task. (Proof it works this way: `host-worker` ships `./idb` +
+  `./worker-boot`, neither of which is in the map.) Forward-reserving a subpath
+  before `src/<subpath>/` ships real exports is still fine — that is the only
+  case where the map alone suffices, because the package does not exist yet.
+- **Every `exports` entry the map emits carries a `default` condition, LAST.**
+  Node matches conditions in declaration order and `require.resolve` resolves
+  under `["node", "require", "default"]`, so a `{types, import}`-only entry
+  throws `ERR_PACKAGE_PATH_NOT_EXPORTED` for a CJS consumer. The `.` entry has
+  had this since the sweep that fixed it repo-wide; subpaths need it too, and
+  the `SubpathExport` type makes it non-optional so the omission cannot recur.
 - Do not hand-edit files inside `packages/<name>/` or
   `examples/canvas2d-adapter/` that the scaffold generates (six §22.4
   files per package). Edit `scripts/scaffold.ts` instead and re-run.
@@ -114,6 +123,15 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
   gaining/removing a file, or a published version bump). After touching an
   example adapter or the registry, re-run `pnpm adapters:generate` and
   commit. Task 15 extends this generator to also emit the docs gallery.
+- `gen-compiler-version.ts` is the ONE generator that must also run inside a
+  **release**: it renders `packages/compiler/src/version.generated.ts` from
+  `packages/compiler/package.json`, so a `changeset version` bump that does not
+  re-run it leaves the constant one release behind. It is therefore chained into
+  the root `changeset:version` script (after `changeset version`, before
+  `biome format --write .`) as well as gated by `compiler:version:gate` in
+  `check:content`. Its output must be **Biome-stable** — `check:content` runs
+  `pnpm format` before the gate byte-diffs, so a render Biome would rewrite
+  fails the gate.
 - `gen-hover-registry.ts` walks `packages/core/src` exports into
   `packages/language-service/src/hoverRegistry.generated.ts`; `--check`
   byte-diffs it (the `hover:check` gate). It resolves
@@ -133,6 +151,7 @@ Workspace-level tooling scripts invoked via `pnpm <name>` from the repo root.
 | `check-site.ts` | `pnpm check:site` | Conditional site e2e gate. Runs `site:e2e:install` + `site:e2e` (the Playwright suite) ONLY when `apps/site/` is touched — union of working-tree changes, untracked files, and commits ahead of `@{upstream}` (fallback `origin/main`, then `main`); otherwise prints a skip notice and exits 0. Deliberately NOT part of `check:content` (site rebuild + Chromium install are slow) — run it after `check:content` is clean; `/fix-errors` does this as its Phase 4. It is the only local gate mirroring CI's `E2E (apps/site/)` job. |
 | `adapters/registry.ts` | — | SSOT for the six example adapters (`ADAPTERS` + `githubFolder`); consumed by `gen-adapters.ts` (and Task 15's gallery). |
 | `gen-adapters.ts` | `pnpm adapters:generate` / `pnpm adapters:gate` | Bakes each example adapter into `packages/cli/src/generated/adapters/` as an offline version-pinned bundle for `chartlang add-adapter`; `--check` byte-diffs the committed tree. Never hand-edit the generated dir — re-run the generator. |
+| `gen-compiler-version.ts` | `pnpm compiler:version:generate` / `pnpm compiler:version:gate` | Renders `packages/compiler/src/version.generated.ts` (`COMPILER_VERSION`) from `packages/compiler/package.json`; `--check` byte-diffs it. Also chained into `changeset:version` so a release bump re-stamps the constant. |
 | `docs-check.ts` | `pnpm docs:check` | §17.6 + §17.2 JSDoc gate (TS compiler API) + `@example` execution via the chartlang compiler. |
 | `docs-check.executor.ts` | — | Executor module imported by `docs-check.ts`; covered by `docs-check.executor.test.ts`. |
 | `docs-gate.ts` | `pnpm docs:gate` | Regenerates `docs/primitives/ta/<id>.md` into a tmp dir and byte-compares against the committed tree. Fails on drift. Imports `runGenDocs` from `packages/cli/src/commands/genDocs.ts` directly (source, not `dist/`). |

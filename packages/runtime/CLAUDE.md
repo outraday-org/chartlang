@@ -336,9 +336,11 @@
   snapshot before the host feeds new bars; close-cadence and dispose
   saves capture stream buffers plus `state.*` slots without changing the
   Phase-1 `StateStore` contract. `barIndex` is restored from the
-  snapshot stream's `filled` count only for unsaturated snapshots; once a
-  stream has wrapped, `StateSnapshot` has no exact historical bar-index
-  field.
+  snapshot's own `StateSnapshot.barIndex` (the last bar folded in, `-1`
+  when none) — exact for wrapped rings too, where the stream's `filled`
+  count saturates at the ring capacity. Never re-derive the cursor from
+  `filled`. Restore is `max`-guarded so it cannot rewind a runner that
+  already holds more bars than the snapshot.
 - **`request.security` is a Phase-4 NaN fallback.** Task 11 added
   `RuntimeContext.requestSecurityBars` keyed by `slotId|feedKey` and
   `diagnosedRequestKeys` keyed by `code|slotId|feedKey|kind`. The cache

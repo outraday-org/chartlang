@@ -39,9 +39,10 @@ function stream(): StreamSnapshot {
 function snapshot(): StateSnapshot {
     return {
         lastBarTime: 5_000,
+        barIndex: 4_999,
         streams: { "1m": stream() },
         savedAt: Date.now(),
-        snapshotVersion: 1,
+        snapshotVersion: 2,
         primary: { slots: { counter: 5_000 } },
     };
 }

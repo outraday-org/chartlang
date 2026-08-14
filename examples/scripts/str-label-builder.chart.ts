@@ -24,7 +24,7 @@ export default defineIndicator({
         // ticker. `.split(...).map(...)` is plain JS array work — only stateful
         // `ta.*` / `draw.*` calls are loop-restricted — so every `str.*` step
         // runs freely inside the callback.
-        const raw = inputs.tags as string;
+        const raw = inputs.tags;
         const rows = str.split(raw, ",").map((token) => {
             const tag = str.trim(token); // drop the stray spaces around each token
             const clean = str.replace(tag, "#", ""); // strip a leading hash (first occurrence)

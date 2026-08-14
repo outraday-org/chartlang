@@ -35,7 +35,8 @@ if (result.output !== null) {
 
 - **Deterministic source-to-source.** The same Pine input always produces
   byte-identical chartlang output. `convert` is synchronous and does not
-  round-trip through the compiler; `convertFile` is the async fs wrapper.
+  round-trip through the compiler; `convertFile` — on the `/node` sub-export —
+  is the async fs wrapper.
 - **Compiles through chartlang.** The emitted `.chart.ts` is written to
   compile through `@invinite-org/chartlang-compiler` (the round-trip is
   verified by the converter's own tests).

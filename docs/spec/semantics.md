@@ -204,8 +204,10 @@ A persistent store key MUST contain these identity fields:
 
 A snapshot contains:
 
-- `snapshotVersion`, currently `1`.
+- `snapshotVersion`, currently `2`.
 - `lastBarTime`, the latest restored main-stream bar time.
+- `barIndex`, the absolute index of the last bar folded into the snapshot
+  (`-1` when none), so a host resumes at bar `barIndex + 1`.
 - `streams`, including main and registered secondary stream ring-buffer state.
 - `slots`, including script state slots and TA state slots.
 - `savedAt`, the host-provided save timestamp.

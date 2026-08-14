@@ -80,6 +80,18 @@
   deferred (README → Deferred/Follow-Up "truly runtime-arbitrary feeds"), the
   manifest entry exists for compile-time correctness.
 
+- **`ScriptManifest.compilerVersion?` is OPTIONAL and absent means UNKNOWN,
+  never a version.** It must never become required: `defineAlertCondition`
+  builds a `ScriptManifest` at script runtime *inside the bundle*, where no
+  compiler exists, and every `ScriptManifest` fixture (e.g.
+  `packages/editor/src/__fixtures__/inputsFormTestManifest.ts`) omits it. Only
+  the compiler stamps it (`packages/compiler/src/manifest.ts`), which is what
+  lets a consumer fill the `compilerVersion` slot of a `StateStoreKey`
+  (`src/state/snapshot.ts`) from `compiled.manifest` alone — do NOT add a
+  second version field anywhere. Downstream caches treat the absent value as a
+  bypass, so a defaulted `"unknown"` string on the producing side would poison
+  them. The compiler's `program.ts` shim mirrors the field in lockstep.
+
 - **`state.series` is the one `state.*` slot that is both writable AND
   indexable.** `state.float`/`int`/`bool`/`string` return a scalar
   `MutableSlot<T>` (no indexing); `state.series(init)` returns

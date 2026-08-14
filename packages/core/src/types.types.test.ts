@@ -162,7 +162,8 @@ describe("public type surface", () => {
     });
 
     it("public snapshot types resolve through the root export", () => {
-        expectTypeOf<StateSnapshot["snapshotVersion"]>().toEqualTypeOf<1>();
+        expectTypeOf<StateSnapshot["snapshotVersion"]>().toEqualTypeOf<2>();
+        expectTypeOf<StateSnapshot["barIndex"]>().toEqualTypeOf<number>();
         expectTypeOf<StateSnapshot["streams"]>().toEqualTypeOf<
             Readonly<Record<string, StreamSnapshot>>
         >();
@@ -179,6 +180,25 @@ describe("public type surface", () => {
             ReadonlyArray<string> | undefined
         >();
         expectTypeOf<ScriptOverrides["format"]>().toEqualTypeOf<ValueFormat | undefined>();
+    });
+
+    it("ScriptManifest exposes an OPTIONAL compiler-version stamp", () => {
+        expectTypeOf<ScriptManifest["compilerVersion"]>().toEqualTypeOf<string | undefined>();
+        // Optional is load-bearing: `defineAlertCondition` builds a manifest at
+        // script runtime inside the bundle, where no compiler exists. A
+        // required field would break core's own constructor and every fixture.
+        const runtimeBuilt: ScriptManifest = {
+            apiVersion: 1,
+            kind: "alertCondition",
+            name: "demo",
+            inputs: {},
+            capabilities: ["alertConditions"],
+            requestedIntervals: [],
+            userPickableInterval: false,
+            seriesCapacities: {},
+            maxLookback: 0,
+        };
+        void runtimeBuilt;
     });
 
     it("ScriptManifest exposes the subpane-routing overlay flag", () => {

@@ -23,7 +23,7 @@ export default defineIndicator({
     },
     compute({ bar, ta, plot, state, timeframe, inputs }) {
         if (!timeframe.isdaily) return;
-        const rsi = ta.rsi(bar.close, inputs.length as number);
+        const rsi = ta.rsi(bar.close, inputs.length);
         const barsSince = state.int(0);
         const overbought = rsi.current > 70;
         const oversold = rsi.current < 30;

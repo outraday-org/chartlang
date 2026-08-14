@@ -192,9 +192,10 @@ const stream: StreamSnapshot = {
 
 const snapshot: StateSnapshot = {
     lastBarTime: 1700000000000,
+    barIndex: 0,
     streams: { main: stream },
     savedAt: 1700000060000,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
     primary: { slots: { "demo.chart.ts:1:1#0": { current: 100.5 } } },
 };
 

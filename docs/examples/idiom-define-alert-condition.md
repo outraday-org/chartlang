@@ -32,7 +32,7 @@ export default defineAlertCondition({
         },
     },
     compute({ bar, ta, inputs, signal }) {
-        const ema = ta.ema(bar.close, inputs.length as number);
+        const ema = ta.ema(bar.close, inputs.length);
         signal?.("up", ta.crossover(bar.close, ema).current);
         signal?.("down", ta.crossunder(bar.close, ema).current);
     },

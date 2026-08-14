@@ -9,11 +9,19 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
+        "./package.json": "./package.json",
         "./diagnostics": {
             "types": "./dist/diagnostics/index.d.ts",
-            "import": "./dist/diagnostics/index.js"
+            "import": "./dist/diagnostics/index.js",
+            "default": "./dist/diagnostics/index.js"
+        },
+        "./node": {
+            "types": "./dist/node.d.ts",
+            "import": "./dist/node.js",
+            "default": "./dist/node.js"
         }
     },
     "files": ["dist", "fixtures", "README.md", "CHANGELOG.md"],

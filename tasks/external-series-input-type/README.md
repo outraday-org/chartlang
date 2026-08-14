@@ -1,7 +1,11 @@
 # Type the `compute` `inputs` bag per-descriptor (fixes external-series `Series<T>`)
 
-> **Status: TODO** — type-surface feature. Motivated by the external-series
-> `Series<T>` bug; the mechanism types the whole `inputs` bag.
+> **Status: SHIPPED** in `@invinite-org/chartlang-compiler` 1.10.0 /
+> `-core` 1.9.0 — `ComputeFn` is generic and `compute`'s `inputs` bag resolves
+> per descriptor through `ResolveComputeInputs` / `ResolvedInputs` /
+> `ResolveInputValue` (`packages/core/src/types.ts`), mirrored by the
+> compiler's ambient shim. `examples/scripts/*.chart.ts` is cast-free as of
+> `-examples` 0.3.0. Kept as the rationale record for the type surface.
 
 ## Overview
 

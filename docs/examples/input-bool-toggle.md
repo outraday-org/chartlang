@@ -21,7 +21,7 @@ export default defineIndicator({
         showMa: input.bool(true, { title: "Show EMA" }),
     },
     compute({ bar, ta, plot, inputs }) {
-        const showMa = inputs.showMa as boolean;
+        const showMa = inputs.showMa;
         plot(showMa ? ta.ema(bar.close, 20) : Number.NaN, {
             color: "#26a69a",
             title: "EMA(20)",

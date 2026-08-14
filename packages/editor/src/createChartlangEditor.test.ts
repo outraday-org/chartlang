@@ -6,12 +6,12 @@ import { forceLinting } from "@codemirror/lint";
 import { createLanguageService } from "@invinite-org/chartlang-language-service";
 import { describe, expect, it } from "vitest";
 
-import { createChartlangEditor } from "./createChartlangEditor.js";
 import {
     createTestLanguageService,
     testCapabilities,
     waitFor,
 } from "./__fixtures__/testHelpers.js";
+import { createChartlangEditor } from "./createChartlangEditor.js";
 
 const intervalSource = `
 import { defineIndicator, request } from "@invinite-org/chartlang-core";
@@ -225,6 +225,64 @@ void x;
         await waitFor(() =>
             currentCompletions(editor.view.state).some((c) => c.label === "injectedSymbol"),
         );
+
+        editor.destroy();
+    });
+
+    it("mounts signature help and go-to-definition by default when a service is injected", () => {
+        const parent = document.body.appendChild(document.createElement("div"));
+        const editor = createChartlangEditor({
+            doc: "ta.ema(bar.close, 20)",
+            parent,
+            service: createTestLanguageService({
+                getSignatureHelp: () => ({
+                    label: "ta.ema(source, length)",
+                    parameters: [{ name: "source", doc: "Input series." }],
+                    activeParameter: 0,
+                }),
+                getDefinition: () => ({ file: "script.chart.ts", line: 1, column: 1 }),
+            }),
+            lintDebounceMs: 1,
+        });
+
+        editor.view.dispatch({ selection: { anchor: 7 } });
+        expect(parent.querySelector(".chartlang-signature-label")?.textContent).toBe(
+            "ta.ema(source, length)",
+        );
+
+        editor.view.contentDOM.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "F12" }),
+        );
+        expect(editor.view.state.selection.main.head).toBe(0);
+
+        editor.destroy();
+    });
+
+    it("suppresses signature help and go-to-definition when opted out", () => {
+        const parent = document.body.appendChild(document.createElement("div"));
+        const editor = createChartlangEditor({
+            doc: "ta.ema(bar.close, 20)",
+            definition: false,
+            parent,
+            service: createTestLanguageService({
+                getSignatureHelp: () => ({
+                    label: "ta.ema(source, length)",
+                    parameters: [],
+                    activeParameter: 0,
+                }),
+                getDefinition: () => ({ file: "script.chart.ts", line: 1, column: 1 }),
+            }),
+            signatureHelp: false,
+            lintDebounceMs: 1,
+        });
+
+        editor.view.dispatch({ selection: { anchor: 7 } });
+        expect(parent.querySelector(".chartlang-signature")).toBeNull();
+
+        editor.view.contentDOM.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "F12" }),
+        );
+        expect(editor.view.state.selection.main.head).toBe(7);
 
         editor.destroy();
     });

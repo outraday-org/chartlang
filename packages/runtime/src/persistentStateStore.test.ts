@@ -18,6 +18,7 @@ const key: StateStoreKey = {
 
 const snapshot: StateSnapshot = {
     lastBarTime: 1_700_000_000_000,
+    barIndex: 1,
     streams: {
         "1m": {
             interval: "1m",
@@ -40,7 +41,7 @@ const snapshot: StateSnapshot = {
         },
     },
     savedAt: 1_700_000_060_000,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
     primary: { slots: {} },
 };
 

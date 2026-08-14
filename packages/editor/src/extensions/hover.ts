@@ -27,7 +27,18 @@ export function hoverExtension(getService: () => ChartlangLanguageService): Exte
     });
 }
 
-function renderHoverDoc(doc: HoverDoc): HTMLElement {
+/**
+ * Render a language-service hover payload into the `.chartlang-hover` DOM
+ * fragment. Shared with the go-to-definition extension, which reuses it for
+ * the stdlib fallback so both surfaces render one hover markup.
+ *
+ * @since 2.5
+ * @stable
+ * @example
+ *     const dom = renderHoverDoc({ title: "ta.ema(source, length)", summary: "EMA." });
+ *     void dom;
+ */
+export function renderHoverDoc(doc: HoverDoc): HTMLElement {
     const root = document.createElement("div");
     root.className = "chartlang-hover";
 

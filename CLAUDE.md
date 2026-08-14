@@ -39,7 +39,8 @@ the rules that span folders.
 ## Index
 
 - `packages/*/CLAUDE.md` — per-package invariants (compiler, runtime,
-  hosts, cli, conformance, core).
+  hosts, cli, conformance, core, language-service, editor, examples,
+  pine-converter, adapter-kit).
 - `docs/CLAUDE.md`, `examples/CLAUDE.md`, `scripts/CLAUDE.md`,
   `.github/CLAUDE.md`, `apps/CLAUDE.md` — folder-scoped conventions.
 - `skills/chartlang-coding/` — end-user "write chartlang scripts" skill.

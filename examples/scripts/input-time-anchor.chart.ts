@@ -15,7 +15,7 @@ export default defineIndicator({
         anchor: input.time(1_700_000_000_000, { title: "Anchor time", pickFromChart: true }),
     },
     compute({ draw, inputs }) {
-        const anchor = inputs.anchor as number;
+        const anchor = inputs.anchor;
         draw.verticalLine(anchor, { color: "#f59e0b", lineStyle: "dashed" });
     },
 });

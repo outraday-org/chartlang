@@ -73,29 +73,39 @@ export type RunnerSnapshot = Readonly<{
  * deps + siblings share the primary's mainStream, so TA slots have no
  * per-runner section).
  *
- * `snapshotVersion: 1` is the only currently-supported wire version.
- * The 0.7 widening is additive — the runtime validator accepts both the
- * legacy flat `slots:` shape (loaded as primary-only) and the structured
+ * `barIndex` is the absolute index of the last bar folded into the
+ * snapshot, counted from the runner's first bar — so a host resumes by
+ * feeding bar `barIndex + 1`. It is `-1` for a snapshot captured before
+ * any bar closed. Unlike a stream's `filled` count it stays exact once a
+ * ring has wrapped, which is why it is carried explicitly.
+ *
+ * `snapshotVersion: 2` is the only currently-supported wire version;
+ * version-1 payloads (which predate `barIndex`) are rejected by the
+ * runtime validator and replayed from scratch. The 0.7 per-runner
+ * widening is additive — the validator accepts both the legacy flat
+ * `slots:` shape (loaded as primary-only) and the structured
  * `primary` / `siblings?` / `dependencies?` shape (always written going
  * forward).
  *
- * @since 0.5 — widened to per-runner sections in 0.7
+ * @since 0.5 — widened to per-runner sections in 0.7, `barIndex` added in 1.11
  * @stable
  * @example
  *     const s: StateSnapshot = {
  *         lastBarTime: 1_700_000_000_000,
+ *         barIndex: 4,
  *         streams: {},
  *         savedAt: 1_700_000_060_000,
- *         snapshotVersion: 1,
+ *         snapshotVersion: 2,
  *         primary: { slots: {} },
  *     };
  *     void s;
  */
 export type StateSnapshot = Readonly<{
     lastBarTime: number;
+    barIndex: number;
     streams: Readonly<Record<string, StreamSnapshot>>;
     savedAt: number;
-    snapshotVersion: 1;
+    snapshotVersion: 2;
     primary: RunnerSnapshot;
     siblings?: Readonly<Record<string, RunnerSnapshot>>;
     dependencies?: Readonly<Record<string, RunnerSnapshot>>;

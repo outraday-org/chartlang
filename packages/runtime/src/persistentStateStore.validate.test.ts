@@ -26,7 +26,8 @@ const wellFormedFlat = {
         "counter:state": { committed: 1, tentative: 1 },
     },
     savedAt: 1_700_000_060_000,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
+    barIndex: 0,
 };
 
 const wellFormedStructured = {
@@ -47,7 +48,8 @@ const wellFormedStructured = {
         },
     },
     savedAt: 1_700_000_060_000,
-    snapshotVersion: 1,
+    snapshotVersion: 2,
+    barIndex: 0,
     primary: {
         slots: { "counter:state": { committed: 1, tentative: 1 } },
     },
@@ -113,7 +115,25 @@ describe("validateSnapshot", () => {
 
     it("rejects unsupported snapshot versions", () => {
         expect(validateSnapshot({ ...wellFormedStructured, snapshotVersion: 0 })).toBe(false);
-        expect(validateSnapshot({ ...wellFormedStructured, snapshotVersion: 2 })).toBe(false);
+        expect(validateSnapshot({ ...wellFormedStructured, snapshotVersion: 3 })).toBe(false);
+    });
+
+    it("rejects version-1 payloads without throwing", () => {
+        const { barIndex: _barIndex, ...v1 } = wellFormedStructured;
+        expect(validateSnapshot({ ...v1, snapshotVersion: 1 })).toBe(false);
+        expect(validateSnapshot({ ...wellFormedFlat, snapshotVersion: 1 })).toBe(false);
+    });
+
+    it("accepts the -1 bar-index sentinel", () => {
+        expect(validateSnapshot({ ...wellFormedStructured, barIndex: -1 })).toBe(true);
+    });
+
+    it("rejects a missing or malformed barIndex", () => {
+        const { barIndex: _barIndex, ...missing } = wellFormedStructured;
+        expect(validateSnapshot(missing)).toBe(false);
+        expect(validateSnapshot({ ...wellFormedStructured, barIndex: "0" })).toBe(false);
+        expect(validateSnapshot({ ...wellFormedStructured, barIndex: 1.5 })).toBe(false);
+        expect(validateSnapshot({ ...wellFormedStructured, barIndex: -2 })).toBe(false);
     });
 
     it("rejects non-record snapshots", () => {

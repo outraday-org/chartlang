@@ -23,8 +23,8 @@ export default defineIndicator({
         // plus the value-area high/low band; the defaults span the full range
         // (epoch start → year 2100) so the demo renders without picking.
         const vp = ta.fixedRangeVolumeProfile({
-            from: inputs.from as number,
-            to: inputs.to as number,
+            from: inputs.from,
+            to: inputs.to,
             rowSize: 24,
         });
         plot(vp.poc, { color: "#ab47bc", title: "Fixed Range POC" });

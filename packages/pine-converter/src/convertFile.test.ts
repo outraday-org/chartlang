@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { convertFile } from "./index.js";
+import { convertFile } from "./node.js";
 
 const HELLO_PINE = "//@version=6\nindicator('hello')\n";
 

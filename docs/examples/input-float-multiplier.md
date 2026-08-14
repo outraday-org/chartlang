@@ -24,7 +24,7 @@ export default defineIndicator({
     compute({ bar, ta, plot, inputs }) {
         // `ta.*` returns a `Series<number>` (not number-coercible), so the band
         // arithmetic reads each series' `.current` scalar.
-        const mult = inputs.mult as number;
+        const mult = inputs.mult;
         const basis = ta.sma(bar.close, 20);
         const dev = ta.stdev(bar.close, 20);
         plot(basis, { color: "#90caf9", title: "Basis", lineWidth: 2 });
