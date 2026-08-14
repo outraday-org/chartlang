@@ -1,5 +1,75 @@
 # @invinite-org/chartlang-runtime
 
+## 1.10.0
+
+### Minor Changes
+
+- bc93986: `ScriptRunner` gains on-demand `exportSnapshot` / `importSnapshot`
+
+  The runtime has shipped full state capture and restore since 0.5
+  (`captureStateSnapshot` / `restoreStateSnapshot`: OHLCV rings, every `ta.*`
+  accumulator, all `state.*` slot families, sibling and dependency sections),
+  but the only way to reach it was to configure a `PersistentStateStore` and
+  wait for the write cadence. `ScriptRunner` now exposes both directly:
+
+  - `exportSnapshot(): StateSnapshot | null` captures the current state,
+    returning `null` when the capture is not JSON-clean (the same disposition
+    the cadence path takes before downgrading to a diagnostic).
+  - `importSnapshot(snapshot): { barIndex }` validates and restores, throwing
+    core's `SnapshotError` on a malformed or version-1 payload, and returns the
+    last bar folded in so the caller resumes at `barIndex + 1`.
+
+  This is the store-free half of the existing machinery — a host whose
+  persistence lives elsewhere (a Durable Object, a server-side cache) no longer
+  needs to fake a store. The runtime enforces no ordering rule; hosts own
+  "after `load`, before the first push".
+
+- bc93986: `session.isOpen` becomes calendar-aware for scripts
+
+  The script-facing `session.*` is a separate implementation from the host-facing
+  `core/time` helpers, so teaching only the latter about holidays would have left
+  every chartlang script still seeing a full session on a half day. This closes
+  that half.
+
+  `CreateScriptRunnerArgs.sessionCalendar` takes exchange-calendar ROWS (the
+  `SessionCalendarDay[]` both hosts send on their `load` frame — a `lookup()`
+  object cannot cross either membrane). `createScriptRunner` builds the
+  `SessionCalendar` once at mount and hangs it on `RuntimeContext`, where
+  `buildSessionNamespace` picks it up. Private deps, drawn siblings, and
+  `request.security` expression runners inherit it, so a composed bundle answers
+  one way.
+
+  `createSessionNamespace(getDefaultTz, onDstUnsupported, calendar?)` derives its
+  day key from the SAME `splitEpoch(t, offsetMin)` call the minute-of-day comes
+  from — never from `core/time`'s `nyDayKey`, which uses `Intl`. The accessor's
+  "no `Date`, no `Intl`, byte-reproducible across hosts" contract is intact. A
+  `closed` day is never open; a `halfDay` caps membership at the early close
+  (exactly `min(specEnd, closeMinutes)` for an ordinary window; for a
+  midnight-wrap window the early close ends the day, so the evening arm goes
+  too). No calendar, or a day it does not mention, leaves the answer unchanged.
+
+- 166222f: `StateSnapshot` carries an explicit `barIndex`; wire version bumped to 2
+
+  `StateSnapshot` gains a required `barIndex` — the absolute index of the last
+  bar folded into the snapshot, or `-1` when none — so a restored runner knows
+  exactly which bar it stands on. The cursor was previously derived from the
+  snapshot stream's `filled` count, which is exact only until the ring wraps;
+  `captureStateSnapshot` now stamps `barIndex` and `restoreStateSnapshot`
+  resumes at `barIndex + 1`, exact for saturated rings too.
+
+  `snapshotVersion` moves 1 → 2 and the runtime validator rejects version-1
+  payloads (they predate the field). There is no migration: a rejected snapshot
+  means a full replay, which is what a rejected snapshot has always meant. The
+  compiler's ambient script-facing mirror of the type is updated to match.
+
+### Patch Changes
+
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+  - @invinite-org/chartlang-core@1.11.0
+
 ## 1.9.1
 
 ### Patch Changes

@@ -1,5 +1,56 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.5.0
+
+### Minor Changes
+
+- bc93986: QuickJS dispatcher implements the `exportSnapshot` / `importSnapshot` verbs
+
+  `ScriptHost` is a type alias of host-worker's, so the two new methods arrive
+  here by inheritance — but inheriting the type is not shipping the verb. This
+  package's own output now carries all three pieces: the `exportSnapshot` /
+  `importSnapshot` arms of `HostToQuickJs` (plus the `snapshot` /
+  `snapshotImported` / `snapshotError` replies), the `createQuickJsHost` methods,
+  and the regenerated dispatcher bundle. Both are synchronous host→guest calls
+  like `drain`, and `createQuickJsHostOpts.stateStoreKey` rides the `load` frame
+  so the guest can stamp exports and refuse a foreign snapshot on import.
+
+  Semantics mirror host-worker exactly, refusal messages included: import only
+  after `load`, only before the first push, only for a matching `StateStoreKey`;
+  every refusal is a typed `snapshotError` frame rethrown as core's
+  `SnapshotError`, never a `fatal`. The one deliberate divergence is that `load`
+  carries no `persistence` descriptor — IndexedDB does not exist in this realm,
+  so automatic persistence stays a host-worker affordance and callers here own
+  their own storage.
+
+- bc93986: Both hosts carry the exchange calendar on their `load` frame
+
+  `CreateWorkerHostOpts.sessionCalendar` and `CreateQuickJsHostOpts.sessionCalendar`
+  take `SessionCalendarDay[]` and forward them on the EXISTING `load` frame — no
+  new frame kind; a calendar is mount data, not a verb. The worker boot and the
+  QuickJS dispatcher pass the rows straight to `createScriptRunner`, which builds
+  the `lookup()` guest-side, because a method does not survive `structuredClone`
+  or a JSON membrane.
+
+  For host-quickjs this is the half that actually matters to a server-side alert:
+  the regenerated dispatcher bundle is what makes a guest script's
+  `session.isOpen` shut at the real early close. Omit the option and every frame,
+  and every emission, is byte-identical to before.
+
+### Patch Changes
+
+- Updated dependencies [bc93986]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+- Updated dependencies [bc93986]
+- Updated dependencies [bc93986]
+- Updated dependencies [bc93986]
+- Updated dependencies [166222f]
+- Updated dependencies [bc93986]
+  - @invinite-org/chartlang-host-worker@1.5.0
+  - @invinite-org/chartlang-core@1.11.0
+  - @invinite-org/chartlang-runtime@1.10.0
+
 ## 1.4.4
 
 ### Patch Changes
