@@ -7,7 +7,43 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(594);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(600);
+    });
+
+    it("contains the session-calendar entries (1.11)", () => {
+        expect(HOVER_REGISTRY.createSessionCalendar).toMatchObject({
+            fqn: "createSessionCalendar",
+            kind: "function",
+            since: "1.11",
+        });
+        expect(HOVER_REGISTRY.SessionCalendar).toMatchObject({
+            fqn: "SessionCalendar",
+            kind: "type",
+            since: "1.11",
+        });
+        expect(HOVER_REGISTRY.SessionCalendarDay).toMatchObject({
+            fqn: "SessionCalendarDay",
+            kind: "type",
+            since: "1.11",
+        });
+    });
+
+    it("contains the state-store key + snapshot-error helper entries (1.11)", () => {
+        expect(HOVER_REGISTRY.stateStoreKeyId).toMatchObject({
+            fqn: "stateStoreKeyId",
+            kind: "function",
+            since: "1.11",
+        });
+        expect(HOVER_REGISTRY.stateStoreKeysEqual).toMatchObject({
+            fqn: "stateStoreKeysEqual",
+            kind: "function",
+            since: "1.11",
+        });
+        expect(HOVER_REGISTRY.isSnapshotError).toMatchObject({
+            fqn: "isSnapshotError",
+            kind: "function",
+            since: "1.11",
+        });
     });
 
     it("contains external-series feed entries (1.9)", () => {

@@ -9,6 +9,7 @@
 import type { Time } from "../types.js";
 import { getFormatter } from "./_lib/dateTimeFormatCache.js";
 import { localDateParts } from "./nyDayKey.js";
+import type { SessionCalendar } from "./sessionCalendar.js";
 import type { SessionBounds, SessionType } from "./types.js";
 import { weekday } from "./weekday.js";
 
@@ -55,11 +56,18 @@ function zonedTimeToUtcMs(
     return second;
 }
 
+// The weekend branch runs BEFORE any calendar lookup, so a row for a Saturday
+// is inert rather than contradictory. An unknown day key fails open (today's
+// behaviour); a `closed` day joins the weekend `null` branch; a `halfDay`
+// truncates the window's end to the early close. `closeMinutes` is a LOCAL
+// exchange minute-of-day, so it flows into the same `zonedTimeToUtcMs`
+// conversion the fixed window uses and inherits its DST handling for free.
 function sessionFor(
     tz: string,
     t: Time,
     startMinutes: number,
     endMinutes: number,
+    calendar?: SessionCalendar,
 ): SessionBounds | null {
     const dow = weekday(tz, t);
     if (dow === 0 || dow === 6) return null;
@@ -67,22 +75,34 @@ function sessionFor(
     const year = Number(parts.year);
     const month = Number(parts.month);
     const day = Number(parts.day);
+    let effectiveEndMinutes = endMinutes;
+    if (calendar !== undefined) {
+        const entry = calendar.lookup(`${parts.year}-${parts.month}-${parts.day}`);
+        if (entry !== null) {
+            if (entry.kind === "closed") return null;
+            effectiveEndMinutes = Math.min(endMinutes, entry.closeMinutes);
+        }
+    }
     const startMs = zonedTimeToUtcMs(tz, year, month, day, 0, startMinutes);
-    const endMs = zonedTimeToUtcMs(tz, year, month, day, 0, endMinutes);
+    const endMs = zonedTimeToUtcMs(tz, year, month, day, 0, effectiveEndMinutes);
     return Object.freeze({ startMs, endMs });
 }
 
 /**
  * Return the regular 09:30-16:00 session bounds for the New York day
- * containing `t`.
+ * containing `t`, optionally narrowed by an exchange `calendar`.
+ *
+ * This helper is non-nullable, so a calendar `closed` day falls into the SAME
+ * synthetic noon-centred window a weekend already takes. Callers that need to
+ * distinguish "no session" use {@link regularSession}, which returns `null`.
  *
  * @since 0.6
  * @stable
  * @example
  *     nySessionBounds(1_709_251_200_000);
  */
-export function nySessionBounds(t: Time): SessionBounds {
-    const bounds = sessionFor("America/New_York", t, 9 * 60 + 30, 16 * 60);
+export function nySessionBounds(t: Time, calendar?: SessionCalendar): SessionBounds {
+    const bounds = sessionFor("America/New_York", t, 9 * 60 + 30, 16 * 60, calendar);
     if (bounds !== null) return bounds;
     const parts = localDateParts("America/New_York", t);
     const noon = zonedTimeToUtcMs(
@@ -100,38 +120,60 @@ export function nySessionBounds(t: Time): SessionBounds {
 }
 
 /**
- * Return regular 09:30-16:00 session bounds in `tz`, or `null` on weekends.
+ * Return regular 09:30-16:00 session bounds in `tz`, or `null` on weekends and
+ * on an optional `calendar`'s `closed` days. A `halfDay` truncates `endMs` to
+ * the early close.
  *
  * @since 0.6
  * @stable
  * @example
  *     regularSession("America/New_York", 1_709_251_200_000);
  */
-export function regularSession(tz: string, t: Time): SessionBounds | null {
-    return sessionFor(tz, t, 9 * 60 + 30, 16 * 60);
+export function regularSession(
+    tz: string,
+    t: Time,
+    calendar?: SessionCalendar,
+): SessionBounds | null {
+    return sessionFor(tz, t, 9 * 60 + 30, 16 * 60, calendar);
 }
 
 /**
- * Return extended 04:00-20:00 session bounds in `tz`, or `null` on weekends.
+ * Return extended 04:00-20:00 session bounds in `tz`, or `null` on weekends and
+ * on an optional `calendar`'s `closed` days.
+ *
+ * A `halfDay`'s early close truncates the extended window too — chartlang does
+ * not synthesise a post-early-close after-hours tail, because the consumer
+ * supplies exactly one close minute per day (see `CLAUDE.md`).
  *
  * @since 0.6
  * @stable
  * @example
  *     extendedSession("America/New_York", 1_709_251_200_000);
  */
-export function extendedSession(tz: string, t: Time): SessionBounds | null {
-    return sessionFor(tz, t, 4 * 60, 20 * 60);
+export function extendedSession(
+    tz: string,
+    t: Time,
+    calendar?: SessionCalendar,
+): SessionBounds | null {
+    return sessionFor(tz, t, 4 * 60, 20 * 60, calendar);
 }
 
 /**
- * Test whether `t` falls inside the selected half-open session in `tz`.
+ * Test whether `t` falls inside the selected half-open session in `tz`,
+ * optionally narrowed by an exchange `calendar`.
  *
  * @since 0.6
  * @stable
  * @example
  *     isOpen("America/New_York", 1_709_251_200_000, "regular");
  */
-export function isOpen(tz: string, t: Time, type: SessionType): boolean {
-    const bounds = type === "regular" ? regularSession(tz, t) : extendedSession(tz, t);
+export function isOpen(
+    tz: string,
+    t: Time,
+    type: SessionType,
+    calendar?: SessionCalendar,
+): boolean {
+    const bounds =
+        type === "regular" ? regularSession(tz, t, calendar) : extendedSession(tz, t, calendar);
     return bounds !== null && bounds.startMs <= t && t < bounds.endMs;
 }

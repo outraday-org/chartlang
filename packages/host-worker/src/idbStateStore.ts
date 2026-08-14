@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { StateSnapshot, StateStoreKey } from "@invinite-org/chartlang-core";
+import { stateStoreKeyId } from "@invinite-org/chartlang-core";
 import type { PersistentStateStore } from "@invinite-org/chartlang-runtime";
 
 const DEFAULT_DB_NAME = "chartlang";
@@ -41,7 +42,7 @@ export function idbStateStore(
 ): PersistentStateStore {
     const dbName = opts.dbName ?? DEFAULT_DB_NAME;
     const capBytes = opts.capBytes ?? DEFAULT_CAP_BYTES;
-    const keyString = stringifyKey(opts.key);
+    const keyString = stateStoreKeyId(opts.key);
 
     return Object.freeze({
         key: opts.key,
@@ -80,23 +81,6 @@ export function idbStateStore(
             await requestToPromise(tx.objectStore(OBJECT_STORE).delete(keyString));
             await done;
         },
-    });
-}
-
-/**
- * Stable cache-key serialisation for the `StateStoreKey`.
- *
- * @internal
- */
-function stringifyKey(key: StateStoreKey): string {
-    return JSON.stringify({
-        scriptHash: key.scriptHash,
-        compilerVersion: key.compilerVersion,
-        apiVersion: key.apiVersion,
-        capabilitiesHash: key.capabilitiesHash,
-        symbol: key.symbol,
-        mainInterval: key.mainInterval,
-        requestedIntervals: key.requestedIntervals.join(","),
     });
 }
 

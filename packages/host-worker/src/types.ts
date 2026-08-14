@@ -7,7 +7,12 @@ import type {
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
+import type {
+    Bar,
+    ScriptManifest,
+    StateSnapshot,
+    StateStoreKey,
+} from "@invinite-org/chartlang-core";
 
 /**
  * Resource caps a `ScriptHost` reports to its consumer. Phase-1 `host-worker`
@@ -68,6 +73,59 @@ export type HostCompiledScript = {
 };
 
 /**
+ * A captured runner state plus the {@link StateStoreKey} identity it is valid
+ * for. Produced by `ScriptHost.exportSnapshot()` and consumed unchanged by
+ * `ScriptHost.importSnapshot()`.
+ *
+ * The key travels bound to the payload on purpose: a consumer that persists a
+ * snapshot across an eviction cannot accidentally store one without the other,
+ * and the receiving host can refuse a snapshot captured under a different
+ * script hash / compiler version / symbol / interval set. `key` is `null` when
+ * the exporting host was constructed without a `stateStoreKey` — a null-keyed
+ * snapshot is only importable into a null-keyed host.
+ *
+ * The whole envelope is JSON-clean, so it survives `structuredClone`,
+ * `JSON.stringify`, and a Durable-Object storage round trip.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     declare const host: ScriptHost;
+ *     const exported: HostSnapshot | null = await host.exportSnapshot();
+ *     void exported;
+ */
+export type HostSnapshot = Readonly<{
+    key: StateStoreKey | null;
+    snapshot: StateSnapshot;
+}>;
+
+/**
+ * Opt-in automatic persistence for the shipped worker boot.
+ *
+ * `kind: "idb"` makes the boot build the packaged `idbStateStore` around the
+ * `load` frame's `stateStoreKey` — the store cannot be constructed before that
+ * frame arrives, which is why this is a JSON descriptor on the wire rather
+ * than a store instance passed to `createWorkerBoot`. The boot then saves on
+ * the runtime's own cadence and warm-starts once, on the first candle event it
+ * can read a bar time from.
+ *
+ * Independent of the manual `exportSnapshot` / `importSnapshot` verbs: a
+ * consumer that manages its own storage (a server-side host, a Durable Object)
+ * uses the verbs and omits this.
+ *
+ * @since 1.5
+ * @stable
+ * @example
+ *     const persistence: WorkerPersistence = { kind: "idb", dbName: "chartlang" };
+ *     void persistence;
+ */
+export type WorkerPersistence = Readonly<{
+    kind: "idb";
+    dbName?: string;
+    capBytes?: number;
+}>;
+
+/**
  * Host-side lifecycle handle the worker host returns. Mirrors PLAN §8.1 — the
  * Phase-1 Web Worker host owns the only declaration; Phase-5's QuickJS host
  * re-uses the same shape. Methods cross the worker boundary via structured
@@ -104,6 +162,31 @@ export type ScriptHost = {
      */
     setExternalSeries(feeds: ExternalSeriesFeedMap): void;
     drain(): Promise<RunnerEmissions>;
+    /**
+     * Capture the runner's whole state — OHLCV rings, `ta.*` accumulators,
+     * every `state.*` slot family, sibling + dependency sections — as a
+     * JSON-clean {@link HostSnapshot}.
+     *
+     * Resolves `null` only when the capture itself fails validation (state
+     * that is not JSON-clean). Rejects with a `SnapshotError` when called
+     * before `load()`.
+     *
+     * @since 1.5
+     */
+    exportSnapshot(): Promise<HostSnapshot | null>;
+    /**
+     * Restore a {@link HostSnapshot} into a freshly loaded runner.
+     *
+     * Legal only AFTER `load()` and BEFORE the first `push()`; the returned
+     * `barIndex` is the last bar folded into the restored state, so the caller
+     * resumes by pushing bar `barIndex + 1` (skipping already-folded bars is
+     * the caller's job). Rejects with a `SnapshotError` — never a `fatal` —
+     * when called out of order, when `snapshot.key` does not match the host's
+     * own `stateStoreKey`, or when the payload fails validation.
+     *
+     * @since 1.5
+     */
+    importSnapshot(exported: HostSnapshot): Promise<{ barIndex: number }>;
     dispose(): void;
     readonly limits: HostLimits;
 };
@@ -170,8 +253,11 @@ export type ScriptRunnerHandle = {
     onBarClose(bar: Bar): Promise<void>;
     onBarTick(bar: Bar): Promise<void>;
     push(event: CandleEvent): Promise<void>;
+    warmStart(currentMainBarTime: number): Promise<void>;
     drain(): RunnerEmissions;
     setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
     setExternalSeries(feeds: ExternalSeriesFeedMap): void;
+    exportSnapshot(): StateSnapshot | null;
+    importSnapshot(snapshot: StateSnapshot): { barIndex: number };
     dispose(): Promise<void>;
 };

@@ -6,7 +6,9 @@ import type {
     CompiledScriptBundle,
     CompiledScriptObject,
     ScriptManifest,
+    StateStoreKey,
 } from "@invinite-org/chartlang-core";
+import { stateStoreKeysEqual } from "@invinite-org/chartlang-core";
 import { buildBundleFromModule } from "@invinite-org/chartlang-runtime";
 import type { CompiledModuleExport, createScriptRunner } from "@invinite-org/chartlang-runtime";
 
@@ -18,6 +20,8 @@ type PushFrame = Extract<HostToQuickJs, { readonly kind: "candleEvent" }>;
 type SetPlotOverridesFrame = Extract<HostToQuickJs, { readonly kind: "setPlotOverrides" }>;
 type SetExternalSeriesFrame = Extract<HostToQuickJs, { readonly kind: "setExternalSeries" }>;
 type DrainFrame = Extract<HostToQuickJs, { readonly kind: "drain" }>;
+type ExportSnapshotFrame = Extract<HostToQuickJs, { readonly kind: "exportSnapshot" }>;
+type ImportSnapshotFrame = Extract<HostToQuickJs, { readonly kind: "importSnapshot" }>;
 type ScriptRunnerHandle = ReturnType<typeof createScriptRunner>;
 
 /**
@@ -113,6 +117,10 @@ export type DispatcherHandlers = Readonly<{
     setPlotOverrides: (json: string) => string;
     setExternalSeries: (json: string) => string;
     drain: (json: string) => string;
+    /** @since 1.5 */
+    exportSnapshot: (json: string) => string;
+    /** @since 1.5 */
+    importSnapshot: (json: string) => string;
     dispose: () => string;
 }>;
 
@@ -143,7 +151,7 @@ function reviveCapabilities(value: Capabilities): Capabilities {
 }
 
 /**
- * Build the four dispatcher handlers around a host-injected dependency bag.
+ * Build the dispatcher handlers around a host-injected dependency bag.
  * The factory keeps the per-context `runner` reference in closure so the
  * caller (`dispatcher.ts` in the guest realm, or a unit test in the host
  * realm) only has to wire the entrypoints onto the appropriate `globalThis`.
@@ -151,9 +159,12 @@ function reviveCapabilities(value: Capabilities): Capabilities {
  * Behaviour is identical to the in-realm dispatcher: `load` evaluates the
  * compiled module source via `deps.loadEval`, instantiates a runner, and
  * replies with `loaded` or `loadError`; `push` forwards the event and replies
- * with `ack` or `fatal`; `drain` snapshots emissions; `dispose` tears the
- * runner down. Errors are coerced to a string message and never thrown across
- * the membrane.
+ * with `ack` or `fatal`; `drain` snapshots emissions; `exportSnapshot` /
+ * `importSnapshot` capture and restore the runner's persistable state, with
+ * import legal only after `load` and before the first push and only for a
+ * matching `StateStoreKey` (every refusal is a typed `snapshotError`, never
+ * `fatal`); `dispose` tears the runner down. Errors are coerced to a string
+ * message and never thrown across the membrane.
  *
  * @since 0.5
  * @internal
@@ -169,6 +180,8 @@ function reviveCapabilities(value: Capabilities): Capabilities {
  */
 export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
     let runner: ScriptRunnerHandle | null = null;
+    let stateStoreKey: StateStoreKey | null = null;
+    let pushed = false;
 
     function loadCompiled(source: string): CompiledScriptObject | CompiledScriptBundle {
         deps.setCompiledDefault(undefined);
@@ -217,7 +230,14 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
                 ...(frame.externalSeriesFeeds === undefined
                     ? {}
                     : { externalSeriesFeeds: frame.externalSeriesFeeds }),
+                // Rows, not a built calendar: a `lookup()` object cannot cross
+                // the JSON membrane, so the runner builds the interface here.
+                ...(frame.sessionCalendar === undefined
+                    ? {}
+                    : { sessionCalendar: frame.sessionCalendar }),
             });
+            stateStoreKey = frame.stateStoreKey ?? null;
+            pushed = false;
             return reply({ kind: "loaded" });
         } catch (err) {
             return reply({ kind: "loadError", message: message(err) });
@@ -230,6 +250,7 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
                 throw new Error("candleEvent before load");
             }
             const frame = JSON.parse(json) as PushFrame;
+            pushed = true;
             await runner.push(frame.event);
             return reply({ kind: "ack" });
         } catch (err) {
@@ -276,10 +297,62 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
     }
 
+    function exportSnapshot(json: string): string {
+        const frame = JSON.parse(json) as ExportSnapshotFrame;
+        if (runner === null) {
+            return reply({
+                kind: "snapshotError",
+                nonce: frame.nonce,
+                message: "exportSnapshot before load",
+            });
+        }
+        // Mirrors host-worker: "before load" is this verb's only refusal, and
+        // an unvalidatable capture returns `null` instead of throwing.
+        return reply({
+            kind: "snapshot",
+            nonce: frame.nonce,
+            snapshot: runner.exportSnapshot(),
+            key: stateStoreKey,
+        });
+    }
+
+    function importSnapshot(json: string): string {
+        const frame = JSON.parse(json) as ImportSnapshotFrame;
+        if (runner === null) {
+            return reply({
+                kind: "snapshotError",
+                nonce: frame.nonce,
+                message: "importSnapshot before load",
+            });
+        }
+        if (pushed) {
+            return reply({
+                kind: "snapshotError",
+                nonce: frame.nonce,
+                message: "importSnapshot after the first push",
+            });
+        }
+        if (!stateStoreKeysEqual(frame.key, stateStoreKey)) {
+            return reply({
+                kind: "snapshotError",
+                nonce: frame.nonce,
+                message: "importSnapshot state store key mismatch",
+            });
+        }
+        try {
+            const { barIndex } = runner.importSnapshot(frame.snapshot);
+            return reply({ kind: "snapshotImported", nonce: frame.nonce, barIndex });
+        } catch (err) {
+            return reply({ kind: "snapshotError", nonce: frame.nonce, message: message(err) });
+        }
+    }
+
     function dispose(): string {
         try {
             void runner?.dispose();
             runner = null;
+            stateStoreKey = null;
+            pushed = false;
             deps.setCompiledDefault(undefined);
             deps.setCompiledNamed?.(undefined);
             deps.setCompiledDependencies?.(undefined);
@@ -290,5 +363,14 @@ export function createDispatcher(deps: DispatcherDeps): DispatcherHandlers {
         }
     }
 
-    return Object.freeze({ load, push, setPlotOverrides, setExternalSeries, drain, dispose });
+    return Object.freeze({
+        load,
+        push,
+        setPlotOverrides,
+        setExternalSeries,
+        drain,
+        exportSnapshot,
+        importSnapshot,
+        dispose,
+    });
 }

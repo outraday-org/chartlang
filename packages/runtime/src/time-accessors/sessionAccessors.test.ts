@@ -2,6 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Bar } from "@invinite-org/chartlang-core";
+import { createSessionCalendar } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
 import { harness } from "../ta/__fixtures__/runPrimitive.js";
@@ -94,6 +95,78 @@ describe("createSessionNamespace — tz resolution", () => {
         expect(session.isOpen(Number.NaN, "0930-1600", "America/New_York")).toBe(false);
         expect(session.isOpen(at(10, 0), "garbage", "America/New_York")).toBe(false);
         expect(onDst).not.toHaveBeenCalled();
+    });
+});
+
+describe("createSessionNamespace — exchange calendar", () => {
+    // Every `at(...)` epoch is on 2024-01-02.
+    const calendar = createSessionCalendar([
+        { dayKey: "2024-01-02", kind: "halfDay", closeMinutes: 13 * 60 },
+        { dayKey: "2024-01-04", kind: "closed" },
+    ]);
+    const withCalendar = (tz = "UTC") =>
+        createSessionNamespace(
+            () => tz,
+            () => {},
+            calendar,
+        );
+
+    it("caps a normal window at the early close", () => {
+        const session = withCalendar();
+        expect(session.isOpen(at(12, 59), "0930-1600")).toBe(true);
+        expect(session.isOpen(at(13, 0), "0930-1600")).toBe(false);
+        expect(session.isOpen(at(15, 0), "0930-1600")).toBe(false);
+        // Before the window opens the calendar changes nothing.
+        expect(session.isOpen(at(8, 0), "0930-1600")).toBe(false);
+    });
+
+    it("leaves a window that already ends before the early close alone", () => {
+        const session = createSessionNamespace(
+            () => "UTC",
+            () => {},
+            createSessionCalendar([
+                { dayKey: "2024-01-02", kind: "halfDay", closeMinutes: 23 * 60 },
+            ]),
+        );
+        expect(session.isOpen(at(15, 0), "0930-1600")).toBe(true);
+        expect(session.isOpen(at(16, 0), "0930-1600")).toBe(false);
+    });
+
+    it("is never open on a closed day", () => {
+        const session = createSessionNamespace(
+            () => "UTC",
+            () => {},
+            calendar,
+        );
+        const onClosedDay = (hh: number) => Date.UTC(2024, 0, 4, hh, 0, 0);
+        expect(session.isOpen(onClosedDay(10), "0930-1600")).toBe(false);
+        expect(session.isOpen(onClosedDay(23), "2200-0400")).toBe(false);
+    });
+
+    it("applies the early close to a midnight-wrap window's evening arm only", () => {
+        const session = withCalendar();
+        // 02:00 is inside [0, 04:00) and before the 13:00 close → still open.
+        expect(session.isOpen(at(2, 0), "2200-0400")).toBe(true);
+        // 23:00 is inside [22:00, 1440) but after the early close → shut.
+        expect(session.isOpen(at(23, 0), "2200-0400")).toBe(false);
+    });
+
+    it("fails open on a day the calendar says nothing about", () => {
+        const session = withCalendar();
+        const otherDay = Date.UTC(2024, 0, 3, 15, 0, 0);
+        expect(session.isOpen(otherDay, "0930-1600")).toBe(true);
+    });
+
+    it("keys the calendar off the LOCAL day, not the UTC one", () => {
+        // 2024-01-02T23:00Z is 2024-01-03T01:00 at +02:00, so the 01-02 half-day
+        // row must NOT apply and the 01-03 row must.
+        const shifted = createSessionNamespace(
+            () => "+02:00",
+            () => {},
+            createSessionCalendar([{ dayKey: "2024-01-03", kind: "closed" }]),
+        );
+        expect(shifted.isOpen(at(23, 0), "0000-0400")).toBe(false);
+        expect(withCalendar("+02:00").isOpen(at(23, 0), "0000-0400")).toBe(true);
     });
 });
 

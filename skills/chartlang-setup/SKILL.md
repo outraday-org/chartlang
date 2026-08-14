@@ -140,8 +140,9 @@ honestly.
 The in-process runner, the Worker host, and the QuickJS host return
 **byte-identical** plot and alert streams for the same input. Both
 `ScriptHost` implementations expose the same shape
-(`load` / `push` / `drain` / `dispose` / `limits`), so swapping a
-browser Worker for a server-side QuickJS sandbox is a one-line change.
+(`load` / `push` / `drain` / `exportSnapshot` / `importSnapshot` /
+`dispose` / `limits`), so swapping a browser Worker for a server-side
+QuickJS sandbox is a one-line change.
 Parity is the conformance contract — the conformance suite runs every
 fixture through both hosts and asserts identical drained emissions, and
 [`parity-smoke.mts`](https://github.com/outraday-org/chartlang/blob/main/parity-smoke.mts)

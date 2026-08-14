@@ -30,7 +30,9 @@ Compile the script server-side exactly as in [`embed.md`](./embed.md)
 (the compiler is node-only), then feed bars through the QuickJS host and
 drain alerts. `createQuickJsHost` (capital `J`, capital `S`) takes
 `CreateQuickJsHostOpts` — the adapter's `capabilities` plus optional
-`limits`. `load` accepts the compiler's `{ moduleSource, manifest }`;
+`limits` and `sessionCalendar` (exchange-calendar rows; see
+[Holidays and half days](#holidays-and-half-days)). `load` accepts the
+compiler's `{ moduleSource, manifest }`;
 `push` and `drain` are async:
 
 ```ts
@@ -75,6 +77,45 @@ alerts are re-validated through `validateEmission` on the way out), and
 limit overrides go in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` merged over `DEFAULT_QUICKJS_LIMITS`
 (`maxHeapBytes` 64 MiB, `maxStepMs` 1 ms).
+
+## Holidays and half days
+
+An alert that gates on `session.isOpen` fires on a post-13:00 Black Friday tick
+unless the host supplies an exchange calendar — chartlang ships no holiday data
+and treats every weekday as a full session by default. Pass the rows once:
+
+```ts
+import type { SessionCalendarDay } from "@invinite-org/chartlang-core";
+
+const sessionCalendar: ReadonlyArray<SessionCalendarDay> = [
+    { dayKey: "2024-11-28", kind: "closed" },
+    { dayKey: "2024-11-29", kind: "halfDay", closeMinutes: 13 * 60 },
+];
+```
+
+`closeMinutes` is a **local exchange minute-of-day**, not UTC, and it truncates
+the extended session too. A day the calendar does not mention behaves exactly
+as it does without one. Bar aggregation stays yours — chartlang narrows the
+session predicates only.
+
+## Surviving an eviction without replaying history
+
+A long-lived alert process that loses its host — a hibernating Durable
+Object, a redeployed worker — otherwise has to replay the script's whole
+lookback window to rebuild state. `exportSnapshot()` captures it instead
+(OHLCV rings, `ta.*` accumulators, every `state.*` slot) as one JSON-clean
+`HostSnapshot` envelope you store wherever you like, and
+`importSnapshot(exported)` puts it back into a freshly loaded host, acking
+with the last bar folded in so you fetch only bars after it.
+
+Pass `CreateQuickJsHostOpts.stateStoreKey` and the envelope carries that
+identity beside the payload, so a snapshot captured under a different script
+hash, compiler version, symbol, or interval set is refused rather than
+silently restored — exactly what you want after a recompile. Import is legal
+only **after `load` and before the first `push`**; that, a key mismatch, and a
+malformed payload all reject with `SnapshotError` from
+`@invinite-org/chartlang-core`, never a fatal, so the fallback is the ordinary
+full replay.
 
 ## The sandbox boundary
 

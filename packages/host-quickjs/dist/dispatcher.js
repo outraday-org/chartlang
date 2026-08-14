@@ -642,6 +642,32 @@ var state = Object.freeze({
   })
 });
 
+// ../core/dist/state/snapshot.js
+function stateStoreKeyId(key) {
+  return JSON.stringify({
+    scriptHash: key.scriptHash,
+    compilerVersion: key.compilerVersion,
+    apiVersion: key.apiVersion,
+    capabilitiesHash: key.capabilitiesHash,
+    symbol: key.symbol,
+    mainInterval: key.mainInterval,
+    requestedIntervals: key.requestedIntervals.join(",")
+  });
+}
+function stateStoreKeysEqual(a, b) {
+  if (a === null || b === null)
+    return a === b;
+  return stateStoreKeyId(a) === stateStoreKeyId(b);
+}
+
+// ../core/dist/state/snapshotError.js
+var SnapshotError = class extends Error {
+  constructor(message2) {
+    super(message2);
+    this.name = "SnapshotError";
+  }
+};
+
 // ../core/dist/time-accessors/sessionAccessors.js
 var sentinel2 = (name) => {
   throw new Error(`${name} called outside an active script step`);
@@ -803,6 +829,26 @@ var time = Object.freeze({
     return sentinel3("time.timeClose");
   }
 });
+
+// ../core/dist/time/sessionCalendar.js
+var MAX_MINUTE_OF_DAY = 1440;
+function createSessionCalendar(days) {
+  const byDayKey = /* @__PURE__ */ new Map();
+  for (const day of days) {
+    if (day.kind === "halfDay") {
+      const close = day.closeMinutes;
+      if (!Number.isInteger(close) || close < 0 || close > MAX_MINUTE_OF_DAY) {
+        throw new Error(`session calendar: half-day ${day.dayKey} needs an integer closeMinutes in [0, ${MAX_MINUTE_OF_DAY}], got ${String(close)}`);
+      }
+    }
+    byDayKey.set(day.dayKey, day);
+  }
+  return Object.freeze({
+    lookup(dayKey) {
+      return byDayKey.get(dayKey) ?? null;
+    }
+  });
+}
 
 // ../core/dist/views/barstate.js
 var barstate = Object.freeze({
@@ -3329,6 +3375,7 @@ function buildExprContext(parent, slotId, foldStream) {
     requestLowerTfViews: /* @__PURE__ */ new Map(),
     diagnosedRequestKeys: /* @__PURE__ */ new Set(),
     diagnosedTzKeys: /* @__PURE__ */ new Set(),
+    sessionCalendar: parent.sessionCalendar,
     logBudget: 0,
     logBudgetExceededDiagnosed: false,
     resolvedInputs: parent.resolvedInputs,
@@ -16652,7 +16699,10 @@ function buildTimeNamespace(ctx, getNow) {
 }
 
 // ../runtime/dist/time-accessors/sessionAccessors.js
-function createSessionNamespace(getDefaultTz, onDstUnsupported) {
+function dayKeyOf2(y, m, d) {
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+function createSessionNamespace(getDefaultTz, onDstUnsupported, calendar) {
   return Object.freeze({
     isOpen(t, spec, tz) {
       if (!Number.isFinite(t))
@@ -16664,18 +16714,26 @@ function createSessionNamespace(getDefaultTz, onDstUnsupported) {
       const { offsetMin, dstUnsupported } = resolveOffsetMinutes(resolved);
       if (dstUnsupported)
         onDstUnsupported(resolved);
-      const { hh, mm } = splitEpoch(t, offsetMin);
+      const { y, m, d, hh, mm } = splitEpoch(t, offsetMin);
       const minuteOfDay = hh * 60 + mm;
       const { startMinutes, endMinutes } = parsed;
-      if (endMinutes <= startMinutes) {
-        return minuteOfDay >= startMinutes || minuteOfDay < endMinutes;
-      }
-      return minuteOfDay >= startMinutes && minuteOfDay < endMinutes;
+      const inWindow = endMinutes <= startMinutes ? (
+        // Midnight-wrap window: [start, 1440) ∪ [0, end).
+        minuteOfDay >= startMinutes || minuteOfDay < endMinutes
+      ) : minuteOfDay >= startMinutes && minuteOfDay < endMinutes;
+      if (calendar === void 0)
+        return inWindow;
+      const entry = calendar.lookup(dayKeyOf2(y, m, d));
+      if (entry === null)
+        return inWindow;
+      if (entry.kind === "closed")
+        return false;
+      return inWindow && minuteOfDay < entry.closeMinutes;
     }
   });
 }
 function buildSessionNamespace(ctx) {
-  return createSessionNamespace(() => ctx.views.syminfo.timezone, buildTzDstReporter(ctx));
+  return createSessionNamespace(() => ctx.views.syminfo.timezone, buildTzDstReporter(ctx), ctx.sessionCalendar);
 }
 
 // ../runtime/dist/buildComputeContext.js
@@ -16937,6 +16995,7 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       requestLowerTfViews: /* @__PURE__ */ new Map(),
       diagnosedRequestKeys: /* @__PURE__ */ new Set(),
       diagnosedTzKeys: /* @__PURE__ */ new Set(),
+      sessionCalendar: args.sessionCalendar,
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),
       logBudget: 0,
@@ -17878,6 +17937,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
     toBar: 0
   };
   const alertConditions = new Map((primary.manifest.alertConditions ?? []).map((condition) => [condition.id, condition]));
+  const sessionCalendar = args.sessionCalendar === void 0 ? void 0 : createSessionCalendar(args.sessionCalendar);
   const state2 = {
     manifest: primary.manifest,
     compute: primary.compute,
@@ -17918,6 +17978,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
       requestLowerTfViews: /* @__PURE__ */ new Map(),
       diagnosedRequestKeys: /* @__PURE__ */ new Set(),
       diagnosedTzKeys: /* @__PURE__ */ new Set(),
+      sessionCalendar,
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),
       logBudget: 0,
@@ -17976,6 +18037,7 @@ function attachBundle(primary, bundle, capabilities2, now) {
     secondaryStreams: primary.runtimeContext.secondaryStreams,
     depOutputStore: store,
     inputOverrides: entry.inputOverrides ?? Object.freeze({}),
+    sessionCalendar: primary.runtimeContext.sessionCalendar,
     now
   }));
   const siblingRunners = bundle.siblings.map((entry) => createSiblingRunner({
@@ -17987,6 +18049,7 @@ function attachBundle(primary, bundle, capabilities2, now) {
     secondaryStreams: primary.runtimeContext.secondaryStreams,
     depOutputStore: store,
     inputOverrides: Object.freeze({}),
+    sessionCalendar: primary.runtimeContext.sessionCalendar,
     now
   }));
   Object.assign(primary, {
@@ -18087,6 +18150,16 @@ function createScriptRunner(args) {
     },
     setExternalSeries(feeds) {
       state2.runtimeContext.externalSeriesFeeds = replaceExternalSeriesFeedMap(feeds);
+    },
+    exportSnapshot() {
+      return captureStateSnapshot(state2, state2.now());
+    },
+    importSnapshot(snapshot6) {
+      if (!validateSnapshot(snapshot6)) {
+        throw new SnapshotError("state snapshot failed validation");
+      }
+      restoreStateSnapshot(state2, snapshot6);
+      return { barIndex: state2.barIndex - 1 };
     },
     async dispose() {
       const finalSave = saveStateSnapshot(state2, state2.now());
@@ -18213,6 +18286,8 @@ function reviveCapabilities(value) {
 }
 function createDispatcher(deps) {
   let runner = null;
+  let stateStoreKey = null;
+  let pushed = false;
   function loadCompiled(source) {
     deps.setCompiledDefault(void 0);
     deps.setCompiledNamed?.(void 0);
@@ -18248,8 +18323,13 @@ ${moduleSourceToScript(source)}
         ...frame2.symInfo === void 0 ? {} : { symInfo: frame2.symInfo },
         ...frame2.inputOverrides === void 0 ? {} : { inputOverrides: frame2.inputOverrides },
         ...frame2.plotOverrides === void 0 ? {} : { plotOverrides: frame2.plotOverrides },
-        ...frame2.externalSeriesFeeds === void 0 ? {} : { externalSeriesFeeds: frame2.externalSeriesFeeds }
+        ...frame2.externalSeriesFeeds === void 0 ? {} : { externalSeriesFeeds: frame2.externalSeriesFeeds },
+        // Rows, not a built calendar: a `lookup()` object cannot cross
+        // the JSON membrane, so the runner builds the interface here.
+        ...frame2.sessionCalendar === void 0 ? {} : { sessionCalendar: frame2.sessionCalendar }
       });
+      stateStoreKey = frame2.stateStoreKey ?? null;
+      pushed = false;
       return reply({ kind: "loaded" });
     } catch (err) {
       return reply({ kind: "loadError", message: message(err) });
@@ -18261,6 +18341,7 @@ ${moduleSourceToScript(source)}
         throw new Error("candleEvent before load");
       }
       const frame2 = JSON.parse(json);
+      pushed = true;
       await runner.push(frame2.event);
       return reply({ kind: "ack" });
     } catch (err) {
@@ -18303,10 +18384,58 @@ ${moduleSourceToScript(source)}
       return reply({ kind: "fatal", message: message(err) });
     }
   }
+  function exportSnapshot(json) {
+    const frame2 = JSON.parse(json);
+    if (runner === null) {
+      return reply({
+        kind: "snapshotError",
+        nonce: frame2.nonce,
+        message: "exportSnapshot before load"
+      });
+    }
+    return reply({
+      kind: "snapshot",
+      nonce: frame2.nonce,
+      snapshot: runner.exportSnapshot(),
+      key: stateStoreKey
+    });
+  }
+  function importSnapshot(json) {
+    const frame2 = JSON.parse(json);
+    if (runner === null) {
+      return reply({
+        kind: "snapshotError",
+        nonce: frame2.nonce,
+        message: "importSnapshot before load"
+      });
+    }
+    if (pushed) {
+      return reply({
+        kind: "snapshotError",
+        nonce: frame2.nonce,
+        message: "importSnapshot after the first push"
+      });
+    }
+    if (!stateStoreKeysEqual(frame2.key, stateStoreKey)) {
+      return reply({
+        kind: "snapshotError",
+        nonce: frame2.nonce,
+        message: "importSnapshot state store key mismatch"
+      });
+    }
+    try {
+      const { barIndex } = runner.importSnapshot(frame2.snapshot);
+      return reply({ kind: "snapshotImported", nonce: frame2.nonce, barIndex });
+    } catch (err) {
+      return reply({ kind: "snapshotError", nonce: frame2.nonce, message: message(err) });
+    }
+  }
   function dispose2() {
     try {
       void runner?.dispose();
       runner = null;
+      stateStoreKey = null;
+      pushed = false;
       deps.setCompiledDefault(void 0);
       deps.setCompiledNamed?.(void 0);
       deps.setCompiledDependencies?.(void 0);
@@ -18316,7 +18445,16 @@ ${moduleSourceToScript(source)}
       return reply({ kind: "fatal", message: message(err) });
     }
   }
-  return Object.freeze({ load, push, setPlotOverrides, setExternalSeries, drain: drain2, dispose: dispose2 });
+  return Object.freeze({
+    load,
+    push,
+    setPlotOverrides,
+    setExternalSeries,
+    drain: drain2,
+    exportSnapshot,
+    importSnapshot,
+    dispose: dispose2
+  });
 }
 
 // src/dispatcher.ts
@@ -18353,4 +18491,6 @@ globalThis.__chartlang_push = handlers.push;
 globalThis.__chartlang_setPlotOverrides = handlers.setPlotOverrides;
 globalThis.__chartlang_setExternalSeries = handlers.setExternalSeries;
 globalThis.__chartlang_drain = handlers.drain;
+globalThis.__chartlang_exportSnapshot = handlers.exportSnapshot;
+globalThis.__chartlang_importSnapshot = handlers.importSnapshot;
 globalThis.__chartlang_dispose = handlers.dispose;

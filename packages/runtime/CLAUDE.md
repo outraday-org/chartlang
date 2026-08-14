@@ -122,6 +122,22 @@
   `[start, end)`, wrap-aware (`end <= start` ⇒ `[start, 1440) ∪ [0, end)`);
   unlike `ta.sessionVolumeProfile` it takes `spec` explicitly and never
   reads `syminfo.session`.
+- **`session.isOpen`'s exchange-calendar day key comes from `splitEpoch`,
+  NEVER from `core/time`'s `nyDayKey`.** `CreateScriptRunnerArgs.sessionCalendar`
+  takes ROWS (both hosts carry them on the existing `load` frame — a `lookup()`
+  object cannot cross either membrane), `createScriptRunner` builds the
+  `SessionCalendar` once at mount onto `RuntimeContext.sessionCalendar`, and
+  dep / sibling / `request.security`-expression sub-runners INHERIT it so a
+  composed bundle answers consistently. `sessionAccessors.ts`'s whole contract
+  is "no `Date`, no `Intl`, byte-reproducible across hosts", so it formats the
+  `"YYYY-MM-DD"` key from the same `splitEpoch(t, offsetMin)` call the
+  minute-of-day comes from; `nyDayKey` uses `Intl` and would make script output
+  host-dependent. A `closed` day is never open; a `halfDay` caps membership at
+  `minuteOfDay < closeMinutes` (exactly `min(specEnd, closeMinutes)` for a
+  non-wrap window, and for a wrap window the early close ends the day, so the
+  evening arm goes too). Absent calendar / unknown day key ⇒ the previous
+  behaviour byte-for-byte. Row shape + the host-facing half:
+  `core/src/time/CLAUDE.md`.
 - **`bar.point(offset, price)` is offset-anchoring sugar that resolves
   to a time-based `WorldPoint` — it adds NO new anchor shape.** The
   method is attached to the mutable `BarView` at `createStreamState`
@@ -340,7 +356,13 @@
   when none) — exact for wrapped rings too, where the stream's `filled`
   count saturates at the ring capacity. Never re-derive the cursor from
   `filled`. Restore is `max`-guarded so it cannot rewind a runner that
-  already holds more bars than the snapshot.
+  already holds more bars than the snapshot. `ScriptRunner.exportSnapshot()`
+  / `importSnapshot()` are the STORE-FREE half of the same machinery —
+  `captureStateSnapshot` / `restoreStateSnapshot` reachable on demand, for a
+  host whose persistence lives outside the process. Import throws core's
+  `SnapshotError` on a payload the validator rejects (v1 included — it is
+  rejected, never coerced) and returns the last folded `barIndex`. It enforces
+  NO ordering rule; hosts own "after load, before the first push".
 - **`request.security` is a Phase-4 NaN fallback.** Task 11 added
   `RuntimeContext.requestSecurityBars` keyed by `slotId|feedKey` and
   `diagnosedRequestKeys` keyed by `code|slotId|feedKey|kind`. The cache

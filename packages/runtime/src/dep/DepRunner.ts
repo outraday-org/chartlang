@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
-import type { Bar, CompiledScriptObject } from "@invinite-org/chartlang-core";
+import type { Bar, CompiledScriptObject, SessionCalendar } from "@invinite-org/chartlang-core";
 
 import type { RunnerState } from "../createScriptRunner.js";
 import { pushDiagnostic } from "../emit/emissionsQueue.js";
@@ -108,6 +108,12 @@ export type CreateDepRunnerArgs = Readonly<{
     readonly secondaryStreams: Map<string, StreamState>;
     readonly depOutputStore: DepOutputStore;
     readonly inputOverrides: Readonly<Record<string, unknown>>;
+    /**
+     * The parent's mount-built exchange calendar. Inherited so a dep / sibling
+     * script's `session.isOpen` answers the same holiday and half-day
+     * questions the primary does. @since 1.10
+     */
+    readonly sessionCalendar?: SessionCalendar | undefined;
     readonly now: () => number;
 }>;
 
@@ -202,6 +208,7 @@ function buildSubRunnerState(
             requestLowerTfViews: new Map(),
             diagnosedRequestKeys: new Set(),
             diagnosedTzKeys: new Set(),
+            sessionCalendar: args.sessionCalendar,
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),
             logBudget: 0,

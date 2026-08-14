@@ -1656,14 +1656,21 @@ declare module "@invinite-org/chartlang-core/time" {
     export type SessionType = "regular" | "extended";
     export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
     export type SessionBounds = Readonly<{ startMs: number; endMs: number }>;
+    export type SessionCalendarDay =
+        | Readonly<{ dayKey: string; kind: "closed" }>
+        | Readonly<{ dayKey: string; kind: "halfDay"; closeMinutes: number }>;
+    export type SessionCalendar = Readonly<{
+        lookup(dayKey: string): SessionCalendarDay | null;
+    }>;
+    export function createSessionCalendar(days: ReadonlyArray<SessionCalendarDay>): SessionCalendar;
     export const session: Readonly<{
-        regular(tz: string, t: Time): SessionBounds | null;
-        extended(tz: string, t: Time): SessionBounds | null;
-        isOpen(tz: string, t: Time, type: SessionType): boolean;
+        regular(tz: string, t: Time, calendar?: SessionCalendar): SessionBounds | null;
+        extended(tz: string, t: Time, calendar?: SessionCalendar): SessionBounds | null;
+        isOpen(tz: string, t: Time, type: SessionType, calendar?: SessionCalendar): boolean;
     }>;
     export function weekday(tz: string, t: Time): Weekday;
     export function nyDayKey(t: Time): string;
-    export function nySessionBounds(t: Time): SessionBounds;
+    export function nySessionBounds(t: Time, calendar?: SessionCalendar): SessionBounds;
     export function weekKey(tz: string, t: Time): string;
 }
 `;

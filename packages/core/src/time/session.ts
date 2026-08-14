@@ -3,10 +3,13 @@
 
 import type { Time } from "../types.js";
 import { extendedSession, isOpen, regularSession } from "./sessionBoundaries.js";
+import type { SessionCalendar } from "./sessionCalendar.js";
 import type { SessionBounds, SessionType } from "./types.js";
 
 /**
- * Frozen session helper namespace.
+ * Frozen session helper namespace. Every member takes the same optional
+ * trailing exchange `calendar`; omitting it is byte-identical to the
+ * calendar-less behaviour.
  *
  * @since 0.6
  * @stable
@@ -19,7 +22,12 @@ export const session = Object.freeze({
     extended: extendedSession,
     isOpen,
 }) satisfies {
-    readonly regular: (tz: string, t: Time) => SessionBounds | null;
-    readonly extended: (tz: string, t: Time) => SessionBounds | null;
-    readonly isOpen: (tz: string, t: Time, type: SessionType) => boolean;
+    readonly regular: (tz: string, t: Time, calendar?: SessionCalendar) => SessionBounds | null;
+    readonly extended: (tz: string, t: Time, calendar?: SessionCalendar) => SessionBounds | null;
+    readonly isOpen: (
+        tz: string,
+        t: Time,
+        type: SessionType,
+        calendar?: SessionCalendar,
+    ) => boolean;
 };

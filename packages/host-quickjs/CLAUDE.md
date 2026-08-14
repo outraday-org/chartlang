@@ -10,7 +10,9 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   `dist/dispatcher.js`, evaluates it during the first `load()`, then calls only
   `__chartlang_load(json)`, `__chartlang_push(json)`,
   `__chartlang_setPlotOverrides(json)`, `__chartlang_setExternalSeries(json)`,
-  `__chartlang_drain(json)`, and `__chartlang_dispose()` for that context.
+  `__chartlang_drain(json)`, `__chartlang_exportSnapshot(json)`,
+  `__chartlang_importSnapshot(json)`, and `__chartlang_dispose()` for that
+  context.
   `__chartlang_setPlotOverrides` and `__chartlang_setExternalSeries` are
   synchronous host→guest calls (like `drain`) that swap the runtime's live
   maps and reply `ack`; the JSON membrane drops any getter /
@@ -21,10 +23,32 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
 - **`ScriptHost` is a type alias of `host-worker`'s `ScriptHost`** (`types.ts`):
   any method added there (e.g. `setPlotOverrides`) is inherited here
   automatically — do not redeclare a divergent shape or cross-host parity
-  breaks.
+  breaks. **Inheriting the TYPE is not shipping the VERB**: a downstream
+  probe that greps this package's `dist/` for a method name is checking the
+  dispatcher, so a new verb needs the `HostToQuickJs` frame kind, the
+  `createQuickJsHost` method, the `dispatcherCore` handler, AND the
+  regenerated bundle — the type alias alone would let `dist/` mention the name
+  while the guest still refuses it.
+- **Snapshot verbs mirror host-worker exactly, including every refusal
+  message.** `exportSnapshot` / `importSnapshot` are synchronous host→guest
+  calls like `drain`; import is legal only after `load`, before the first
+  push, and only for a matching `StateStoreKey` (which rides the `load`
+  frame). Every refusal is a typed `snapshotError` frame — never `fatal` —
+  and the host rethrows it as core's `SnapshotError`. The one DELIBERATE
+  protocol divergence from host-worker: `load` carries NO `persistence`
+  descriptor, because IndexedDB does not exist in this realm. Automatic
+  persistence is host-worker-only; here the caller owns storage and uses the
+  verbs.
 - **Boundary values are JSON strings.** Do not pass host functions or mutable
   host objects into QuickJS. The dispatcher parses host frames and stringifies
   reply frames.
+- **`load.sessionCalendar` mirrors host-worker: ROWS, never a built
+  calendar.** `CreateQuickJsHostOpts.sessionCalendar` rides the existing `load`
+  frame (no new frame kind) and the dispatcher forwards it to
+  `createScriptRunner`, which rebuilds the `lookup()` guest-side — a method
+  cannot cross the JSON membrane. This is the half that actually makes a
+  server-side alert script's `session.isOpen` holiday-aware, so it needs the
+  regenerated bundle like every other dispatcher change.
 - **Runtime caps are host-owned.** `QuickJsHostLimits.maxHeapBytes` maps to
   `quickjs-emscripten`'s `runtime.setMemoryLimit(...)`; `maxStepMs` drives the
   host-side interrupt handler and step-overshoot reporting.

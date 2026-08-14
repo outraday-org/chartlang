@@ -7,6 +7,9 @@ import type {
     CompiledScriptBundle,
     CompiledScriptObject,
     ScriptManifest,
+    SessionCalendarDay,
+    StateSnapshot,
+    StateStoreKey,
 } from "@invinite-org/chartlang-core";
 import { describe, expect, it, vi } from "vitest";
 
@@ -78,6 +81,8 @@ type FakeRunner = {
     onBarClose: ReturnType<typeof vi.fn>;
     onBarTick: ReturnType<typeof vi.fn>;
     warmStart: ReturnType<typeof vi.fn>;
+    exportSnapshot: ReturnType<typeof vi.fn>;
+    importSnapshot: ReturnType<typeof vi.fn>;
 };
 
 function makeFakeRunner(opts?: {
@@ -86,6 +91,8 @@ function makeFakeRunner(opts?: {
     setPlotOverridesThrow?: Error;
     setExternalSeriesThrow?: Error;
     disposeThrow?: Error;
+    importSnapshotThrow?: Error;
+    snapshot?: StateSnapshot | null;
     emissions?: RunnerEmissions;
 }): FakeRunner {
     return {
@@ -109,6 +116,11 @@ function makeFakeRunner(opts?: {
         onBarClose: vi.fn(async () => {}),
         onBarTick: vi.fn(async () => {}),
         warmStart: vi.fn(async () => {}),
+        exportSnapshot: vi.fn(() => opts?.snapshot ?? null),
+        importSnapshot: vi.fn(() => {
+            if (opts?.importSnapshotThrow !== undefined) throw opts.importSnapshotThrow;
+            return { barIndex: 41 };
+        }),
     };
 }
 
@@ -747,5 +759,175 @@ describe("createDispatcher", () => {
             const reply = JSON.parse(handlers.dispose());
             expect(reply).toEqual({ kind: "fatal", message: "setter boom" });
         });
+    });
+});
+
+function storeKey(overrides: Partial<StateStoreKey> = {}): StateStoreKey {
+    return {
+        scriptHash: "core-test",
+        compilerVersion: "1.11.0",
+        apiVersion: 1,
+        capabilitiesHash: "caps",
+        symbol: "X",
+        mainInterval: "1m",
+        requestedIntervals: [],
+        ...overrides,
+    };
+}
+
+function fakeSnapshot(): StateSnapshot {
+    return {
+        lastBarTime: 1,
+        barIndex: 41,
+        streams: {},
+        savedAt: 2,
+        snapshotVersion: 2,
+        primary: { slots: {} },
+    };
+}
+
+describe("dispatcher snapshot verbs", () => {
+    it("refuses exportSnapshot before load with a typed error", () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        expect(JSON.parse(handlers.exportSnapshot(JSON.stringify({ nonce: 1 })))).toEqual({
+            kind: "snapshotError",
+            nonce: 1,
+            message: "exportSnapshot before load",
+        });
+    });
+
+    it("stamps the load-time key onto the exported snapshot", async () => {
+        const snapshot = fakeSnapshot();
+        const { deps } = makeDeps({ runner: makeFakeRunner({ snapshot }) });
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame({ stateStoreKey: storeKey() }));
+
+        expect(JSON.parse(handlers.exportSnapshot(JSON.stringify({ nonce: 2 })))).toEqual({
+            kind: "snapshot",
+            nonce: 2,
+            snapshot,
+            key: storeKey(),
+        });
+    });
+
+    it("reports a null key and a null payload when neither exists", async () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame());
+
+        expect(JSON.parse(handlers.exportSnapshot(JSON.stringify({ nonce: 3 })))).toEqual({
+            kind: "snapshot",
+            nonce: 3,
+            snapshot: null,
+            key: null,
+        });
+    });
+
+    it("refuses importSnapshot before load", () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        const json = JSON.stringify({ nonce: 4, snapshot: fakeSnapshot(), key: null });
+        expect(JSON.parse(handlers.importSnapshot(json))).toEqual({
+            kind: "snapshotError",
+            nonce: 4,
+            message: "importSnapshot before load",
+        });
+    });
+
+    it("restores and acks with the last folded bar index", async () => {
+        const { deps, runner } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame({ stateStoreKey: storeKey() }));
+        const json = JSON.stringify({ nonce: 5, snapshot: fakeSnapshot(), key: storeKey() });
+
+        expect(JSON.parse(handlers.importSnapshot(json))).toEqual({
+            kind: "snapshotImported",
+            nonce: 5,
+            barIndex: 41,
+        });
+        expect(runner.importSnapshot).toHaveBeenCalledOnce();
+    });
+
+    it("refuses importSnapshot after the first push", async () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame());
+        await handlers.push(pushFrame());
+        const json = JSON.stringify({ nonce: 6, snapshot: fakeSnapshot(), key: null });
+
+        expect(JSON.parse(handlers.importSnapshot(json))).toEqual({
+            kind: "snapshotError",
+            nonce: 6,
+            message: "importSnapshot after the first push",
+        });
+    });
+
+    it("refuses a snapshot captured under a different key", async () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame({ stateStoreKey: storeKey() }));
+        const json = JSON.stringify({
+            nonce: 7,
+            snapshot: fakeSnapshot(),
+            key: storeKey({ compilerVersion: "9.9.9" }),
+        });
+
+        expect(JSON.parse(handlers.importSnapshot(json))).toEqual({
+            kind: "snapshotError",
+            nonce: 7,
+            message: "importSnapshot state store key mismatch",
+        });
+    });
+
+    it("converts a runtime rejection into a typed snapshotError", async () => {
+        const { deps } = makeDeps({
+            runner: makeFakeRunner({ importSnapshotThrow: new Error("malformed") }),
+        });
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame());
+        const json = JSON.stringify({ nonce: 8, snapshot: fakeSnapshot(), key: null });
+
+        expect(JSON.parse(handlers.importSnapshot(json))).toEqual({
+            kind: "snapshotError",
+            nonce: 8,
+            message: "malformed",
+        });
+    });
+
+    it("clears the key and the push latch on dispose", async () => {
+        const { deps } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame({ stateStoreKey: storeKey() }));
+        await handlers.push(pushFrame());
+        handlers.dispose();
+
+        expect(JSON.parse(handlers.exportSnapshot(JSON.stringify({ nonce: 9 })))).toEqual({
+            kind: "snapshotError",
+            nonce: 9,
+            message: "exportSnapshot before load",
+        });
+    });
+});
+
+describe("createDispatcher — sessionCalendar", () => {
+    const rows: ReadonlyArray<SessionCalendarDay> = [
+        { dayKey: "2024-11-29", kind: "halfDay", closeMinutes: 13 * 60 },
+    ];
+
+    it("hands the load frame's rows to the runner factory", async () => {
+        const { deps, runnerFactory } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame({ sessionCalendar: rows }));
+
+        expect(runnerFactory.mock.calls[0][0]).toMatchObject({ sessionCalendar: rows });
+    });
+
+    it("omits the option entirely when the frame carries no rows", async () => {
+        const { deps, runnerFactory } = makeDeps();
+        const handlers = createDispatcher(deps);
+        await handlers.load(loadFrame());
+
+        expect("sessionCalendar" in runnerFactory.mock.calls[0][0]).toBe(false);
     });
 });

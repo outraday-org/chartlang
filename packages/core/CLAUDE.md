@@ -92,6 +92,15 @@
   bypass, so a defaulted `"unknown"` string on the producing side would poison
   them. The compiler's `program.ts` shim mirrors the field in lockstep.
 
+- **`stateStoreKeyId` is the ONE canonical serialisation of a
+  `StateStoreKey`** (`src/state/snapshot.ts`) — fixed field order, joined
+  `requestedIntervals`, so structurally equal keys written in any literal
+  order stringify identically. Stores address records by it and hosts compare
+  snapshot identities through `stateStoreKeysEqual` (where two ABSENT keys
+  match and an absent-vs-present pair never does). Changing its output
+  invalidates every persisted snapshot, so treat the format as frozen; never
+  hand-roll a second key stringifier beside it.
+
 - **`state.series` is the one `state.*` slot that is both writable AND
   indexable.** `state.float`/`int`/`bool`/`string` return a scalar
   `MutableSlot<T>` (no indexing); `state.series(init)` returns
@@ -180,7 +189,9 @@
 - **`time.*` / `session.*` are stateless `slot: false` accessor namespaces
   installed on `ComputeContext` (like `ta`), NOT per-bar views.** They live in
   `src/time-accessors/` (deliberately separate from the host-only `Intl` folder
-  `src/time/`, which stays unexported). Each accessor is a pure function of an
+  `src/time/`, whose only root-barrel export is the `Intl`-free
+  `sessionCalendar.ts` — see `src/time/CLAUDE.md`; every other module there is
+  `./time`-subpath-only). Each accessor is a pure function of an
   explicit `Time` + optional `tz` (default `syminfo.timezone`, fallback
   `"UTC"`); `time.dayofweek` follows Pine's `1=Sun..7=Sat` (not ISO). The
   one exception is `time.now()`: it returns the host-injected wall clock and

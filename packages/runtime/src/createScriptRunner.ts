@@ -15,8 +15,15 @@ import type {
     ExternalSeriesFeedMap,
     RequestedFeed,
     ScriptManifest,
+    SessionCalendarDay,
+    StateSnapshot,
 } from "@invinite-org/chartlang-core";
-import { feedKey, isCompiledScriptBundle } from "@invinite-org/chartlang-core";
+import {
+    SnapshotError,
+    createSessionCalendar,
+    feedKey,
+    isCompiledScriptBundle,
+} from "@invinite-org/chartlang-core";
 
 import {
     type DepOutputStore,
@@ -49,6 +56,7 @@ import { resolveInputs } from "./inputs/index.js";
 import type { PersistentStateStore } from "./persistentStateStore.js";
 import {
     PERSISTENCE_INTERVAL_MS,
+    captureStateSnapshot,
     maybeSaveStateSnapshot,
     restoreStateSnapshot,
     saveStateSnapshot,
@@ -183,6 +191,42 @@ export type ScriptRunner = {
      *     // runner.setExternalSeries({ earnings: { values: [1, 2, 3] } });
      */
     setExternalSeries(feeds: ExternalSeriesFeedMap): void;
+    /**
+     * Capture the runner's whole persistable state on demand — OHLCV rings
+     * for every stream, `ta.*` accumulators, and each runner section's
+     * `state.*` slots. Same payload the cadence-driven persistent store
+     * writes, without needing a store.
+     *
+     * Returns `null` when the captured state is not JSON-clean (the
+     * validator rejects it), which is the same disposition
+     * `saveStateSnapshot` takes before it downgrades to a diagnostic.
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     // const snapshot = runner.exportSnapshot();
+     */
+    exportSnapshot(): StateSnapshot | null;
+    /**
+     * Restore a snapshot captured by {@link ScriptRunner.exportSnapshot}
+     * into this runner.
+     *
+     * Throws {@link SnapshotError} when the payload fails validation —
+     * including a `snapshotVersion: 1` payload, which predates `barIndex`
+     * and is rejected rather than coerced. The returned `barIndex` is the
+     * last bar folded into the restored state (`-1` when the snapshot was
+     * captured before any bar closed), so the caller resumes at
+     * `barIndex + 1`; skipping already-folded bars is the caller's job.
+     *
+     * The runtime enforces no ordering rule here — hosts do (import is
+     * legal only after `load` and before the first push).
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     // const { barIndex } = runner.importSnapshot(snapshot);
+     */
+    importSnapshot(snapshot: StateSnapshot): { barIndex: number };
     dispose(): Promise<void>;
 };
 
@@ -234,6 +278,18 @@ export type CreateScriptRunnerArgs = {
     readonly externalSeriesFeeds?: ExternalSeriesFeedMap;
     readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     readonly plotOverrides?: Readonly<Record<string, PlotOverride>>;
+    /**
+     * Exchange-calendar ROWS (holidays + half days) for the mounted symbol.
+     * chartlang is data-source-neutral, so the consumer supplies the rows and
+     * the runner builds the O(1) `SessionCalendar` once at mount. Rows are the
+     * wire form on purpose — a `lookup()` interface cannot cross the worker /
+     * QuickJS membrane, so both hosts carry them on the `load` frame.
+     * `session.isOpen` is the only accessor that reads them; bar AGGREGATION
+     * stays the consumer's job.
+     *
+     * @since 1.10
+     */
+    readonly sessionCalendar?: ReadonlyArray<SessionCalendarDay>;
 };
 
 function resolveCapacity(manifest: ScriptManifest): number {
@@ -452,6 +508,10 @@ function buildPrimaryState(
     const alertConditions = new Map(
         (primary.manifest.alertConditions ?? []).map((condition) => [condition.id, condition]),
     );
+    const sessionCalendar =
+        args.sessionCalendar === undefined
+            ? undefined
+            : createSessionCalendar(args.sessionCalendar);
 
     const state: RunnerState = {
         manifest: primary.manifest,
@@ -495,6 +555,7 @@ function buildPrimaryState(
             requestLowerTfViews: new Map(),
             diagnosedRequestKeys: new Set(),
             diagnosedTzKeys: new Set(),
+            sessionCalendar,
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),
             logBudget: 0,
@@ -573,6 +634,7 @@ function attachBundle(
             secondaryStreams: primary.runtimeContext.secondaryStreams,
             depOutputStore: store,
             inputOverrides: entry.inputOverrides ?? Object.freeze({}),
+            sessionCalendar: primary.runtimeContext.sessionCalendar,
             now,
         }),
     );
@@ -586,6 +648,7 @@ function attachBundle(
             secondaryStreams: primary.runtimeContext.secondaryStreams,
             depOutputStore: store,
             inputOverrides: Object.freeze({}),
+            sessionCalendar: primary.runtimeContext.sessionCalendar,
             now,
         }),
     );
@@ -780,6 +843,19 @@ export function createScriptRunner(args: CreateScriptRunnerArgs): ScriptRunner {
         },
         setExternalSeries(feeds) {
             state.runtimeContext.externalSeriesFeeds = replaceExternalSeriesFeedMap(feeds);
+        },
+        exportSnapshot() {
+            return captureStateSnapshot(state, state.now());
+        },
+        importSnapshot(snapshot) {
+            if (!validateSnapshot(snapshot)) {
+                throw new SnapshotError("state snapshot failed validation");
+            }
+            restoreStateSnapshot(state, snapshot);
+            // `restoreStateSnapshot` sets the cursor to the NEXT bar to fold;
+            // the ack reports the LAST bar folded in, which is what a caller
+            // resumes from (`barIndex + 1`).
+            return { barIndex: state.barIndex - 1 };
         },
         async dispose() {
             const finalSave = saveStateSnapshot(state, state.now());

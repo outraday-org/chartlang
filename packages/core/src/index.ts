@@ -236,8 +236,17 @@ export type {
     StateStoreKey,
     StreamSnapshot,
 } from "./state/index.js";
+export { stateStoreKeyId, stateStoreKeysEqual } from "./state/index.js";
+export { SnapshotError, isSnapshotError } from "./state/index.js";
 export { session, time } from "./time-accessors/index.js";
 export type { SessionNamespace, TimeNamespace } from "./time-accessors/index.js";
+// The ONE `src/time/` module the root barrel re-exports: pure data (no `Intl`,
+// no `Date`, zero imports), shared by the host-facing predicates behind the
+// `./time` subpath AND by the script-facing runtime accessor + both host
+// protocols. Everything else in `src/time/` stays subpath-only — see
+// `src/time/CLAUDE.md`.
+export type { SessionCalendar, SessionCalendarDay } from "./time/sessionCalendar.js";
+export { createSessionCalendar } from "./time/sessionCalendar.js";
 export { barstate, syminfo, timeframe } from "./views/index.js";
 export type { BarStateView, SymbolType, SymInfoView, TimeframeView } from "./views/index.js";
 export { feedKey, request } from "./request/index.js";

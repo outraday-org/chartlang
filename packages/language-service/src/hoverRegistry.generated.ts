@@ -914,6 +914,24 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "createSessionCalendar": {
+        "fqn": "createSessionCalendar",
+        "kind": "function",
+        "title": "createSessionCalendar(days)",
+        "summary": "/**\nBuild a  {@link SessionCalendar} from the consumer-supplied rows.",
+        "paramTable": [
+            {
+                "name": "days",
+                "type": "ReadonlyArray<SessionCalendarDay>",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const calendar = createSessionCalendar([\n{ dayKey: \"2024-11-29\", kind: \"halfDay\", closeMinutes: 780 },\n]);\nvoid calendar.lookup(\"2024-11-29\");"
+        ],
+        "since": "1.11",
+        "stability": "stable"
+    },
     "CrossLineState": {
         "fqn": "CrossLineState",
         "kind": "type",
@@ -2811,8 +2829,8 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
     "extendedSession": {
         "fqn": "extendedSession",
         "kind": "function",
-        "title": "extendedSession(tz, t)",
-        "summary": "Return extended 04:00-20:00 session bounds in `tz`, or `null` on weekends.",
+        "title": "extendedSession(tz, t, calendar?)",
+        "summary": "Return extended 04:00-20:00 session bounds in `tz`, or `null` on weekends and\non an optional `calendar`'s `closed` days.",
         "paramTable": [
             {
                 "name": "tz",
@@ -2822,6 +2840,11 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             {
                 "name": "t",
                 "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "calendar",
+                "type": "SessionCalendar",
                 "doc": ""
             }
         ],
@@ -3881,8 +3904,8 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
     "isOpen": {
         "fqn": "isOpen",
         "kind": "function",
-        "title": "isOpen(tz, t, type)",
-        "summary": "Test whether `t` falls inside the selected half-open session in `tz`.",
+        "title": "isOpen(tz, t, type, calendar?)",
+        "summary": "Test whether `t` falls inside the selected half-open session in `tz`,\noptionally narrowed by an exchange `calendar`.",
         "paramTable": [
             {
                 "name": "tz",
@@ -3898,12 +3921,35 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
                 "name": "type",
                 "type": "SessionType",
                 "doc": ""
+            },
+            {
+                "name": "calendar",
+                "type": "SessionCalendar",
+                "doc": ""
             }
         ],
         "examples": [
             "isOpen(\"America/New_York\", 1_709_251_200_000, \"regular\");"
         ],
         "since": "0.6",
+        "stability": "stable"
+    },
+    "isSnapshotError": {
+        "fqn": "isSnapshotError",
+        "kind": "function",
+        "title": "isSnapshotError(value)",
+        "summary": "/**\nStructural  {@link SnapshotError} guard.",
+        "paramTable": [
+            {
+                "name": "value",
+                "type": "unknown",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const yes = isSnapshotError(new SnapshotError(\"nope\"));\nvoid yes;"
+        ],
+        "since": "1.11",
         "stability": "stable"
     },
     "JsonValue": {
@@ -4346,12 +4392,17 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
     "nySessionBounds": {
         "fqn": "nySessionBounds",
         "kind": "function",
-        "title": "nySessionBounds(t)",
-        "summary": "Return the regular 09:30-16:00 session bounds for the New York day\ncontaining `t`.",
+        "title": "nySessionBounds(t, calendar?)",
+        "summary": "/**\nReturn the regular 09:30-16:00 session bounds for the New York day\ncontaining `t`, optionally narrowed by an exchange `calendar`.",
         "paramTable": [
             {
                 "name": "t",
                 "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "calendar",
+                "type": "SessionCalendar",
                 "doc": ""
             }
         ],
@@ -4932,8 +4983,8 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
     "regularSession": {
         "fqn": "regularSession",
         "kind": "function",
-        "title": "regularSession(tz, t)",
-        "summary": "Return regular 09:30-16:00 session bounds in `tz`, or `null` on weekends.",
+        "title": "regularSession(tz, t, calendar?)",
+        "summary": "Return regular 09:30-16:00 session bounds in `tz`, or `null` on weekends and\non an optional `calendar`'s `closed` days. A `halfDay` truncates `endMs` to\nthe early close.",
         "paramTable": [
             {
                 "name": "tz",
@@ -4943,6 +4994,11 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             {
                 "name": "t",
                 "type": "Time",
+                "doc": ""
+            },
+            {
+                "name": "calendar",
+                "type": "SessionCalendar",
                 "doc": ""
             }
         ],
@@ -5336,7 +5392,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "session",
         "kind": "property",
         "title": "session",
-        "summary": "Frozen session helper namespace.",
+        "summary": "Frozen session helper namespace. Every member takes the same optional\ntrailing exchange `calendar`; omitting it is byte-identical to the\ncalendar-less behaviour.",
         "examples": [
             "const open = session.isOpen(\"America/New_York\", 1_709_251_200_000, \"regular\");\nvoid open;"
         ],
@@ -5380,6 +5436,28 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const bounds: SessionBounds = { startMs: 0, endMs: 1 };\nvoid bounds;"
         ],
         "since": "0.6",
+        "stability": "stable"
+    },
+    "SessionCalendar": {
+        "fqn": "SessionCalendar",
+        "kind": "type",
+        "title": "SessionCalendar",
+        "summary": "O(1) exchange-calendar lookup handed to the session predicates.",
+        "examples": [
+            "const calendar: SessionCalendar = createSessionCalendar([\n{ dayKey: \"2024-11-28\", kind: \"closed\" },\n]);\nvoid calendar.lookup(\"2024-11-28\");"
+        ],
+        "since": "1.11",
+        "stability": "stable"
+    },
+    "SessionCalendarDay": {
+        "fqn": "SessionCalendarDay",
+        "kind": "type",
+        "title": "SessionCalendarDay",
+        "summary": "/**\nOne exchange-calendar exception day, addressed by the `\"YYYY-MM-DD\"` local\nday key (the  {@link nyDayKey} shape).",
+        "examples": [
+            "const thanksgiving: SessionCalendarDay = { dayKey: \"2024-11-28\", kind: \"closed\" };\nconst blackFriday: SessionCalendarDay = {\ndayKey: \"2024-11-29\",\nkind: \"halfDay\",\ncloseMinutes: 13 * 60,\n};\nvoid thanksgiving;\nvoid blackFriday;"
+        ],
+        "since": "1.11",
         "stability": "stable"
     },
     "SessionDescriptor": {
@@ -5802,6 +5880,47 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
             "const k: StateStoreKey = {\nscriptHash: \"abc\",\ncompilerVersion: \"0.5.0\",\napiVersion: 1,\ncapabilitiesHash: \"def\",\nsymbol: \"BTCUSD\",\nmainInterval: \"1m\",\nrequestedIntervals: [],\n};\nvoid k;"
         ],
         "since": "0.5",
+        "stability": "stable"
+    },
+    "stateStoreKeyId": {
+        "fqn": "stateStoreKeyId",
+        "kind": "function",
+        "title": "stateStoreKeyId(key)",
+        "summary": "/**\nCanonical string form of a  {@link StateStoreKey} .",
+        "paramTable": [
+            {
+                "name": "key",
+                "type": "StateStoreKey",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const id = stateStoreKeyId({\nscriptHash: \"abc\",\ncompilerVersion: \"1.11.0\",\napiVersion: 1,\ncapabilitiesHash: \"def\",\nsymbol: \"BTCUSD\",\nmainInterval: \"1m\",\nrequestedIntervals: [\"1D\"],\n});\nvoid id;"
+        ],
+        "since": "1.11",
+        "stability": "stable"
+    },
+    "stateStoreKeysEqual": {
+        "fqn": "stateStoreKeysEqual",
+        "kind": "function",
+        "title": "stateStoreKeysEqual(a, b)",
+        "summary": "/**\nIdentity comparison for two optional  {@link StateStoreKey} s.",
+        "paramTable": [
+            {
+                "name": "a",
+                "type": "StateStoreKey | null",
+                "doc": ""
+            },
+            {
+                "name": "b",
+                "type": "StateStoreKey | null",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const same = stateStoreKeysEqual(null, null);\nvoid same;"
+        ],
+        "since": "1.11",
         "stability": "stable"
     },
     "StdevOpts": {

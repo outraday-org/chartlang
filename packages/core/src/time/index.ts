@@ -2,6 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 export type { SessionBounds, SessionType, Weekday } from "./types.js";
+export type { SessionCalendar, SessionCalendarDay } from "./sessionCalendar.js";
+export { createSessionCalendar } from "./sessionCalendar.js";
 export { nyDayKey } from "./nyDayKey.js";
 export { nySessionBounds } from "./sessionBoundaries.js";
 export { session } from "./session.js";

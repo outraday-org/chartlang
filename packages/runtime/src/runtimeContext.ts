@@ -21,6 +21,7 @@ import type {
     ExternalSeriesFeedMap,
     SecurityBar,
     Series,
+    SessionCalendar,
 } from "@invinite-org/chartlang-core";
 
 import type { DepOutputStore } from "./dep/DepOutputStore.js";
@@ -313,6 +314,15 @@ export type RuntimeContext = {
      * per mount. Cleared on `dispose`. @since 1.5
      */
     readonly diagnosedTzKeys: Set<string>;
+    /**
+     * Optional exchange calendar (holidays + half days) built once at mount
+     * from the rows the host sent on its `load` frame. Read by
+     * `buildSessionNamespace` so `session.isOpen` narrows on those days;
+     * absent means the calendar-less behaviour, byte-for-byte. Inherited by
+     * dep / sibling / security-expression sub-runners so a composed bundle
+     * answers consistently. @since 1.10
+     */
+    readonly sessionCalendar?: SessionCalendar | undefined;
     /**
      * Manifest-declared alert conditions keyed by condition id. Used by
      * `signal(conditionId, fired)` to reject unknown ids without

@@ -149,3 +149,59 @@ export type StateStoreKey = Readonly<{
     mainInterval: string;
     requestedIntervals: ReadonlyArray<string>;
 }>;
+
+/**
+ * Canonical string form of a {@link StateStoreKey}.
+ *
+ * Field order is fixed here (not left to `Object.keys` insertion order) and
+ * `requestedIntervals` is joined rather than nested, so two structurally equal
+ * keys always stringify identically regardless of how the object literal was
+ * written. Stores use it as their record id and hosts use it to compare a
+ * persisted snapshot's key against the key the script is currently mounted
+ * under.
+ *
+ * @since 1.11
+ * @stable
+ * @example
+ *     const id = stateStoreKeyId({
+ *         scriptHash: "abc",
+ *         compilerVersion: "1.11.0",
+ *         apiVersion: 1,
+ *         capabilitiesHash: "def",
+ *         symbol: "BTCUSD",
+ *         mainInterval: "1m",
+ *         requestedIntervals: ["1D"],
+ *     });
+ *     void id;
+ */
+export function stateStoreKeyId(key: StateStoreKey): string {
+    return JSON.stringify({
+        scriptHash: key.scriptHash,
+        compilerVersion: key.compilerVersion,
+        apiVersion: key.apiVersion,
+        capabilitiesHash: key.capabilitiesHash,
+        symbol: key.symbol,
+        mainInterval: key.mainInterval,
+        requestedIntervals: key.requestedIntervals.join(","),
+    });
+}
+
+/**
+ * Identity comparison for two optional {@link StateStoreKey}s.
+ *
+ * `null` models "this host was mounted without a key". Two null keys match
+ * (an unkeyed host may only exchange snapshots with itself); a null and a
+ * non-null key never do. Everything else compares through
+ * {@link stateStoreKeyId}, so a single differing field — including a
+ * `compilerVersion` bump after a recompile — is a mismatch.
+ *
+ * @since 1.11
+ * @stable
+ * @example
+ *     const same = stateStoreKeysEqual(null, null);
+ *     void same;
+ */
+export function stateStoreKeysEqual(a: StateStoreKey | null, b: StateStoreKey | null): boolean {
+    if (a === null || b === null) return a === b;
+    return stateStoreKeyId(a) === stateStoreKeyId(b);
+}

@@ -138,6 +138,7 @@ function buildExprContext(
         requestLowerTfViews: new Map(),
         diagnosedRequestKeys: new Set(),
         diagnosedTzKeys: new Set(),
+        sessionCalendar: parent.sessionCalendar,
         logBudget: 0,
         logBudgetExceededDiagnosed: false,
         resolvedInputs: parent.resolvedInputs,

@@ -58,6 +58,45 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   carries through, and `streamKey` passes untouched, so a two-symbol script
   routes each composite stream (covered by `integration.test.ts`'s
   two-symbol data-form test).
+- **Frames are processed one at a time through a single promise
+  chain.** The `message` listener is `async`, so without the chain a
+  second frame's body would begin while the first was still awaiting.
+  The ordering-sensitive verbs depend on it: the deferred warm start
+  must run before the first push lands, and "import before the first
+  push" must observe pushes in wire order.
+- **Snapshot verbs are `exportSnapshot` / `importSnapshot` and their
+  refusals are `snapshotError`, never `fatal`.** Import is legal only
+  AFTER `load` and BEFORE the first push, and only when the envelope's
+  `StateStoreKey` matches the one the `load` frame carried (absent on
+  both sides also matches). The ack returns the LAST bar folded in, so
+  the caller resumes at `barIndex + 1` — the host never skips bars for
+  it. `fatal` stays reserved for a dead runner: a `snapshotError` means
+  the runner is alive and the caller can fall back to full replay.
+  The key is **caller-supplied** (`CreateWorkerHostOpts.stateStoreKey`)
+  because the host cannot derive `scriptHash` / `symbol` /
+  `mainInterval`. host-quickjs mirrors all of this verbatim — see its
+  CLAUDE.md before changing either side.
+- **The boot store is shape (b): a JSON `persistence` descriptor on the
+  `load` frame, NOT a second `createWorkerBoot` parameter.**
+  `createWorkerBoot(scope)` must stay callable with one argument —
+  `workerBoot.ts` bundles into the shipped `dist/worker-boot.js` and a
+  required second parameter would break every consumer loading it by
+  URL. `idbStateStore` also needs a `StateStoreKey` at construction,
+  which the boot only learns at `load`. So the descriptor rides the
+  frame and the boot builds the store itself; nothing but JSON crosses
+  the boundary. Restore is one deferred `warmStart`, fired on the first
+  candle event carrying a bar time. Trap: a consumer that pushes FULL
+  history after a warm start re-seeds the runner and discards the
+  restore (harmlessly — same outputs, no speed-up); the store only pays
+  off for a host that pushes the gap.
+- **The exchange calendar rides the `load` frame as ROWS, and gets no
+  frame kind of its own.** `CreateWorkerHostOpts.sessionCalendar` →
+  `load.sessionCalendar: SessionCalendarDay[]` →
+  `createScriptRunner({ sessionCalendar })`, which builds the O(1)
+  `lookup()` inside the worker. The interface cannot be posted (a method
+  does not survive `structuredClone`), so rows are the only wire form.
+  Consumer-supplied: chartlang ships no holiday data. host-quickjs mirrors
+  the field verbatim.
 - **`HostToWorker.load` carries `limits` alongside `capabilities`.**
   The worker boot is stateless about both — no in-worker default
   capabilities bag, no in-worker default limits. The host is the

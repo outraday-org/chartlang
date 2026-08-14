@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { SessionNamespace, Time } from "@invinite-org/chartlang-core";
+import type { SessionCalendar, SessionNamespace, Time } from "@invinite-org/chartlang-core";
 
 import type { RuntimeContext } from "../runtimeContext.js";
 import { splitEpoch } from "./civil.js";
@@ -9,6 +9,12 @@ import { parseSessionWindowMinutes } from "./sessionWindow.js";
 import { resolveTz } from "./timeAccessors.js";
 import { buildTzDstReporter } from "./tzDiagnostic.js";
 import { resolveOffsetMinutes } from "./tzOffset.js";
+
+// The `"YYYY-MM-DD"` calendar key, built from `splitEpoch` fields with string
+// padding only — the `core/time` `nyDayKey` shape, reproduced without `Intl`.
+function dayKeyOf(y: number, m: number, d: number): string {
+    return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
 
 /**
  * Build a frozen `session` namespace whose `isOpen` tests half-open membership
@@ -30,6 +36,14 @@ import { resolveOffsetMinutes } from "./tzOffset.js";
  * `syminfo.session`, `isOpen` takes the `spec` as an explicit argument (often
  * from `input.session`) and never reads `syminfo.session` itself.
  *
+ * An optional exchange `calendar` narrows the answer on holidays and half
+ * days. Its day key is derived from the SAME {@link splitEpoch} call the
+ * minute-of-day comes from — never from `core/time`'s `nyDayKey`, which uses
+ * `Intl` and would make script output host-dependent. A `closed` day is never
+ * open; a `halfDay` caps the window at the early close (for the ordinary
+ * non-wrap window that is exactly `min(specEnd, closeMinutes)`). An unknown
+ * day key, or no calendar at all, leaves the answer untouched.
+ *
  * @since 1.5
  * @stable
  * @example
@@ -40,6 +54,7 @@ import { resolveOffsetMinutes } from "./tzOffset.js";
 export function createSessionNamespace(
     getDefaultTz: () => string,
     onDstUnsupported: (tz: string) => void,
+    calendar?: SessionCalendar,
 ): SessionNamespace {
     return Object.freeze<SessionNamespace>({
         isOpen(t: Time, spec: string, tz?: string): boolean {
@@ -51,14 +66,20 @@ export function createSessionNamespace(
             const { offsetMin, dstUnsupported } = resolveOffsetMinutes(resolved);
             if (dstUnsupported) onDstUnsupported(resolved);
 
-            const { hh, mm } = splitEpoch(t, offsetMin);
+            const { y, m, d, hh, mm } = splitEpoch(t, offsetMin);
             const minuteOfDay = hh * 60 + mm;
             const { startMinutes, endMinutes } = parsed;
-            if (endMinutes <= startMinutes) {
-                // Midnight-wrap window: [start, 1440) ∪ [0, end).
-                return minuteOfDay >= startMinutes || minuteOfDay < endMinutes;
-            }
-            return minuteOfDay >= startMinutes && minuteOfDay < endMinutes;
+            const inWindow =
+                endMinutes <= startMinutes
+                    ? // Midnight-wrap window: [start, 1440) ∪ [0, end).
+                      minuteOfDay >= startMinutes || minuteOfDay < endMinutes
+                    : minuteOfDay >= startMinutes && minuteOfDay < endMinutes;
+            if (calendar === undefined) return inWindow;
+
+            const entry = calendar.lookup(dayKeyOf(y, m, d));
+            if (entry === null) return inWindow;
+            if (entry.kind === "closed") return false;
+            return inWindow && minuteOfDay < entry.closeMinutes;
         },
     });
 }
@@ -74,6 +95,10 @@ export function createSessionNamespace(
  * is a pure view bound to the mount's `RuntimeContext`, so it is cheap to rebuild
  * and is not relied upon to be identity-stable across bars.
  *
+ * The mount's optional `sessionCalendar` (built once at mount from the rows the
+ * host sent on its `load` frame) rides along, so a holiday / half-day narrows
+ * `session.isOpen` for the script.
+ *
  * @since 1.5
  * @stable
  * @example
@@ -82,5 +107,9 @@ export function createSessionNamespace(
  *     // void session.isOpen;
  */
 export function buildSessionNamespace(ctx: RuntimeContext): SessionNamespace {
-    return createSessionNamespace(() => ctx.views.syminfo.timezone, buildTzDstReporter(ctx));
+    return createSessionNamespace(
+        () => ctx.views.syminfo.timezone,
+        buildTzDstReporter(ctx),
+        ctx.sessionCalendar,
+    );
 }

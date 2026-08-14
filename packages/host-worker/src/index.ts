@@ -9,7 +9,9 @@ export { DEFAULT_LIMITS } from "./limits.js";
 export type {
     HostCompiledScript,
     HostLimits,
+    HostSnapshot,
     ScriptHost,
     WorkerLike,
+    WorkerPersistence,
 } from "./types.js";
 export type { HostToWorker, WorkerToHost } from "./protocol.js";

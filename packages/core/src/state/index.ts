@@ -12,3 +12,5 @@ export type {
     StateStoreKey,
     StreamSnapshot,
 } from "./snapshot.js";
+export { stateStoreKeyId, stateStoreKeysEqual } from "./snapshot.js";
+export { SnapshotError, isSnapshotError } from "./snapshotError.js";

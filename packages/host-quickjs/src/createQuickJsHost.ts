@@ -11,6 +11,9 @@ import type {
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
 import { validateEmission } from "@invinite-org/chartlang-adapter-kit";
+import type { SessionCalendarDay, StateStoreKey } from "@invinite-org/chartlang-core";
+import { SnapshotError } from "@invinite-org/chartlang-core";
+import type { HostSnapshot } from "@invinite-org/chartlang-host-worker";
 import { getQuickJS } from "quickjs-emscripten";
 
 // The dispatcher bundle is inlined as a build-time string constant (generated
@@ -52,6 +55,26 @@ export type CreateQuickJsHostOpts = Readonly<{
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     resolveExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
+    /**
+     * Snapshot identity this host runs under: stamped on every
+     * `exportSnapshot()` result and required to match on every
+     * `importSnapshot(...)`. Caller-supplied — the host cannot derive
+     * `scriptHash` / `symbol` / `mainInterval` on its own. Omit it and the
+     * host exchanges only key-less snapshots.
+     *
+     * @since 1.5
+     */
+    stateStoreKey?: StateStoreKey;
+    /**
+     * Exchange-calendar rows (holidays + half days) for the mounted symbol,
+     * sent once on the `load` frame. The dispatcher hands them to
+     * `createScriptRunner`, which builds the O(1) lookup inside the guest, so
+     * a server-side alert script's `session.isOpen` is holiday-aware.
+     * Consumer-supplied — chartlang ships no rows.
+     *
+     * @since 1.5
+     */
+    sessionCalendar?: ReadonlyArray<SessionCalendarDay>;
     quickJsLike?: QuickJsLike;
     limits?: Partial<QuickJsHostLimits>;
     onHostError?: (message: string) => void;
@@ -171,7 +194,12 @@ async function callAsyncJson(
 
 function callSyncJson(
     state: QuickJsState,
-    fnName: "__chartlang_drain" | "__chartlang_setPlotOverrides" | "__chartlang_setExternalSeries",
+    fnName:
+        | "__chartlang_drain"
+        | "__chartlang_setPlotOverrides"
+        | "__chartlang_setExternalSeries"
+        | "__chartlang_exportSnapshot"
+        | "__chartlang_importSnapshot",
     frame: HostToQuickJs,
 ): QuickJsToHost {
     const fn = state.context.getProp(state.context.global, fnName);
@@ -280,6 +308,10 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 ...(opts.resolveExternalSeries === undefined
                     ? {}
                     : { externalSeriesFeeds: opts.resolveExternalSeries(compiled.manifest.name) }),
+                ...(opts.stateStoreKey === undefined ? {} : { stateStoreKey: opts.stateStoreKey }),
+                ...(opts.sessionCalendar === undefined
+                    ? {}
+                    : { sessionCalendar: opts.sessionCalendar }),
                 limits,
             };
             const reply = await callAsyncJson(qjs, "__chartlang_load", frame);
@@ -371,6 +403,40 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 fromBar: 0,
                 toBar: 0,
             };
+        },
+        async exportSnapshot() {
+            const qjs = await ensureState();
+            const nonce = nonceCounter;
+            nonceCounter += 1;
+            const reply = callSyncJson(qjs, "__chartlang_exportSnapshot", {
+                kind: "exportSnapshot",
+                nonce,
+            });
+            if (reply.kind === "snapshot") {
+                return reply.snapshot === null
+                    ? null
+                    : { key: reply.key, snapshot: reply.snapshot };
+            }
+            throw new SnapshotError(
+                reply.kind === "snapshotError" ? reply.message : "exportSnapshot failed",
+            );
+        },
+        async importSnapshot(exported: HostSnapshot) {
+            const qjs = await ensureState();
+            const nonce = nonceCounter;
+            nonceCounter += 1;
+            const reply = callSyncJson(qjs, "__chartlang_importSnapshot", {
+                kind: "importSnapshot",
+                nonce,
+                snapshot: exported.snapshot,
+                key: exported.key,
+            });
+            if (reply.kind === "snapshotImported") {
+                return { barIndex: reply.barIndex };
+            }
+            throw new SnapshotError(
+                reply.kind === "snapshotError" ? reply.message : "importSnapshot failed",
+            );
         },
         dispose() {
             const qjs = state;

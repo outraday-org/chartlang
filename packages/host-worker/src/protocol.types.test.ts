@@ -10,16 +10,28 @@ import type {
     RuntimeDiagnostic,
     ExternalSeriesFeedMap,
 } from "@invinite-org/chartlang-adapter-kit";
-import type { ScriptManifest } from "@invinite-org/chartlang-core";
+import type {
+    ScriptManifest,
+    SessionCalendarDay,
+    StateSnapshot,
+    StateStoreKey,
+} from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
-import type { HostCompiledScript, HostLimits } from "./types.js";
+import type { HostCompiledScript, HostLimits, WorkerPersistence } from "./types.js";
 
 describe("HostToWorker", () => {
     it("is a discriminated union over `kind`", () => {
         expectTypeOf<HostToWorker["kind"]>().toEqualTypeOf<
-            "load" | "candleEvent" | "setPlotOverrides" | "setExternalSeries" | "drain" | "dispose"
+            | "load"
+            | "candleEvent"
+            | "setPlotOverrides"
+            | "setExternalSeries"
+            | "drain"
+            | "exportSnapshot"
+            | "importSnapshot"
+            | "dispose"
         >();
     });
 
@@ -32,6 +44,34 @@ describe("HostToWorker", () => {
             ExternalSeriesFeedMap | undefined
         >();
         expectTypeOf<Load["limits"]>().toEqualTypeOf<HostLimits>();
+    });
+
+    it("load carries the optional snapshot identity + persistence descriptor", () => {
+        type Load = Extract<HostToWorker, { kind: "load" }>;
+        expectTypeOf<Load["stateStoreKey"]>().toEqualTypeOf<StateStoreKey | undefined>();
+        expectTypeOf<Load["persistence"]>().toEqualTypeOf<WorkerPersistence | undefined>();
+    });
+
+    it("load carries the optional exchange-calendar ROWS (no frame kind of its own)", () => {
+        type Load = Extract<HostToWorker, { kind: "load" }>;
+        expectTypeOf<Load["sessionCalendar"]>().toEqualTypeOf<
+            ReadonlyArray<SessionCalendarDay> | undefined
+        >();
+    });
+
+    it("exportSnapshot carries only a nonce", () => {
+        type Frame = Extract<HostToWorker, { kind: "exportSnapshot" }>;
+        expectTypeOf<Frame>().toEqualTypeOf<{
+            readonly kind: "exportSnapshot";
+            readonly nonce: number;
+        }>();
+    });
+
+    it("importSnapshot carries the snapshot and the key it was captured under", () => {
+        type Frame = Extract<HostToWorker, { kind: "importSnapshot" }>;
+        expectTypeOf<Frame["nonce"]>().toEqualTypeOf<number>();
+        expectTypeOf<Frame["snapshot"]>().toEqualTypeOf<StateSnapshot>();
+        expectTypeOf<Frame["key"]>().toEqualTypeOf<StateStoreKey | null>();
     });
 
     it("candleEvent carries the adapter-kit CandleEvent", () => {
@@ -53,8 +93,45 @@ describe("HostToWorker", () => {
 describe("WorkerToHost", () => {
     it("is a discriminated union over `kind`", () => {
         expectTypeOf<WorkerToHost["kind"]>().toEqualTypeOf<
-            "loaded" | "loadError" | "emissions" | "step-overshoot" | "fatal"
+            | "loaded"
+            | "loadError"
+            | "emissions"
+            | "snapshot"
+            | "snapshotImported"
+            | "snapshotError"
+            | "step-overshoot"
+            | "fatal"
         >();
+    });
+
+    it("snapshot echoes the nonce, the payload, and the key", () => {
+        type Frame = Extract<WorkerToHost, { kind: "snapshot" }>;
+        expectTypeOf<Frame["nonce"]>().toEqualTypeOf<number>();
+        expectTypeOf<Frame["snapshot"]>().toEqualTypeOf<StateSnapshot | null>();
+        expectTypeOf<Frame["key"]>().toEqualTypeOf<StateStoreKey | null>();
+    });
+
+    it("snapshotImported acks with the last folded bar index", () => {
+        type Frame = Extract<WorkerToHost, { kind: "snapshotImported" }>;
+        expectTypeOf<Frame>().toEqualTypeOf<{
+            readonly kind: "snapshotImported";
+            readonly nonce: number;
+            readonly barIndex: number;
+        }>();
+    });
+
+    it("snapshotError is nonce-addressed, unlike fatal", () => {
+        type Frame = Extract<WorkerToHost, { kind: "snapshotError" }>;
+        expectTypeOf<Frame>().toEqualTypeOf<{
+            readonly kind: "snapshotError";
+            readonly nonce: number;
+            readonly message: string;
+        }>();
+        type Fatal = Extract<WorkerToHost, { kind: "fatal" }>;
+        expectTypeOf<Fatal>().toEqualTypeOf<{
+            readonly kind: "fatal";
+            readonly message: string;
+        }>();
     });
 
     it("emissions carries the host's nonce + RunnerEmissions", () => {

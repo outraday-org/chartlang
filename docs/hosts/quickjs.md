@@ -55,6 +55,8 @@ behave identically to the Worker host:
 | `drain()` | Returns the queued `RunnerEmissions` batch since the last drain. Plot and alert emissions are revalidated through `validateEmission` on the way out. |
 | `setPlotOverrides(overrides)` | Synchronously replaces the live plot override map inside the guest realm. |
 | `setExternalSeries(feeds)` | Synchronously replaces the complete external-series feed map inside the guest realm. Omitted keys clear previous feeds and later compute reads become `NaN`. |
+| `exportSnapshot()` | Captures the runner's whole state through the JSON membrane as a `HostSnapshot` envelope bound to the host's `stateStoreKey`. |
+| `importSnapshot(exported)` | Restores an envelope into a freshly loaded guest and acks with the last bar folded in. |
 | `dispose()` | Disposes the QuickJS context and runtime; clears pending drains. |
 
 ## Hard runtime caps
@@ -69,6 +71,14 @@ behave identically to the Worker host:
 
 Per-call overrides land in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` and are merged over the defaults.
+
+## Session calendar
+
+`CreateQuickJsHostOpts.sessionCalendar` takes the same exchange-calendar rows
+as [the Worker host](./worker.md#session-calendar) and rides the same `load`
+frame. The dispatcher hands them to `createScriptRunner` inside the guest, so a
+server-side alert script's `session.isOpen` shuts at the real early close
+instead of treating a post-13:00 Black Friday tick as regular session.
 
 ## History re-seed
 

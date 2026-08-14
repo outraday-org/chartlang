@@ -19,7 +19,11 @@ import type {
     PlotOverride,
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
-import type { HostCompiledScript, HostLimits } from "@invinite-org/chartlang-host-worker";
+import type {
+    HostCompiledScript,
+    HostLimits,
+    HostSnapshot,
+} from "@invinite-org/chartlang-host-worker";
 
 export type ScriptHost = {
     load(compiled: HostCompiledScript): Promise<void>;
@@ -27,6 +31,8 @@ export type ScriptHost = {
     drain(): Promise<RunnerEmissions>;
     setPlotOverrides(overrides: Readonly<Record<string, PlotOverride>>): void;
     setExternalSeries(feeds: ExternalSeriesFeedMap): void;
+    exportSnapshot(): Promise<HostSnapshot | null>;
+    importSnapshot(exported: HostSnapshot): Promise<{ barIndex: number }>;
     dispose(): void;
     readonly limits: HostLimits;
 };
@@ -68,7 +74,18 @@ Stage the lifecycle as:
    the way out with `validateEmission` from
    `@invinite-org/chartlang-adapter-kit` — this is the defence-in-depth
    trust boundary.
-4. **`dispose`.** Tear down the isolate. Reject every pending drain
+4. **`exportSnapshot` / `importSnapshot`.** Lift the runner's whole state
+   out (`runner.exportSnapshot()` inside the isolate) as a
+   {@link HostSnapshot} envelope — the `StateSnapshot` bound to the
+   `StateStoreKey` the host was constructed with — and put it back into a
+   freshly loaded runner. Import is legal only **after `load` and before the
+   first `push`**, and only when the envelope's key matches the host's own
+   (two absent keys also match). Refuse anything else with a **typed**
+   error, never the host's fatal channel: the runner is still alive and the
+   caller's fallback is a full replay. The ack carries the last bar folded
+   in, so the embedder resumes at `barIndex + 1` — the host never skips bars
+   on its behalf.
+5. **`dispose`.** Tear down the isolate. Reject every pending drain
    with a descriptive error (do not resolve with empty emissions —
    that hides resource leaks).
 
@@ -104,19 +121,43 @@ must satisfy two invariants:
 
 | Direction | Frame |
 | --- | --- |
-| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, plotOverrides?, externalSeriesFeeds?, limits }` |
+| Host → guest | `{ kind: "load", compiled, capabilities, symInfo?, inputOverrides?, plotOverrides?, externalSeriesFeeds?, stateStoreKey?, sessionCalendar?, limits }` |
 | Host → guest | `{ kind: "candleEvent", event }` (fire-and-forget) |
 | Host → guest | `{ kind: "drain", nonce }` |
 | Host → guest | `{ kind: "setPlotOverrides", overrides }` |
 | Host → guest | `{ kind: "setExternalSeries", feeds }` |
+| Host → guest | `{ kind: "exportSnapshot", nonce }` |
+| Host → guest | `{ kind: "importSnapshot", nonce, snapshot, key }` |
 | Host → guest | `{ kind: "dispose" }` |
 | Guest → host | `{ kind: "loaded" }` or `{ kind: "loadError", message }` |
 | Guest → host | `{ kind: "emissions", nonce, emissions }` |
+| Guest → host | `{ kind: "snapshot", nonce, snapshot, key }` |
+| Guest → host | `{ kind: "snapshotImported", nonce, barIndex }` |
+| Guest → host | `{ kind: "snapshotError", nonce, message }` |
 | Guest → host | `{ kind: "step-overshoot", observedMs }` (fire-and-forget) |
 | Guest → host | `{ kind: "fatal", message }` |
 
 The `nonce` on `drain` is mandatory — drains are round-trips and
-pipelining is allowed.
+pipelining is allowed. The snapshot frames use the same nonce convention.
+
+`snapshotError` is deliberately separate from `fatal`. A refused snapshot
+verb (called before `load`, called after the first push, a `StateStoreKey`
+mismatch, a payload the validator rejects) leaves the runner usable; a
+`fatal` does not. Hosts surface it as
+[`SnapshotError`](https://npmjs.com/package/@invinite-org/chartlang-core) from
+`@invinite-org/chartlang-core`, whose `isSnapshotError` guard matches on
+`name` so it survives a membrane crossing.
+
+The optional `stateStoreKey` on the `load` frame is the snapshot identity the
+guest stamps on every export and checks on every import. It is
+caller-supplied: a host cannot derive `scriptHash` (a digest of the module
+source), `symbol`, or `mainInterval` on its own.
+
+The optional `sessionCalendar` on the `load` frame carries exchange-calendar
+ROWS (`SessionCalendarDay[]`), never a built calendar: the `lookup()` interface
+has a method and would not survive `structuredClone` or a JSON membrane, so the
+guest rebuilds it via `createScriptRunner({ sessionCalendar })`. It is a field
+on the existing `load` frame by design — a calendar is mount data, not a verb.
 
 The optional `plotOverrides` on the `load` frame is the initial
 `slotId`-keyed [plot override](../adapters/contract.md#plot-overrides) map

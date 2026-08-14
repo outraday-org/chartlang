@@ -9,10 +9,20 @@ import type {
     RunnerEmissions,
 } from "@invinite-org/chartlang-adapter-kit";
 
+import type { SessionCalendarDay, StateStoreKey } from "@invinite-org/chartlang-core";
+import { SnapshotError } from "@invinite-org/chartlang-core";
+
 import { defaultWorkerFactory } from "./defaultWorkerFactory.js";
 import { DEFAULT_LIMITS } from "./limits.js";
 import type { HostToWorker, WorkerToHost } from "./protocol.js";
-import type { HostLimits, ScriptHost, WorkerErrorEvent, WorkerLike } from "./types.js";
+import type {
+    HostLimits,
+    HostSnapshot,
+    ScriptHost,
+    WorkerErrorEvent,
+    WorkerLike,
+    WorkerPersistence,
+} from "./types.js";
 
 /**
  * Constructor options for {@link createWorkerHost}.
@@ -28,6 +38,17 @@ import type { HostLimits, ScriptHost, WorkerErrorEvent, WorkerLike } from "./typ
  * - `resolveExternalSeries` — optional adapter callback for initial
  *   external-series feeds. Resolved during `load()`; live updates use
  *   `setExternalSeries(feeds)` and replace the whole feed map.
+ * - `stateStoreKey` — the snapshot identity this host runs under. Stamped on
+ *   every `exportSnapshot()` result and required to match on every
+ *   `importSnapshot(...)`; omit it and the host exchanges only key-less
+ *   snapshots. Caller-supplied because the host cannot derive `scriptHash`
+ *   (a digest of the module source), `symbol`, or `mainInterval` on its own.
+ * - `persistence` — opt into the packaged IDB store inside the worker boot.
+ *   Requires `stateStoreKey`; independent of the manual snapshot verbs.
+ * - `sessionCalendar` — exchange-calendar rows (holidays + half days) for the
+ *   mounted symbol. Sent once on the `load` frame; the runner builds the O(1)
+ *   lookup inside the worker so a script's `session.isOpen` is holiday-aware.
+ *   Consumer-supplied — chartlang is data-source-neutral and ships no rows.
  * - `workerLike` — injection seam for tests. Production callers omit it; the
  *   host then constructs a real `Worker` via {@link defaultWorkerFactory}.
  * - `limits` — partial `HostLimits` overrides; missing fields fall through to
@@ -50,6 +71,9 @@ export type CreateWorkerHostOpts = {
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly resolvePlotOverrides?: (scriptId: string) => Readonly<Record<string, PlotOverride>>;
     readonly resolveExternalSeries?: (scriptId: string) => ExternalSeriesFeedMap;
+    readonly stateStoreKey?: StateStoreKey;
+    readonly persistence?: WorkerPersistence;
+    readonly sessionCalendar?: ReadonlyArray<SessionCalendarDay>;
     readonly workerLike?: WorkerLike;
     readonly limits?: Partial<HostLimits>;
     readonly onWorkerError?: (message: string) => void;
@@ -96,6 +120,16 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
 
     let nonceCounter = 0;
     const pendingDrains = new Map<number, (e: RunnerEmissions) => void>();
+    // Snapshot verbs share `drain`'s nonce sequence, so a reply always lands
+    // in exactly one of these registries; `snapshotError` can answer either.
+    const pendingExports = new Map<
+        number,
+        { resolve: (value: HostSnapshot | null) => void; reject: (err: Error) => void }
+    >();
+    const pendingImports = new Map<
+        number,
+        { resolve: (value: { barIndex: number }) => void; reject: (err: Error) => void }
+    >();
     let loadedResolve: (() => void) | null = null;
     let loadedReject: ((err: Error) => void) | null = null;
     let loadTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
@@ -136,6 +170,37 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                 if (resolve !== undefined) {
                     pendingDrains.delete(msg.nonce);
                     resolve(msg.emissions);
+                }
+                break;
+            }
+            case "snapshot": {
+                const waiter = pendingExports.get(msg.nonce);
+                if (waiter !== undefined) {
+                    pendingExports.delete(msg.nonce);
+                    waiter.resolve(
+                        msg.snapshot === null ? null : { key: msg.key, snapshot: msg.snapshot },
+                    );
+                }
+                break;
+            }
+            case "snapshotImported": {
+                const waiter = pendingImports.get(msg.nonce);
+                if (waiter !== undefined) {
+                    pendingImports.delete(msg.nonce);
+                    waiter.resolve({ barIndex: msg.barIndex });
+                }
+                break;
+            }
+            case "snapshotError": {
+                const exportWaiter = pendingExports.get(msg.nonce);
+                if (exportWaiter !== undefined) {
+                    pendingExports.delete(msg.nonce);
+                    exportWaiter.reject(new SnapshotError(msg.message));
+                }
+                const importWaiter = pendingImports.get(msg.nonce);
+                if (importWaiter !== undefined) {
+                    pendingImports.delete(msg.nonce);
+                    importWaiter.reject(new SnapshotError(msg.message));
                 }
                 break;
             }
@@ -208,6 +273,13 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                               ),
                           }
                         : {}),
+                    ...(opts.stateStoreKey !== undefined
+                        ? { stateStoreKey: opts.stateStoreKey }
+                        : {}),
+                    ...(opts.persistence !== undefined ? { persistence: opts.persistence } : {}),
+                    ...(opts.sessionCalendar !== undefined
+                        ? { sessionCalendar: opts.sessionCalendar }
+                        : {}),
                     limits,
                 };
                 worker.postMessage(frame);
@@ -235,6 +307,29 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                 worker.postMessage(frame);
             });
         },
+        exportSnapshot() {
+            const n = nonceCounter;
+            nonceCounter += 1;
+            return new Promise<HostSnapshot | null>((resolve, reject) => {
+                pendingExports.set(n, { resolve, reject });
+                const frame: HostToWorker = { kind: "exportSnapshot", nonce: n };
+                worker.postMessage(frame);
+            });
+        },
+        importSnapshot(exported) {
+            const n = nonceCounter;
+            nonceCounter += 1;
+            return new Promise<{ barIndex: number }>((resolve, reject) => {
+                pendingImports.set(n, { resolve, reject });
+                const frame: HostToWorker = {
+                    kind: "importSnapshot",
+                    nonce: n,
+                    snapshot: exported.snapshot,
+                    key: exported.key,
+                };
+                worker.postMessage(frame);
+            });
+        },
         dispose() {
             const frame: HostToWorker = { kind: "dispose" };
             worker.postMessage(frame);
@@ -243,6 +338,8 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
             }
             clearLoadTimeout();
             pendingDrains.clear();
+            pendingExports.clear();
+            pendingImports.clear();
         },
         limits,
     });

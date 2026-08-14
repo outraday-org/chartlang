@@ -46,6 +46,8 @@ are:
 | `drain()` | Round-trip a request for the queued `RunnerEmissions` batch since the last drain. |
 | `setPlotOverrides(overrides)` | Replace the live `slotId`-keyed [plot overrides](../adapters/contract.md#plot-overrides) — visibility / color / line cosmetics. Presentation-only, no recompute; the next `drain()` reflects it. Fire-and-forget. |
 | `setExternalSeries(feeds)` | Replace the complete `input.externalSeries(...)` feed map. Omitted keys clear previous feeds and resolve to `NaN` on later computes. Fire-and-forget. |
+| `exportSnapshot()` | Round-trip a capture of the runner's whole state — OHLCV rings, `ta.*` accumulators, every `state.*` slot family — as a `HostSnapshot` envelope bound to the host's `stateStoreKey`. Resolves `null` only when the capture fails validation. |
+| `importSnapshot(exported)` | Restore an envelope into a freshly loaded worker and ack with the last bar folded in, so you resume at `barIndex + 1`. |
 | `dispose()` | Terminate the worker and reject any pending drains. |
 
 `host.limits` exposes the resolved `HostLimits` (`maxCpuMsPerStep: 50`,
@@ -117,12 +119,48 @@ pattern for Worker boot files.
   forwards the plain feed map on the `load` frame. Push live whole-map
   replacements afterward via `host.setExternalSeries(...)`; omitted keys
   clear previous feeds.
+- `sessionCalendar` — optional exchange-calendar rows (holidays and half
+  days) for the mounted symbol. Sent once on the `load` frame; the runner
+  builds the lookup inside the worker so a script's `session.isOpen` closes
+  at the real early close. chartlang is data-source-neutral and ships no
+  rows — see [Session calendar](#session-calendar).
 - `workerLike` — test seam. Tests supply a `MessageChannel` port; in
   production omit it and the host constructs a real `Worker`.
 - `limits` — partial `HostLimits` overrides. Missing fields fall through
   to `DEFAULT_LIMITS`.
 - `onWorkerError` — called when the worker posts `step-overshoot` or
   `fatal`. Use it to surface diagnostics in the host UI.
+
+## Session calendar
+
+Without a calendar every weekday is a full session, so the ~13 US half days a
+year (and every market holiday) read as normal trading days. Pass the rows and
+both the host predicates and the script-facing `session.isOpen` narrow:
+
+```ts
+import { createWorkerHost } from "@invinite-org/chartlang-host-worker";
+import type { SessionCalendarDay } from "@invinite-org/chartlang-core";
+
+declare const capabilities: import("@invinite-org/chartlang-adapter-kit").Capabilities;
+
+const sessionCalendar: ReadonlyArray<SessionCalendarDay> = [
+    { dayKey: "2024-11-28", kind: "closed" }, // Thanksgiving
+    { dayKey: "2024-11-29", kind: "halfDay", closeMinutes: 13 * 60 }, // 13:00 close
+];
+
+const host = createWorkerHost({ capabilities, sessionCalendar });
+```
+
+`dayKey` is the local `"YYYY-MM-DD"` day and `closeMinutes` is a **local
+exchange minute-of-day**, not UTC — the runtime converts it through the same
+wall-clock path that already handles DST. The early close truncates the
+extended session too; chartlang does not invent an after-hours tail. An
+unknown day behaves exactly as it does with no calendar at all, and a row for
+a weekend is inert. A `halfDay` row without a valid `closeMinutes` is rejected
+when the calendar is built, not silently ignored.
+
+Bar aggregation stays yours: chartlang narrows the session predicates, it does
+not re-bucket candles.
 
 ## Persistent state
 
@@ -136,6 +174,50 @@ The warm-start guarantee is documented in
 [Execution semantics § State Persistence](../spec/semantics.md#state-persistence):
 a warm-started run followed by the replayed gap and live suffix
 produces byte-identical emissions to a cold run over the full stream.
+
+There are two ways to reach it, and they are independent.
+
+**Automatic (browser).** Pass a `stateStoreKey` plus
+`persistence: { kind: "idb" }` to `createWorkerHost`. The worker boot builds
+the packaged store around that key — the store needs the key at construction
+and only the `load` frame knows it — saves on the runtime's cadence, and warm
+starts once on the first candle event carrying a bar time. Push only the gap:
+a full-history push after a warm start re-seeds the runner and discards the
+restore (harmlessly — same emissions, no speed-up).
+
+**Manual (any storage).** `exportSnapshot()` / `importSnapshot(exported)` move
+the same state through your own storage, which is what a server-side or
+Durable-Object consumer wants:
+
+```ts
+import { createWorkerHost } from "@invinite-org/chartlang-host-worker";
+import type { HostCompiledScript, HostSnapshot } from "@invinite-org/chartlang-host-worker";
+import type { StateStoreKey } from "@invinite-org/chartlang-core";
+
+declare const capabilities: import("@invinite-org/chartlang-adapter-kit").Capabilities;
+declare const compiled: HostCompiledScript;
+declare const stateStoreKey: StateStoreKey;
+declare const stored: HostSnapshot;
+declare function persist(value: HostSnapshot | null): void;
+
+const host = createWorkerHost({ capabilities, stateStoreKey });
+await host.load(compiled);
+
+// Restore BEFORE the first push, then feed only bars after the ack.
+const { barIndex } = await host.importSnapshot(stored);
+void barIndex;
+
+// ... later, before eviction:
+persist(await host.exportSnapshot());
+```
+
+The envelope carries the `StateStoreKey` beside the payload, so a snapshot
+captured under a different script hash, compiler version, symbol, or interval
+set is refused on import instead of silently corrupting state. Import out of
+order (before `load`, or after the first `push`), a key mismatch, and a
+malformed payload all reject with `SnapshotError` from
+`@invinite-org/chartlang-core` — never a fatal, so the fallback is simply a
+full replay.
 
 ## Sandbox model
 
