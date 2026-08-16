@@ -3,6 +3,7 @@
 
 export { createQuickJsHost } from "./createQuickJsHost.js";
 export type { CreateQuickJsHostOpts } from "./createQuickJsHost.js";
+export { QuickJsStepAbortedError } from "./errors.js";
 export { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
 export type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 export type {
