@@ -64,6 +64,14 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   silent stall, the worst failure shape this package has. Bound: this holds for
   guest-settled promises only; a host-resolved promise would need its own
   wall-clock deadline.
+- **An abort is what the INTERRUPT FIRED on, never merely a slow step.** The
+  interrupt handler records that it returned `true`, and that flag (armed per
+  call next to the deadline) is what classifies a failure — not "has the
+  deadline passed", and not the engine's message text. TRAP: the budget is
+  wall-clock, so a descheduled step overruns it while running ordinary code;
+  classifying on the deadline relabels that step's own `throw` as an abort and
+  poisons a host whose `ta` state is intact. A slow-but-complete step is
+  reported as `step overshoot` and stays usable.
 - **An ABORTED host is poisoned and refuses work.** A step the runtime cut mid
   computation leaves `ta` state truncated, so `drain()` / `exportSnapshot()` /
   `importSnapshot()` throw `QuickJsStepAbortedError` and further `push()`es

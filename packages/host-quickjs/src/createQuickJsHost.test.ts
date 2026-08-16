@@ -581,6 +581,43 @@ describe("createQuickJsHost", () => {
         host.dispose();
     });
 
+    it("keeps a slow-but-complete step usable when its own error throws", async () => {
+        // An overrun deadline is NOT an abort. The budget is wall-clock, so a
+        // step that merely got descheduled blows it while running ordinary
+        // code; only the interrupt actually FIRING truncates a computation. If
+        // the overrun were the test, this script error would poison a host
+        // whose `ta` state is entirely intact and cost the caller every
+        // remaining bar. `maxStepMs: -1` keeps the deadline permanently
+        // exceeded without the interrupt handler ever being invoked.
+        const context = new FakeContext();
+        context.pushThrow = "bad input";
+        const errors: Array<string> = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+            limits: { maxStepMs: -1 },
+            onHostError: (message) => {
+                errors.push(message);
+            },
+        });
+        await host.load(compiled(plotSource()));
+
+        await host.push({ kind: "close", bar: bar(1, 1) });
+
+        expect(errors).toContain("bad input");
+        expect(errors.join("\n")).not.toMatch(/unusable/i);
+        // Not poisoned: the host still serves the bars it did compute.
+        await expect(host.drain()).resolves.toMatchObject({ plots: [] });
+        host.dispose();
+    });
+
     it("validates malformed drain emissions and keeps diagnostics", async () => {
         const context = new FakeContext();
         context.drainReply = {

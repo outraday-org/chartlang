@@ -79,7 +79,8 @@ limit overrides go in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` merged over `DEFAULT_QUICKJS_LIMITS`
 (`maxHeapBytes` 64 MiB, `maxStepMs` 1 ms, `maxLoadTimeoutMs` 30 s).
 
-When a budget expires, the host is **done**: the interrupted step left the
+When a budget expires and the runtime **cuts the call short**, the host is
+**done**: the interrupted step left the
 script's `ta` state truncated, so `load` rejects with
 `QuickJsStepAbortedError`, `drain` / `exportSnapshot` / `importSnapshot`
 throw it, and further `push`es only report through `onHostError`. Catch it,
@@ -94,6 +95,12 @@ try {
     host.dispose(); // rebuild before the next symbol
 }
 ```
+
+A step that overruns its budget but still **finishes** is not that case: the
+budget is wall-clock, so a descheduled step overruns it while computing
+correctly. That one reports a `step overshoot` host error and the host stays
+usable — as does any error the script raised on its own, however slow the step
+was. Only a truncated computation poisons.
 
 OOM is different by design: the heap is exhausted, not the computation cut
 short, so it stays a `quickjs-oom` host error and the host lives on.

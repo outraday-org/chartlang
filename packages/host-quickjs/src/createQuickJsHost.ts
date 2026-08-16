@@ -347,11 +347,16 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
     // allowance rather than reading `maxStepMs`, because `load()` and `push()`
     // are governed by different limits — and `load()` was governed by none.
     let deadline: { readonly startedAtMs: number; readonly budgetMs: number } | null = null;
+    // Set by the interrupt handler, and ONLY by it: the record that the runtime
+    // was actually told to cut this call short. Armed per call by
+    // `armDeadline`.
+    let interrupted = false;
     let poisoned = false;
     let nonceCounter = 0;
 
     function armDeadline(budgetMs: number): void {
         deadline = { startedAtMs: performance.now(), budgetMs };
+        interrupted = false;
     }
 
     function deadlineExceeded(): boolean {
@@ -359,13 +364,21 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
     }
 
     /**
-     * Classifies a failure as an ABORT (budget expired / job queue stopped)
-     * rather than an ordinary script error, by asking the deadline instead of
-     * matching on the engine's message text.
+     * Classifies a failure as an ABORT (the runtime cut the call short / the job
+     * queue stopped) rather than an ordinary script error, by asking whether the
+     * interrupt actually FIRED instead of matching on the engine's message text.
+     *
+     * TRAP: "the deadline has passed" is not the same question. The budget is
+     * wall-clock, so a step that merely got descheduled — GC, a loaded CI box —
+     * overruns it while running perfectly ordinary code; asking the deadline
+     * would relabel that step's own `throw new Error("bad input")` as an abort
+     * and poison a host whose `ta` state is intact. Only the interrupt truncates
+     * a computation, so only the interrupt poisons. Slow-but-complete steps are
+     * still reported, as a `step overshoot` host error.
      */
     function asAbort(err: unknown): QuickJsStepAbortedError | null {
         if (err instanceof QuickJsStepAbortedError) return err;
-        if (deadlineExceeded()) return new QuickJsStepAbortedError(message(err));
+        if (interrupted) return new QuickJsStepAbortedError(message(err));
         return null;
     }
 
@@ -384,8 +397,9 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             const runtime = module.newRuntime();
             runtime.setMemoryLimit(limits.maxHeapBytes);
             runtime.setInterruptHandler(() => {
-                if (deadline === null) return false;
-                return performance.now() - deadline.startedAtMs > deadline.budgetMs;
+                if (!deadlineExceeded()) return false;
+                interrupted = true;
+                return true;
             });
             const context = runtime.newContext();
             const installed = context.unwrapResult(
