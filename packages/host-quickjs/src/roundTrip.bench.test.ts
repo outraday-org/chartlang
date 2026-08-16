@@ -14,6 +14,13 @@ import { createQuickJsHost } from "./createQuickJsHost.js";
 // CI. This test is intentionally small; `roundTrip.bench.ts` carries the bench
 // entry for `pnpm bench:ci`.
 const THRESHOLD_MS = 1_500;
+// Timing tests do not run under the 1 ms production `maxStepMs` default: the
+// budget is wall-clock, so CI contention aborts the step, poisons the host,
+// and `drain()` then throws instead of measuring anything. Here the whole
+// 10-bar history is a SINGLE step, so the exposure is even higher than in
+// `perBarCompute.bench.test.ts` (which carries the full rationale). Enforcement
+// stays pinned by `sandbox.test.ts`.
+const BENCH_STEP_BUDGET_MS = 60_000;
 
 function makeCapabilities(): Capabilities {
     return {
@@ -68,7 +75,10 @@ function bar(time: number): Bar {
 describe("host-quickjs round-trip threshold", () => {
     it(`runs a 10-bar push→drain loop under ${THRESHOLD_MS}ms`, async () => {
         const m = manifest();
-        const host = createQuickJsHost({ capabilities: makeCapabilities() });
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxStepMs: BENCH_STEP_BUDGET_MS },
+        });
         const startedAt = performance.now();
         await host.load({
             moduleSource: `

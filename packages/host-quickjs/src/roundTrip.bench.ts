@@ -8,6 +8,12 @@ import { bench, describe } from "vitest";
 
 import { createQuickJsHost } from "./createQuickJsHost.js";
 
+// A throughput bench must not run under the 1 ms production `maxStepMs`
+// default — that budget is wall-clock, so contention aborts the step (the whole
+// 10-bar history is one step here) and poisons the host. See
+// `perBarCompute.bench.test.ts` for the full rationale.
+const BENCH_STEP_BUDGET_MS = 60_000;
+
 function makeCapabilities(): Capabilities {
     return {
         plots: capabilities.allLines(),
@@ -69,7 +75,10 @@ export default {
 
 describe("host-quickjs round-trip", () => {
     bench("10 bars → drain", async () => {
-        const host = createQuickJsHost({ capabilities: makeCapabilities() });
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxStepMs: BENCH_STEP_BUDGET_MS },
+        });
         await host.load({ moduleSource: SOURCE, manifest: MANIFEST });
         await host.push({
             kind: "history",

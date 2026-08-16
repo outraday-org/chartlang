@@ -18,6 +18,19 @@ import type { ScriptHost } from "./types.js";
 
 const ITERATIONS = 1_000;
 const THRESHOLD_MULTIPLIER = 50;
+// This file measures THROUGHPUT, not budget enforcement, so it must not run
+// under the 1 ms production `maxStepMs` default. That budget is wall-clock
+// (the interrupt handler compares `performance.now()`), so a scheduler
+// preemption counts against it: with the full suite running this file in
+// parallel with ~1100 others on a 2-core CI runner, a single bar routinely
+// takes >1 ms of wall time even though it takes ~0.15 ms of CPU. The
+// interrupt then aborts the step, the host poisons itself (correctly — an
+// aborted step leaves `ta` truncated), and the next `drain()` throws
+// `QuickJsStepAbortedError`, failing this test for a reason that has nothing
+// to do with the ratio it asserts. Step-budget enforcement is pinned by
+// `sandbox.test.ts`, which arms `maxStepMs: 1` against a deliberate infinite
+// loop.
+const BENCH_STEP_BUDGET_MS = 60_000;
 
 function pair(): { worker: WorkerLike; scope: WorkerBootScope } {
     const ch = new MessageChannel();
@@ -139,7 +152,12 @@ async function timeWorker(): Promise<number> {
 describe("host-quickjs per-bar compute threshold", () => {
     it(`runs within host-worker baseline × ${THRESHOLD_MULTIPLIER}`, async () => {
         const workerMs = await timeWorker();
-        const quickJsMs = await timeHost(createQuickJsHost({ capabilities: makeCapabilities() }));
+        const quickJsMs = await timeHost(
+            createQuickJsHost({
+                capabilities: makeCapabilities(),
+                limits: { maxStepMs: BENCH_STEP_BUDGET_MS },
+            }),
+        );
 
         expect(quickJsMs).toBeLessThan(workerMs * THRESHOLD_MULTIPLIER);
         // Generous wall-clock guard: the assertion above is a *relative* ratio

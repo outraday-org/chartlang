@@ -72,6 +72,15 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   or its own drain is interrupted and QuickJS asserts on `gc_obj_list`. OOM is
   deliberately NOT poisoning: the heap is exhausted, the computation is not
   truncated.
+- **TIMING tests and benches must arm their own generous `maxStepMs`.** The
+  budget is WALL-CLOCK (the interrupt handler compares `performance.now()`), so
+  a scheduler preemption spends it: on a 2-core CI runner with the full suite in
+  parallel a single ~0.15 ms bar routinely takes >1 ms of wall time, the step
+  aborts, the host poisons, and the next `drain()` throws — a red build that
+  says nothing about the ratio the test asserts. `perBarCompute.bench{,.test}.ts`
+  and `roundTrip.bench{,.test}.ts` therefore pass
+  `limits: { maxStepMs: BENCH_STEP_BUDGET_MS }`; `sandbox.test.ts` is where the
+  1 ms default is exercised, against a deliberate infinite loop.
 - **Emission validation happens on `drain()`.** Keep this aligned with
   host-worker's trust boundary: plots and alerts pass through
   `validateEmission`, drawings pass through unchanged, diagnostics append.
