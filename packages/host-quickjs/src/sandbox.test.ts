@@ -7,6 +7,7 @@ import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { createQuickJsHost } from "./createQuickJsHost.js";
+import { QuickJsStepAbortedError } from "./errors.js";
 
 type RunResult = Readonly<{
     emissions: RunnerEmissions;
@@ -80,6 +81,17 @@ export default {
     };
 }
 
+const NO_EMISSIONS: RunnerEmissions = {
+    plots: [],
+    drawings: [],
+    alerts: [],
+    alertConditions: [],
+    logs: [],
+    diagnostics: [],
+    fromBar: 0,
+    toBar: 0,
+};
+
 async function run(
     name: string,
     compute: string,
@@ -96,7 +108,17 @@ async function run(
     });
     await host.load(compiled);
     await host.push({ kind: "close", bar: bar() });
-    const emissions = await host.drain();
+    // A step the runtime ABORTED leaves `ta` state truncated, so the host
+    // refuses to drain it. That is the contract under test in
+    // "refuses to drain after an aborted step" — here it only has to not mask
+    // the host errors the hostile-script assertions look at.
+    let emissions = NO_EMISSIONS;
+    try {
+        emissions = await host.drain();
+    } catch (err) {
+        if (!(err instanceof QuickJsStepAbortedError)) throw err;
+        hostErrors.push(`drain refused: ${err.message}`);
+    }
     host.dispose();
     return { emissions, hostErrors };
 }
@@ -252,6 +274,65 @@ export default {
 
         expect(result.hostErrors.join("\n")).toMatch(/interrupted|interrupt|step overshoot/i);
         expect(result.emissions.plots).toEqual([]);
+    });
+
+    it("blocks a module whose TOP LEVEL never returns", async () => {
+        const hostErrors: string[] = [];
+        const m = manifest("slow load");
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxLoadTimeoutMs: 50 },
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+
+        const startedAt = performance.now();
+        // Bounded rather than infinite: if the load budget were NOT enforced,
+        // this test would still finish — it would just take the full 3s, which
+        // the elapsed assertion below catches. An infinite loop would instead
+        // wedge the runner with no way back.
+        const loading = host.load({
+            manifest: m,
+            moduleSource: `
+const until = Date.now() + 3000;
+while (Date.now() < until) {}
+export default {
+    manifest: ${JSON.stringify(m)},
+    compute: ({ plot }) => { plot("sandbox.slow-load:1:1#0", 1, {}); },
+};
+`,
+        });
+
+        await expect(loading).rejects.toBeInstanceOf(QuickJsStepAbortedError);
+        expect(performance.now() - startedAt).toBeLessThan(1_500);
+        host.dispose();
+    });
+
+    it("refuses to drain after an aborted step, and still disposes", async () => {
+        const hostErrors: string[] = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxStepMs: 1 },
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+
+        await host.load(source("aborted step", "() => { while (true) {} }"));
+        await host.push({ kind: "close", bar: bar() });
+
+        // Truncated `ta` state must never be served as if it were a result.
+        await expect(host.drain()).rejects.toBeInstanceOf(QuickJsStepAbortedError);
+        // A further push is refused too — reported, not thrown, because `push`
+        // returns void and swallows by contract.
+        await host.push({ kind: "close", bar: bar(1) });
+        expect(hostErrors.join("\n")).toMatch(/host is unusable/i);
+
+        // Teardown must work on a poisoned host, or nothing could be cleaned up.
+        expect(() => {
+            host.dispose();
+        }).not.toThrow();
     });
 
     it("blocks OOM exhaustion", async () => {

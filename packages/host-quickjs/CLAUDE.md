@@ -49,9 +49,29 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   cannot cross the JSON membrane. This is the half that actually makes a
   server-side alert script's `session.isOpen` holiday-aware, so it needs the
   regenerated bundle like every other dispatcher change.
-- **Runtime caps are host-owned.** `QuickJsHostLimits.maxHeapBytes` maps to
-  `quickjs-emscripten`'s `runtime.setMemoryLimit(...)`; `maxStepMs` drives the
-  host-side interrupt handler and step-overshoot reporting.
+- **Runtime caps are host-owned, and EVERY guest call must arm one.** The
+  interrupt handler reads an armed deadline carrying its own budget, not a fixed
+  `maxStepMs`: `push()` arms `maxStepMs`, `load()` arms `maxLoadTimeoutMs`.
+  TRAP: a call that arms nothing is not interruptible AT ALL — `load()` ran a
+  compiled module's top level unbounded until 1.6, so a script that looped
+  before its default export wedged the isolate with no error and no timeout, and
+  no caller-side `Promise.race` can rescue a blocked thread. `maxHeapBytes` maps
+  to `runtime.setMemoryLimit(...)`.
+- **Pump the job queue until it is EMPTY, and never discard the result.**
+  `executePendingJobs()` stops on the first exception with jobs still queued and
+  returns that exception. Dropping it strands the job that settles the reply
+  promise, and the `await` in `resolveStringPromise` then never returns — a
+  silent stall, the worst failure shape this package has. Bound: this holds for
+  guest-settled promises only; a host-resolved promise would need its own
+  wall-clock deadline.
+- **An ABORTED host is poisoned and refuses work.** A step the runtime cut mid
+  computation leaves `ta` state truncated, so `drain()` / `exportSnapshot()` /
+  `importSnapshot()` throw `QuickJsStepAbortedError` and further `push()`es
+  report and no-op. Serving that state would emit silently wrong values forever.
+  `dispose()` always works — including poisoned — and clears the deadline first,
+  or its own drain is interrupted and QuickJS asserts on `gc_obj_list`. OOM is
+  deliberately NOT poisoning: the heap is exhausted, the computation is not
+  truncated.
 - **Emission validation happens on `drain()`.** Keep this aligned with
   host-worker's trust boundary: plots and alerts pass through
   `validateEmission`, drawings pass through unchanged, diagnostics append.
@@ -100,7 +120,9 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   keeps `resetStateForHistoryReseed` verbatim in the bundle.
 - **`dispose()` clears pending drains after disposing the context.** A drain
   awaiting reply post-dispose stays unresolved forever; resolving it with empty
-  emissions would hide lifecycle leaks.
+  emissions would hide lifecycle leaks. It then drains the job queue ONCE more:
+  guest runner disposal is async, and freeing the runtime with that job unrun
+  trips QuickJS's `list_empty(&rt->gc_obj_list)` assertion.
 
 ## Sandbox Matrix
 
@@ -114,7 +136,8 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
 - Host-object capture attempts are constrained by the JSON-string membrane;
   non-JSON members are not returned to the host.
 - Infinite loops are bounded by the QuickJS interrupt handler and reported
-  through `onHostError`.
+  through `onHostError` — in `compute` by `maxStepMs`, at a module's TOP LEVEL
+  by `maxLoadTimeoutMs` (`load()` rejects with `QuickJsStepAbortedError`).
 - OOM attempts are bounded by `QuickJsHostLimits.maxHeapBytes` and reported as
   `quickjs-oom`.
 - Realm reflection stays in the QuickJS realm; host-only methods remain

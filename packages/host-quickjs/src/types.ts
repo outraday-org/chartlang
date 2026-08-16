@@ -103,6 +103,16 @@ export type QuickJsRuntimeLike = {
     setMemoryLimit(limitBytes: number): void;
     setInterruptHandler(cb: () => boolean): void;
     executePendingJobs(): unknown;
+    /**
+     * Whether jobs remain queued after a pump. OPTIONAL so minimal
+     * implementations (test doubles, embedders) stay valid — the host then
+     * pumps exactly once, as it did before this method existed. Real
+     * `quickjs-emscripten` runtimes provide it, and the host uses it to drain
+     * the queue instead of assuming one round suffices.
+     *
+     * @since 1.6
+     */
+    hasPendingJob?(): boolean;
     newContext(): QuickJsContextLike;
     dispose?(): void;
 };

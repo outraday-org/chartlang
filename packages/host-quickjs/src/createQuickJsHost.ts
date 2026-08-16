@@ -21,6 +21,7 @@ import { getQuickJS } from "quickjs-emscripten";
 // has no `node:fs` / `node:path` / `node:url` imports and loads in any runtime
 // — Cloudflare Durable Object, browser, or Node.
 import { DISPATCHER_SOURCE } from "./dispatcherSource.generated.js";
+import { QuickJsStepAbortedError } from "./errors.js";
 import { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 import type {
@@ -100,6 +101,61 @@ function dispose(handle: QuickJsHandleLike): void {
     handle.dispose();
 }
 
+/**
+ * `executePendingJobs()` returns the number of executed jobs on success and an
+ * owned result carrying the exception that STOPPED the queue on failure — an
+ * interrupt (step/load budget) or an OOM. Discarding it strands every job the
+ * queue had left, including the one that settles the reply promise, so the
+ * caller must always ask.
+ */
+function isJobsErrorResult(
+    result: unknown,
+): result is { readonly error: unknown; readonly context?: unknown } {
+    return (
+        typeof result === "object" &&
+        result !== null &&
+        "error" in result &&
+        (result as { readonly error: unknown }).error !== undefined
+    );
+}
+
+function disposeIfDisposable(value: unknown): void {
+    if (
+        typeof value === "object" &&
+        value !== null &&
+        "dispose" in value &&
+        typeof (value as { readonly dispose: unknown }).dispose === "function"
+    ) {
+        (value as { dispose(): void }).dispose();
+    }
+}
+
+/**
+ * A failed `executePendingJobs()` owns the QuickJS error handle, which must be
+ * freed while the runtime is still alive. When the originating context is
+ * already gone the failure is surfaced through a transient error context that
+ * the result does NOT own — free that separately, never the live context.
+ */
+function disposeJobsResult(result: unknown, liveContext: QuickJsContextLike | null): void {
+    const errorContext =
+        isJobsErrorResult(result) &&
+        typeof result.error === "object" &&
+        result.error !== null &&
+        "context" in result.error
+            ? (result.error as { readonly context: unknown }).context
+            : null;
+    disposeIfDisposable(result);
+    if (errorContext !== null && errorContext !== liveContext) {
+        disposeIfDisposable(errorContext);
+    }
+}
+
+/**
+ * Upper bound on job-queue pump rounds. Only reachable if a guest job keeps
+ * enqueuing successors forever; the budget interrupt normally stops that first.
+ */
+const MAX_JOB_PUMP_ROUNDS = 10_000;
+
 function parseFrame(json: string): QuickJsToHost {
     return JSON.parse(json) as QuickJsToHost;
 }
@@ -155,13 +211,40 @@ function validateDrain(raw: RunnerEmissions): RunnerEmissions {
     };
 }
 
+/**
+ * Awaits a guest promise as a host string.
+ *
+ * The awaited promise only settles once the guest `.then` callbacks run, and
+ * those are QuickJS jobs — so the queue must be pumped until it is EMPTY, and a
+ * pump that stopped on an exception must be surfaced rather than dropped. A
+ * dropped failure leaves the settling job stranded and the `await` below never
+ * returns: no error, no timeout, just a call that stands still forever.
+ *
+ * STATED BOUND: this guarantees no hang for a guest whose promises are settled
+ * by guest jobs alone, which is what this host installs (it exposes no
+ * host-side async functions). A future host that resolves a guest promise from
+ * host I/O could still drain the queue with the promise unsettled; that would
+ * need its own wall-clock deadline, and this loop would not see it.
+ */
 async function resolveStringPromise(
     context: QuickJsContextLike,
     runtime: QuickJsRuntimeLike,
     handle: QuickJsHandleLike,
 ): Promise<string> {
     const pending = context.resolvePromise(handle);
-    runtime.executePendingJobs();
+    for (let round = 0; ; round += 1) {
+        const jobs = runtime.executePendingJobs();
+        if (isJobsErrorResult(jobs)) {
+            disposeJobsResult(jobs, context);
+            throw new QuickJsStepAbortedError("guest job queue stopped before the reply settled");
+        }
+        // Absent on minimal `QuickJsRuntimeLike` implementations (test doubles,
+        // embedders): one pump round then, exactly as before.
+        if (runtime.hasPendingJob?.() !== true) break;
+        if (round >= MAX_JOB_PUMP_ROUNDS) {
+            throw new QuickJsStepAbortedError("guest job queue did not drain");
+        }
+    }
     const result = await pending;
     const resolved = context.unwrapResult(result);
     try {
@@ -260,8 +343,39 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
     const quickJsFactory: QuickJsLike = opts.quickJsLike ?? getQuickJS;
     let statePromise: Promise<QuickJsState> | null = null;
     let state: QuickJsState | null = null;
-    let stepStartedAtMs: number | null = null;
+    // The budget the interrupt handler enforces RIGHT NOW. Carries its own
+    // allowance rather than reading `maxStepMs`, because `load()` and `push()`
+    // are governed by different limits — and `load()` was governed by none.
+    let deadline: { readonly startedAtMs: number; readonly budgetMs: number } | null = null;
+    let poisoned = false;
     let nonceCounter = 0;
+
+    function armDeadline(budgetMs: number): void {
+        deadline = { startedAtMs: performance.now(), budgetMs };
+    }
+
+    function deadlineExceeded(): boolean {
+        return deadline !== null && performance.now() - deadline.startedAtMs > deadline.budgetMs;
+    }
+
+    /**
+     * Classifies a failure as an ABORT (budget expired / job queue stopped)
+     * rather than an ordinary script error, by asking the deadline instead of
+     * matching on the engine's message text.
+     */
+    function asAbort(err: unknown): QuickJsStepAbortedError | null {
+        if (err instanceof QuickJsStepAbortedError) return err;
+        if (deadlineExceeded()) return new QuickJsStepAbortedError(message(err));
+        return null;
+    }
+
+    function assertUsable(operation: string): void {
+        if (poisoned) {
+            throw new QuickJsStepAbortedError(
+                `${operation} after an aborted step: this host is unusable, dispose and rebuild it`,
+            );
+        }
+    }
 
     async function ensureState(): Promise<QuickJsState> {
         if (state !== null) return state;
@@ -270,8 +384,8 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             const runtime = module.newRuntime();
             runtime.setMemoryLimit(limits.maxHeapBytes);
             runtime.setInterruptHandler(() => {
-                if (stepStartedAtMs === null) return false;
-                return performance.now() - stepStartedAtMs > limits.maxStepMs;
+                if (deadline === null) return false;
+                return performance.now() - deadline.startedAtMs > deadline.budgetMs;
             });
             const context = runtime.newContext();
             const installed = context.unwrapResult(
@@ -314,7 +428,24 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                     : { sessionCalendar: opts.sessionCalendar }),
                 limits,
             };
-            const reply = await callAsyncJson(qjs, "__chartlang_load", frame);
+            // A compiled module runs its TOP LEVEL here. Without a deadline that
+            // code is not interruptible at all: a script that loops before its
+            // default export wedges the whole isolate — no error, no timeout,
+            // and no `Promise.race` on the caller's side can rescue a blocked
+            // thread. `maxLoadTimeoutMs` had no enforcement point until now.
+            armDeadline(limits.maxLoadTimeoutMs);
+            let reply: QuickJsToHost;
+            try {
+                reply = await callAsyncJson(qjs, "__chartlang_load", frame);
+            } catch (err) {
+                const abort = asAbort(err);
+                if (abort === null) throw err;
+                poisoned = true;
+                postHostError(abort.message);
+                throw abort;
+            } finally {
+                deadline = null;
+            }
             if (reply.kind === "loadError") {
                 throw new Error(reply.message);
             }
@@ -324,9 +455,15 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             }
         },
         async push(event) {
+            if (poisoned) {
+                postHostError(
+                    "push after an aborted step: host is unusable, dispose and rebuild it",
+                );
+                return;
+            }
             const qjs = await ensureState();
             const startedAt = performance.now();
-            stepStartedAtMs = startedAt;
+            armDeadline(limits.maxStepMs);
             try {
                 const reply = await callAsyncJson(qjs, "__chartlang_push", {
                     kind: "candleEvent",
@@ -341,17 +478,32 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 }
             } catch (err) {
                 const text = message(err);
+                // OOM keeps its existing semantics deliberately: the guest heap
+                // is exhausted, not the computation truncated mid-bar.
                 if (text.includes("out of memory") || text.includes("memory")) {
                     postHostError(`quickjs-oom: ${text}`);
                     return;
                 }
+                const abort = asAbort(err);
+                if (abort !== null) {
+                    // The step was cut mid-computation, so `ta` state is
+                    // truncated. Continuing would emit silently wrong values on
+                    // every later bar; refuse instead.
+                    poisoned = true;
+                    postHostError(abort.message);
+                    return;
+                }
                 postHostError(text);
             } finally {
-                stepStartedAtMs = null;
+                deadline = null;
             }
         },
         setPlotOverrides(overrides) {
             const qjs = state;
+            if (poisoned) {
+                postHostError("setPlotOverrides after an aborted step");
+                return;
+            }
             if (qjs === null) {
                 postHostError("setPlotOverrides before load");
                 return;
@@ -366,6 +518,10 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
         },
         setExternalSeries(feeds) {
             const qjs = state;
+            if (poisoned) {
+                postHostError("setExternalSeries after an aborted step");
+                return;
+            }
             if (qjs === null) {
                 postHostError("setExternalSeries before load");
                 return;
@@ -379,6 +535,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             }
         },
         async drain() {
+            assertUsable("drain");
             const qjs = await ensureState();
             const nonce = nonceCounter;
             nonceCounter += 1;
@@ -405,6 +562,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             };
         },
         async exportSnapshot() {
+            assertUsable("exportSnapshot");
             const qjs = await ensureState();
             const nonce = nonceCounter;
             nonceCounter += 1;
@@ -422,6 +580,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             );
         },
         async importSnapshot(exported: HostSnapshot) {
+            assertUsable("importSnapshot");
             const qjs = await ensureState();
             const nonce = nonceCounter;
             nonceCounter += 1;
@@ -441,15 +600,30 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
         dispose() {
             const qjs = state;
             if (qjs !== null) {
+                // Teardown must never inherit an expired budget: an armed
+                // deadline interrupts the disposal drain below on its first
+                // bytecode, the cleanup job never runs, and QuickJS then
+                // asserts on a non-empty `gc_obj_list`. Disposal always works,
+                // including on a poisoned host — otherwise nothing could ever
+                // be cleaned up.
+                deadline = null;
                 try {
                     callDispose(qjs);
                 } catch (err) {
                     postHostError(message(err));
                 }
                 qjs.context.dispose();
+                // Guest runner disposal is async. Context teardown releases its
+                // globals; drain the resulting promise job before freeing the
+                // runtime or QuickJS asserts that gc_obj_list is not empty.
+                // `qjs.context` is already disposed here, so it is passed as the
+                // "live" context purely so the transient-error-context branch
+                // never disposes it a second time.
+                disposeJobsResult(qjs.runtime.executePendingJobs(), qjs.context);
                 qjs.runtime.dispose?.();
                 state = null;
                 statePromise = null;
+                poisoned = false;
             }
         },
         limits: hostLimits,

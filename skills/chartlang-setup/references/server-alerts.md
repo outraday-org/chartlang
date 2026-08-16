@@ -14,8 +14,9 @@ server-side and untrusted-script execution. It mirrors the Worker host's
 
 - **Process isolation** — a JSON-string membrane between the host realm
   and the guest realm; no host I/O or live host object reaches the script.
-- **Real CPU preemption** — a runaway script is interrupted at
-  `maxStepMs` instead of pinning a thread.
+- **Real CPU preemption** — a runaway script is interrupted instead of
+  pinning a thread: `maxStepMs` bounds each `push`, `maxLoadTimeoutMs`
+  bounds the module's top level during `load`.
 - **Hard heap cap** — `maxHeapBytes` maps to QuickJS's memory limit; OOM
   aborts cleanly as a `quickjs-oom` host error without taking the host
   process down.
@@ -76,7 +77,26 @@ alerts are re-validated through `validateEmission` on the way out), and
 `dispose` tears down the context and clears pending drains. Per-call
 limit overrides go in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` merged over `DEFAULT_QUICKJS_LIMITS`
-(`maxHeapBytes` 64 MiB, `maxStepMs` 1 ms).
+(`maxHeapBytes` 64 MiB, `maxStepMs` 1 ms, `maxLoadTimeoutMs` 30 s).
+
+When a budget expires, the host is **done**: the interrupted step left the
+script's `ta` state truncated, so `load` rejects with
+`QuickJsStepAbortedError`, `drain` / `exportSnapshot` / `importSnapshot`
+throw it, and further `push`es only report through `onHostError`. Catch it,
+`dispose()`, and build a new host for the next symbol — never keep pushing,
+or every later bar is computed on half-built state:
+
+```ts
+try {
+    emissions = await host.drain();
+} catch (err) {
+    if (!(err instanceof QuickJsStepAbortedError)) throw err;
+    host.dispose(); // rebuild before the next symbol
+}
+```
+
+OOM is different by design: the heap is exhausted, not the computation cut
+short, so it stays a `quickjs-oom` host error and the host lives on.
 
 ## Holidays and half days
 

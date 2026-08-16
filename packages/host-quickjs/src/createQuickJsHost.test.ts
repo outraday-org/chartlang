@@ -7,6 +7,7 @@ import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { type CreateQuickJsHostOpts, createQuickJsHost } from "./createQuickJsHost.js";
+import { QuickJsStepAbortedError } from "./errors.js";
 import type {
     QuickJsContextLike,
     QuickJsHandleLike,
@@ -818,5 +819,91 @@ export default {
         host.dispose();
 
         expect(context.calls).toContain("dispose");
+    });
+});
+
+describe("createQuickJsHost job-queue pumping", () => {
+    it("pumps until the queue is empty, not exactly once", async () => {
+        const context = new FakeContext();
+        let executeCalls = 0;
+        let remainingRounds = 2;
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => {
+                    executeCalls += 1;
+                    return 1;
+                },
+                hasPendingJob: () => {
+                    if (remainingRounds <= 0) return false;
+                    remainingRounds -= 1;
+                    return true;
+                },
+                newContext: () => context,
+            }),
+        });
+        const host = createQuickJsHost({ capabilities: makeCapabilities(), quickJsLike });
+
+        await host.load(compiled(plotSource()));
+
+        expect(executeCalls).toBe(3);
+        host.dispose();
+    });
+
+    it("pumps once when the runtime does not implement hasPendingJob", async () => {
+        const context = new FakeContext();
+        let executeCalls = 0;
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => {
+                    executeCalls += 1;
+                    return 1;
+                },
+                newContext: () => context,
+            }),
+        });
+        const host = createQuickJsHost({ capabilities: makeCapabilities(), quickJsLike });
+
+        await host.load(compiled(plotSource()));
+
+        expect(executeCalls).toBe(1);
+        host.dispose();
+    });
+
+    it("reports a stopped job queue instead of awaiting a reply that can never settle", async () => {
+        // A queue that stops on an exception strands the job that settles the
+        // reply promise. Awaiting it would never return — no error, no timeout.
+        class NeverSettlingContext extends FakeContext {
+            override async resolvePromise(): Promise<unknown> {
+                return new Promise<unknown>(() => undefined);
+            }
+        }
+        const context = new NeverSettlingContext();
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => ({ error: { message: "interrupted" } }),
+                hasPendingJob: () => true,
+                newContext: () => context,
+            }),
+        });
+        const hostErrors: string[] = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike,
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+
+        await expect(host.load(compiled(plotSource()))).rejects.toBeInstanceOf(
+            QuickJsStepAbortedError,
+        );
+        expect(hostErrors.join("\n")).toMatch(/stopped before the reply settled/);
+        host.dispose();
     });
 });
