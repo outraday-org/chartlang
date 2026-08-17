@@ -3,11 +3,12 @@
 
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runDocsCommand } from "./docs.js";
+import { PHASE4_DOC_ENTRIES } from "./genPhase4Docs.js";
 
 const MINIMAL_PRIMITIVE = `/**
  * Demo primitive.
@@ -128,6 +129,16 @@ export function plot(_value: number): void { throw new Error("noop"); }
 export function hline(_price: number): void { throw new Error("noop"); }`;
 const MINIMAL_PHASE4_ALERT = `/** Emit an alert. @since 0.1 @stable @example alert("hi"); */
 export function alert(_message: string): void { throw new Error("noop"); }`;
+const MINIMAL_PHASE4_ORDER = `export const order = Object.freeze({
+    /** Market buy intent. @since 1.12 @stable @example order.buy({ label: "Long" }); */
+    buy(): void { throw new Error("noop"); },
+    /** Market sell intent. @since 1.12 @stable @example order.sell({ label: "Short" }); */
+    sell(): void { throw new Error("noop"); },
+    /** Market close intent. @since 1.12 @stable @example order.close(); */
+    close(): void { throw new Error("noop"); },
+    /** Read the nominal position. @since 1.12 @stable @example const p = order.position(); */
+    position(): unknown { return {}; },
+});`;
 const MINIMAL_PHASE4_OVERRIDES = `/** Overrides. @since 0.4 @stable @example const o: ScriptOverrides = {}; */
 export type ScriptOverrides = Readonly<{
     /** Max bars. @since 0.4 @example const v: ScriptOverrides["maxBarsBack"] = 1; */
@@ -143,6 +154,34 @@ export type ScriptOverrides = Readonly<{
     /** Short name. @since 0.4 @example const v: ScriptOverrides["shortName"] = "EMA"; */
     shortName?: string;
 }>;`;
+
+/**
+ * Every core source file `PHASE4_DOC_ENTRIES` reads, keyed by the SAME
+ * `sourceRelPath` string the registry carries. `beforeEach` writes the whole map
+ * into the temp repo, so adding a Phase-4 doc entry means adding exactly one row
+ * here — never a matching pair of `mkdir` + `writeFile` calls buried in the
+ * setup body, which is how the `order.*` entries broke six tests at once with an
+ * `ENOENT` that named a path but not the reason.
+ *
+ * The "covers every PHASE4_DOC_ENTRIES source file" test below turns the next
+ * omission into ONE failure that names the missing path and this constant.
+ */
+const PHASE4_CORE_FIXTURES: Readonly<Record<string, string>> = {
+    "packages/core/src/input/input.ts": MINIMAL_PHASE4_INPUT,
+    "packages/core/src/state/state.ts": MINIMAL_PHASE4_STATE,
+    "packages/core/src/views/barstate.ts": MINIMAL_PHASE4_BARSTATE,
+    "packages/core/src/views/syminfo.ts": MINIMAL_PHASE4_SYMINFO,
+    "packages/core/src/views/timeframe.ts": MINIMAL_PHASE4_TIMEFRAME,
+    "packages/core/src/request/request.ts": MINIMAL_PHASE4_REQUEST,
+    "packages/core/src/time-accessors/timeAccessors.ts": MINIMAL_PHASE4_TIME,
+    "packages/core/src/time-accessors/sessionAccessors.ts": MINIMAL_PHASE4_SESSION,
+    "packages/core/src/math/index.ts": MINIMAL_PHASE4_MATH,
+    "packages/core/src/str/index.ts": MINIMAL_PHASE4_STR,
+    "packages/core/src/define/overrides.ts": MINIMAL_PHASE4_OVERRIDES,
+    "packages/core/src/plot/plot.ts": MINIMAL_PHASE4_PLOT,
+    "packages/core/src/alert/alert.ts": MINIMAL_PHASE4_ALERT,
+    "packages/core/src/order/order.ts": MINIMAL_PHASE4_ORDER,
+};
 
 describe("runDocsCommand", () => {
     let repoRoot: string;
@@ -180,81 +219,11 @@ describe("runDocsCommand", () => {
             "utf8",
         );
         await writeFile(join(repoRoot, "pnpm-workspace.yaml"), "packages:\n", "utf8");
-        await mkdir(join(repoRoot, "packages/core/src/input"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/state"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/views"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/request"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/time-accessors"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/math"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/str"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/define"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/plot"), { recursive: true });
-        await mkdir(join(repoRoot, "packages/core/src/alert"), { recursive: true });
-        await writeFile(
-            join(repoRoot, "packages/core/src/input/input.ts"),
-            MINIMAL_PHASE4_INPUT,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/state/state.ts"),
-            MINIMAL_PHASE4_STATE,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/views/barstate.ts"),
-            MINIMAL_PHASE4_BARSTATE,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/views/syminfo.ts"),
-            MINIMAL_PHASE4_SYMINFO,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/views/timeframe.ts"),
-            MINIMAL_PHASE4_TIMEFRAME,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/request/request.ts"),
-            MINIMAL_PHASE4_REQUEST,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/time-accessors/timeAccessors.ts"),
-            MINIMAL_PHASE4_TIME,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/time-accessors/sessionAccessors.ts"),
-            MINIMAL_PHASE4_SESSION,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/math/index.ts"),
-            MINIMAL_PHASE4_MATH,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/str/index.ts"),
-            MINIMAL_PHASE4_STR,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/define/overrides.ts"),
-            MINIMAL_PHASE4_OVERRIDES,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/plot/plot.ts"),
-            MINIMAL_PHASE4_PLOT,
-            "utf8",
-        );
-        await writeFile(
-            join(repoRoot, "packages/core/src/alert/alert.ts"),
-            MINIMAL_PHASE4_ALERT,
-            "utf8",
-        );
+        for (const [relPath, source] of Object.entries(PHASE4_CORE_FIXTURES)) {
+            const absPath = join(repoRoot, relPath);
+            await mkdir(dirname(absPath), { recursive: true });
+            await writeFile(absPath, source, "utf8");
+        }
 
         priorCwd = process.cwd();
         process.chdir(repoRoot);
@@ -279,6 +248,17 @@ describe("runDocsCommand", () => {
         stderrSpy.mockRestore();
         process.exitCode = priorExitCode;
         await rm(repoRoot, { recursive: true, force: true });
+    });
+
+    it("PHASE4_CORE_FIXTURES covers every PHASE4_DOC_ENTRIES source file", () => {
+        // The temp-repo fixture is a hand-maintained mirror of core's layout, so
+        // a new `PHASE4_DOC_ENTRIES` row pointing at an unmirrored file makes
+        // EVERY test in this file die with an `ENOENT` that names the path but
+        // not the cause. This assertion fails first, alone, and says what to add.
+        const missing = [...new Set(PHASE4_DOC_ENTRIES.map((entry) => entry.sourceRelPath))]
+            .filter((relPath) => !(relPath in PHASE4_CORE_FIXTURES))
+            .sort();
+        expect(missing, "add a PHASE4_CORE_FIXTURES row for each path").toEqual([]);
     });
 
     it("writes one page per primitive with the default source/out dirs", async () => {
