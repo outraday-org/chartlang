@@ -247,6 +247,8 @@ describe("bundled scenario constants", () => {
             "alert-condition-fired-at-bar",
             "drawing-hash",
             "all-plots-on-pane",
+            "order-count",
+            "order-at-bar",
         ]);
         for (const scenario of ALL_SCENARIOS) {
             for (const assertion of scenario.assertions) {

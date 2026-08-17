@@ -251,7 +251,10 @@
   inherit its `(slotId, bar)` last-write-wins: a repeated same-bar fold collapses
   to one picture while the append-only `orders` channel keeps every event — the
   two dedup policies differ on the same event on purpose. No new `PlotKind`, no
-  adapter code.
+  adapter code. Both suffix constants are re-exported from the package barrel
+  (`src/index.ts`) so a consumer pinning or filtering the courtesy plots — the
+  `order-*` conformance scenarios do — composes `${slotId}${SUFFIX}` instead of
+  spelling `"#marker"` a second time.
 - **`RunnerSnapshot.orderPosition` is optional and ABSENCE MEANS FLAT.** It rides
   per runner (not top-level) so a sibling's position survives an eviction, and it
   is **omitted while flat**, which keeps every pre-`orders` snapshot

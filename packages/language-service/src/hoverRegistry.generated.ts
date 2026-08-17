@@ -4434,6 +4434,126 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "since": "0.2",
         "stability": "stable"
     },
+    "order": {
+        "fqn": "order",
+        "kind": "namespace",
+        "title": "order",
+        "summary": "Compile-time callable hole for the `order.*` namespace. Every method throws\nthe `\"order.<member> called outside compiled runtime\"` sentinel — the compiler\nrewrites each callsite to dispatch to the runtime, which installs the real\nnamespace on `ComputeContext.order`.",
+        "examples": [
+            "```ts\nimport { defineIndicator, order, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\nname: \"EMA cross orders\",\napiVersion: 1,\ncompute: ({ bar }) => {\nconst fast = ta.ema(bar.close, 12);\nconst slow = ta.ema(bar.close, 26);\nif (order.position().size <= 0 && ta.crossover(fast, slow).current) {\norder.buy({ label: \"Long\" });\n}\nif (order.position().size > 0 && ta.crossunder(fast, slow).current) {\norder.close({ label: \"Exit\" });\n}\n},\n});\n```"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "order.buy": {
+        "fqn": "order.buy",
+        "kind": "function",
+        "title": "order.buy(_opts?)",
+        "summary": "Emit a market **buy** intent: open or add to a long, reversing an\nexisting short that it crosses through. `qty` is unsigned magnitude.",
+        "paramTable": [
+            {
+                "name": "_opts",
+                "type": "OrderOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof order.buy = order.buy;\nvoid fn;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "order.close": {
+        "fqn": "order.close",
+        "kind": "function",
+        "title": "order.close(_opts?)",
+        "summary": "Emit a market **close** intent: target flat from either side. The nominal\ntracker always flattens fully — a partial-close `qty` rides the emission\nfor consumers that simulate partials but is ignored here.",
+        "paramTable": [
+            {
+                "name": "_opts",
+                "type": "OrderOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof order.close = order.close;\nvoid fn;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "order.position": {
+        "fqn": "order.position",
+        "kind": "function",
+        "title": "order.position()",
+        "summary": "Read the nominal position. Pure — it allocates no per-callsite state, so\nit is the one `order.*` member that is legal inside a bounded loop and\nthat does **not** make a script ask for the `orders` capability. Returns\nthe state as of the previous confirmed step (see the lag note on the\nnamespace).",
+        "examples": [
+            "const fn: typeof order.position = order.position;\nvoid fn;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "order.sell": {
+        "fqn": "order.sell",
+        "kind": "function",
+        "title": "order.sell(_opts?)",
+        "summary": "Emit a market **sell** intent: open or add to a short, reversing an\nexisting long that it crosses through. `qty` is unsigned magnitude.",
+        "paramTable": [
+            {
+                "name": "_opts",
+                "type": "OrderOpts",
+                "doc": ""
+            }
+        ],
+        "examples": [
+            "const fn: typeof order.sell = order.sell;\nvoid fn;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "OrderAction": {
+        "fqn": "OrderAction",
+        "kind": "type",
+        "title": "OrderAction",
+        "summary": "The three market intents `order.*` can express. `\"buy\"` opens or adds to a\nlong, `\"sell\"` opens or adds to a short, `\"close\"` targets flat. There are\ndeliberately no limit / stop / bracket actions in `apiVersion: 1` — a resting\norder would force the language to define when it fills, which is a fill\nmodel, and fill economics belong to the consumer.",
+        "examples": [
+            "const action: OrderAction = \"buy\";\nvoid action;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "OrderNamespace": {
+        "fqn": "OrderNamespace",
+        "kind": "type",
+        "title": "OrderNamespace",
+        "summary": "Static type of the `order` namespace. Derived from the frozen namespace object\n(like `TimeNamespace` / `RequestNamespace`) rather than hand-written, so the\nmember JSDoc has exactly one home and the generated hover registry cannot\nreceive two competing entries per member.",
+        "examples": [
+            "const ns: OrderNamespace = order;\nvoid ns;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "OrderOpts": {
+        "fqn": "OrderOpts",
+        "kind": "type",
+        "title": "OrderOpts",
+        "summary": "Options accepted by every `order.*` emitter. `qty` is an **unsigned**\nmagnitude (the action names the side); absent means the consumer's default,\nand the nominal position tracker treats it as one unit. `label` is shown on\nthe auto-rendered marker and forwarded to consumers. `marker` is render-side\nonly — `false` suppresses the auto-drawn arrow / label and is deliberately\nabsent from the wire emission, which records the intent rather than how it was\ndrawn. `meta` is round-tripped to the host as a JSON-serialisable payload.",
+        "examples": [
+            "const opts: OrderOpts = { qty: 2, label: \"Long\", meta: { reason: \"cross\" } };\nvoid opts;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
+    "OrderPosition": {
+        "fqn": "OrderPosition",
+        "kind": "type",
+        "title": "OrderPosition",
+        "summary": "The **nominal** position the runtime tracks over emitted order intents:\n`size` is signed (`> 0` long, `< 0` short, `0` flat), `avgPrice` averages the\nsignal bar's close* (never a simulated fill price) and is `null` when flat,\nand `entryBar` is the bar index the current position opened. There is no\ncapital, no slippage, no commission and no P&L here by design — a consumer's\nown simulator is the authority on economics, so a next-bar-open filler will\nlegitimately report a different average price than `avgPrice`.",
+        "examples": [
+            "const flat: OrderPosition = { size: 0, avgPrice: null, entryBar: null };\nvoid flat;"
+        ],
+        "since": "1.12",
+        "stability": "stable"
+    },
     "OutputDeclaration": {
         "fqn": "OutputDeclaration",
         "kind": "type",
@@ -5240,9 +5360,9 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "RunnerSnapshot",
         "summary": "/**\nPer-runner persistence section. Carries one runner's `state.*`\n(and primary-only TA) slot map keyed by `${slotIdPrefix}${slotId}:state`\n(Task 5). `slots` is `JsonValue` so the snapshot\nround-trips through `JSON.stringify` and structured-clone.",
         "examples": [
-            "const r: RunnerSnapshot = {\nslots: { \"x:state\": { committed: 1, tentative: 1 } },\n};\nvoid r;"
+            "const r: RunnerSnapshot = {\nslots: { \"x:state\": { committed: 1, tentative: 1 } },\norderPosition: { size: 1, avgPrice: 101.5, entryBar: 3 },\n};\nvoid r;"
         ],
-        "since": "0.7",
+        "since": "0.7 — `orderPosition` added in 1.12",
         "stability": "stable"
     },
     "runtime": {
@@ -5831,7 +5951,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "STATEFUL_PRIMITIVES_BY_NAME",
         "kind": "property",
         "title": "STATEFUL_PRIMITIVES_BY_NAME",
-        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 179-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
+        "summary": "/**\nName → entry index of  {@link STATEFUL_PRIMITIVES} . The compiler's\n`callsiteIdInjection` and `statefulCallInLoop` passes consult this map\nby callee name once per call site — O(1) lookup instead of an O(n) scan\nover the 204-entry set on every visited call. The map is derived from\nthe same canonical entry list as  {@link STATEFUL_PRIMITIVES} so adding\na primitive to the set adds it here automatically.",
         "examples": [
             "import { STATEFUL_PRIMITIVES_BY_NAME } from \"@invinite-org/chartlang-core\";\nconst entry = STATEFUL_PRIMITIVES_BY_NAME.get(\"ta.ema\");\n// entry is { name: \"ta.ema\", slot: true } | undefined"
         ],
@@ -5864,7 +5984,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "StateSnapshot",
         "kind": "type",
         "title": "StateSnapshot",
-        "summary": "Canonical persistent-store snapshot.",
+        "summary": "/**\nCanonical persistent-store snapshot.",
         "examples": [
             "const s: StateSnapshot = {\nlastBarTime: 1_700_000_000_000,\nbarIndex: 4,\nstreams: {},\nsavedAt: 1_700_000_060_000,\nsnapshotVersion: 2,\nprimary: { slots: {} },\n};\nvoid s;"
         ],

@@ -217,6 +217,15 @@ export default defineConfig({
                     items: [{ text: "alert", link: "/primitives/alert/alert" }],
                 },
                 {
+                    text: "Order",
+                    items: [
+                        { text: "order.buy", link: "/primitives/order/buy" },
+                        { text: "order.sell", link: "/primitives/order/sell" },
+                        { text: "order.close", link: "/primitives/order/close" },
+                        { text: "order.position", link: "/primitives/order/position" },
+                    ],
+                },
+                {
                     text: "Request",
                     items: [
                         { text: "Security", link: "/primitives/request/security" },

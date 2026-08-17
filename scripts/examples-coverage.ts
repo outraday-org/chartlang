@@ -71,6 +71,10 @@ export function mapPageToId(relPath: string): string {
                 : `state.${base}`;
         case "request":
             return `request.${base}`;
+        case "order":
+            // `order/buy.md` → `order.buy`. One page per member (the `request.*`
+            // shape), so there is no bare `order` id to credit.
+            return `order.${base}`;
         case "define":
             return `define.${base}`;
         case "plot":

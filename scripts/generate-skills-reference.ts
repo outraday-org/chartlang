@@ -235,6 +235,24 @@ async function collectNamespace(title: "math" | "str"): Promise<Phase4DocInput> 
     return parsePhase4DocEntry(REPO_ROOT, entry);
 }
 
+/**
+ * Collect a namespace whose members each own a doc PAGE (`order.*`) as one
+ * `Phase4DocInput` per member. Sibling of {@link collectNamespace}, reusing the
+ * same `PHASE4_DOC_ENTRIES` registry and the same `parsePhase4DocEntry` — it
+ * selects by the `"<prefix>."` title prefix instead of an exact title, because a
+ * per-member namespace has no consolidated entry to look up (RFC 0002 gives
+ * `order` four `docs/primitives/order/<member>.md` pages and deliberately no
+ * `docs/primitives/order.md`, which would mint a bare `order` id that
+ * `examples:coverage` could never credit).
+ */
+async function collectMemberNamespace(prefix: string): Promise<ReadonlyArray<Phase4DocInput>> {
+    const entries = PHASE4_DOC_ENTRIES.filter((entry) => entry.title.startsWith(`${prefix}.`));
+    if (entries.length === 0) {
+        throw new Error(`Missing PHASE4_DOC_ENTRIES entries for "${prefix}.*"`);
+    }
+    return Promise.all(entries.map((entry) => parsePhase4DocEntry(REPO_ROOT, entry)));
+}
+
 function renderTaBlock(p: PrimitiveDocInput): string {
     const lines = [`### ta.${p.id}`, "", "```ts", p.signature, "```", ""];
     if (p.description.length > 0) lines.push(p.description, "");
@@ -252,11 +270,33 @@ function renderDrawBlock(d: DrawingDocInput): string {
     return lines.join("\n");
 }
 
-function renderPlotBlock(p: PlotDocInput): string {
-    const lines = [`### ${p.name}`, "", "```ts", p.signature, "```", ""];
-    if (p.description.length > 0) lines.push(p.description, "");
-    lines.push(`**Since:** ${p.since} · ${p.stability}`);
+/**
+ * Heading + fenced signature + description + since/stability — the block shape
+ * shared by the plot-family holes and the per-member `order.*` entries. Neither
+ * carries a `@formula` / `@warmup` / `@anchors` row, so they differ from
+ * `ta.*` / `draw.*` only in the heading text.
+ */
+function renderSignatureBlock(
+    heading: string,
+    doc: Readonly<{
+        signature: string;
+        description: string;
+        since: string;
+        stability: string;
+    }>,
+): string {
+    const lines = [`### ${heading}`, "", "```ts", doc.signature, "```", ""];
+    if (doc.description.length > 0) lines.push(doc.description, "");
+    lines.push(`**Since:** ${doc.since} · ${doc.stability}`);
     return lines.join("\n");
+}
+
+function renderPlotBlock(p: PlotDocInput): string {
+    return renderSignatureBlock(p.name, p);
+}
+
+function renderMemberBlock(doc: Phase4DocInput): string {
+    return renderSignatureBlock(doc.entry.title, doc);
 }
 
 /**
@@ -279,13 +319,15 @@ function renderNamespaceBlock(title: string, doc: Phase4DocInput): string {
  * Pure renderer — no IO. Emits the auto-header as the first line, then
  * one block per `ta.*` and `draw.*` primitive (alphabetical within each
  * namespace), then the `## plot family` section (`plot` / `hline` /
- * `bgcolor` / `barcolor`, in `PLOT_FAMILY` order), then the consolidated
- * `## math.*` / `## str.*` value-namespace blocks.
+ * `bgcolor` / `barcolor`, in `PLOT_FAMILY` order), then the per-member
+ * `## order.*` section, then the consolidated `## math.*` / `## str.*`
+ * value-namespace blocks.
  */
 export function renderReference(
     ta: ReadonlyArray<PrimitiveDocInput>,
     draw: ReadonlyArray<DrawingDocInput>,
     plotFamily: ReadonlyArray<PlotDocInput>,
+    order: ReadonlyArray<Phase4DocInput>,
     math: Phase4DocInput,
     str: Phase4DocInput,
 ): string {
@@ -296,7 +338,7 @@ export function renderReference(
         "",
         "Generated from source JSDoc. Authoritative — do not hand-edit. Run",
         "`pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family /",
-        "`math.*` / `str.*` primitive.",
+        "`order.*` / `math.*` / `str.*` primitive.",
         "",
         "The chartlang compiler injects a leading `slotId: string` argument at",
         "every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`",
@@ -317,6 +359,10 @@ export function renderReference(
         "",
         plotFamily.map(renderPlotBlock).join("\n\n"),
         "",
+        "## order.*",
+        "",
+        order.map(renderMemberBlock).join("\n\n"),
+        "",
         renderNamespaceBlock("math", math),
         "",
         renderNamespaceBlock("str", str),
@@ -333,14 +379,15 @@ export function renderReference(
 export async function generateSkillsReference(
     opts: Readonly<{ check?: boolean }> = {},
 ): Promise<void> {
-    const [ta, draw, plotFamily, math, str] = await Promise.all([
+    const [ta, draw, plotFamily, order, math, str] = await Promise.all([
         collectTa(),
         collectDraw(),
         collectPlotFamily(),
+        collectMemberNamespace("order"),
         collectNamespace("math"),
         collectNamespace("str"),
     ]);
-    const contents = renderReference(ta, draw, plotFamily, math, str);
+    const contents = renderReference(ta, draw, plotFamily, order, math, str);
 
     if (opts.check === true) {
         let existing = "";

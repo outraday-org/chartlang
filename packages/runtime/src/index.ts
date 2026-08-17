@@ -27,6 +27,11 @@ export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner.
 export { buildBundleFromModule } from "./loadBundle.js";
 export type { CompiledModuleExport } from "./loadBundle.js";
 export { alert, applyPlotOverride, draw, hline, order, plot, pushDrawing } from "./emit/index.js";
+// The two synthetic auto-marker slot-id suffixes. Public so a consumer pinning
+// or filtering the courtesy `arrow` / `label` plots an order lowers to (the
+// conformance scenarios do exactly that) composes `${slotId}${SUFFIX}` from the
+// constant instead of re-spelling `"#marker"` at a second site.
+export { ORDER_LABEL_SLOT_SUFFIX, ORDER_MARKER_SLOT_SUFFIX } from "./emit/index.js";
 export { TA_REGISTRY, ta } from "./ta/index.js";
 export { maRibbonOutputKeys } from "./ta/index.js";
 export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta/index.js";
