@@ -44,9 +44,11 @@ export const myCapabilities: Capabilities = {
     alerts: new Set(["toast"]),
     alertConditions: false,
     logs: true,
+    orders: true,
     inputs: new Set(["int", "float", "bool", "color", "source"]),
     intervals: [{ value: "1D", label: "1 day", group: "daily" }],
     multiTimeframe: false,
+    multiSymbol: false,
     subPanes: 1,
     symInfoFields: new Set(["ticker", "mintick", "timezone"]),
     maxDrawingsPerScript: { lines: 100, labels: 0, boxes: 0, polylines: 0, other: 0 },
@@ -59,7 +61,47 @@ Rules of honesty: do not declare a plot kind until the renderer can both
 create AND update its series; do not declare a drawing kind until you
 implement both the create-or-update branch and the remove branch; do not
 declare `multiTimeframe` unless `candles({ interval })` can supply
-secondary streams for every entry in `intervals`.
+secondary streams for every entry in `intervals`; do not declare
+`multiSymbol` unless it can supply a stream for a *different* symbol.
+
+### `orders` — the cheapest capability to honour
+
+`orders: true` costs you **no rendering code**. A script's `order.buy` /
+`order.sell` / `order.close` calls arrive on `RunnerEmissions.orders`,
+and the runtime additionally auto-renders each one as an `arrow` (plus,
+when the call carried a `label`, a `label`) plot — so any adapter whose
+`plots` set contains those two kinds already draws entry and exit
+markers. The marker plots are pre-gated **silently**: an adapter without
+`arrow` / `label` gets no marker and no diagnostic.
+
+`orders: false` is equally supported. The runtime then drops the call,
+skips the markers, and emits `unsupported-orders` once per slot per
+mount — the same "decline and be diagnosed" posture as drawings.
+
+To hand the intents to the embedding app, expose an optional `onOrder`
+factory option and forward each emission after your own validation. The
+bundled example adapters all do exactly this:
+
+```ts
+export type CreateMyAdapterOpts = Readonly<{
+    // ...
+    /** Sink for the structured `orders` channel. Renders nothing — the
+     *  markers ride the plot pipeline; this is the door to the intents. */
+    onOrder?: (order: OrderEmission) => void;
+}>;
+
+// inside onEmissions, after the plot / drawing / alert loops:
+if (opts.onOrder !== undefined) {
+    for (const order of emissions.orders) opts.onOrder(order);
+}
+```
+
+An app switches on `order.action` (`"buy" | "sell" | "close"`), reads
+`order.bar` directly instead of round-tripping a timestamp, and uses
+`order.dedupeKey` for idempotency on async delivery. **Do not simulate
+fills in the adapter** — chartlang emits intents and tracks a nominal
+position only; slippage, commission, and equity belong to whatever
+consumes the channel.
 
 ## Implement the adapter
 

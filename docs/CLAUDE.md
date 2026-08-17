@@ -115,6 +115,19 @@ the repo-root `DEPLOYMENT.md`).
   `examples/catalogue.ts` + the `.chart.ts` sources and byte-diffs against the
   committed tree. Hand-edits, missing pages, or stale pages fail the gate. Part
   of the root `check` chain.
+- `pnpm examples:idioms` reads `docs/language/**`. **Adding a hand-authored
+  page here fails that gate** until the page is either paired with an idiom in
+  `examples/idiom-manifest.json` (`"page": "language/<name>"`) or listed in its
+  `unrepresentedPages` with a reason (`"page": "<name>"` — the **bare tail**,
+  no `language/` prefix and no `.md`; the two fields are compared differently
+  on purpose). Renaming or deleting a language page fails it the other way,
+  as `UNKNOWN`.
+- **Never restate a total in `docs/spec/`.** Write the enumerating table and
+  let it be the count; where a number looks load-bearing, name the exported
+  type to re-extract from instead. `emissions.md` carried four such numerals
+  (`PlotKind`, `DrawingKind`, `DiagnosticCode`, `Capabilities`) and all four
+  went stale — two of them against tables that were themselves missing
+  members, so the numeral and the list disagreed as well.
 - `pnpm examples:coverage` (`scripts/examples-coverage.ts`) enumerates the
   primitive id set from this `docs/primitives/**` page tree and fails if a page
   has no example credit. The gate is **fully enforcing** (`target ⊆ covered`,

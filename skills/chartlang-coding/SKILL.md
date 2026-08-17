@@ -1,13 +1,15 @@
 ---
 name: chartlang-coding
 description: >-
-  Write chartlang `.chart.ts` indicator, drawing, and alert scripts.
-  Use this skill whenever the user is editing a `.chart.ts` file, asks
-  to write or fix a chartlang indicator, mentions `defineIndicator`,
-  `ta.*`, `plot`, `draw.*`, `alert`, or `input.*`, or wires AI into an
-  editor to author chartlang scripts. Covers the import+destructure
-  contract, the four script kinds, forbidden constructs, inputs, and
-  the full `ta.*`/`draw.*`/`math.*`/`str.*` primitive surface.
+  Write chartlang `.chart.ts` indicator, drawing, alert, and strategy
+  scripts. Use this skill whenever the user is editing a `.chart.ts`
+  file, asks to write or fix a chartlang indicator or trading strategy,
+  mentions `defineIndicator`, `ta.*`, `plot`, `draw.*`, `alert`,
+  `input.*`, or `order.*` (`order.buy` / `order.sell` / `order.close` /
+  `order.position`), or wires AI into an editor to author chartlang
+  scripts. Covers the import+destructure contract, the four script
+  kinds, forbidden constructs, inputs, order emissions, and the full
+  `ta.*`/`draw.*`/`math.*`/`str.*` primitive surface.
 ---
 
 # chartlang-coding
@@ -85,6 +87,11 @@ Every constructor accepts `name: string` (literal), `apiVersion: 1`
 Constructor-specific fields (`overlay`, `maxDrawings`,
 `requiresIntervals`, `conditions`, ...) are listed in the
 [grammar spec](https://docs.chartlang.invinite.com/spec/grammar).
+
+**There is no strategy kind.** A trading strategy is a `defineIndicator`
+that calls `order.*` (§7) — indicator, alert, and drawing scripts may
+all emit orders, and the `orders` capability is derived from the
+callsites the way `alert(...)` derives `alerts`.
 
 ## 3. Series and indexing
 
@@ -373,6 +380,32 @@ Highlights of the surface:
   it. The `"mintick"` keyword and locale/date formats are deferred (pass a
   numeric step via `math.roundToMintick` instead).
 - `alert(message, opts?)` with `severity: "info" | "warning" | "critical"`.
+- **`order.*` — structured trade signals.** `order.buy(opts?)` /
+  `order.sell(opts?)` / `order.close(opts?)` emit market intents on the
+  `orders` channel; `order.position()` reads the runtime's *nominal*
+  position `{ size, avgPrice, entryBar }` (`size` signed: `> 0` long,
+  `< 0` short, `0` flat; `avgPrice`/`entryBar` are `null` when flat).
+  `OrderOpts` is `{ qty?, label?, marker?, meta? }` — `qty` is an
+  **unsigned** magnitude (the action names the side), `label` shows on
+  the auto-marker, `marker: false` opts out of it.
+  Three things to internalise:
+  **(a) `order.position()` lags one fold** — orders fold at the end of a
+  confirmed step, after `compute` returns, so a read never sees the same
+  bar's own orders (this is Pine's `strategy.position_size` behaviour).
+  **(b) Markers are free** — each accepted order also emits an `arrow`
+  (+ `label`) plot, so you write no drawing code to see entries and
+  exits; an adapter that cannot draw arrows skips them silently.
+  **(c) chartlang does not simulate fills** — no slippage, commission,
+  or equity; `avgPrice` is the signal bar's close. Whatever consumes
+  `RunnerEmissions.orders` owns the economics (typically next-bar-open
+  fills). Never use alert-message prefixes to carry a trade signal.
+
+  ```ts
+  const flatOrShort = order.position().size <= 0;
+  if (flatOrShort && ta.crossover(fast, slow).current) {
+      order.buy({ label: "Long" });
+  }
+  ```
 - `request.security({ interval })` and `request.lowerTf({ interval })`
   for higher- and lower-timeframe data. The interval must be a
   compile-time string literal.
@@ -439,14 +472,17 @@ Highlights of the surface:
 
 ## 8. Worked examples
 
-See [`references/examples.md`](./references/examples.md) for four
-complete, compileable scripts:
+See [`references/examples.md`](./references/examples.md) for complete,
+compileable scripts:
 
 - **EMA cross with alert** — the canonical indicator.
 - **Bollinger bands** — multi-output plot bundle.
 - **RSI divergence alert** — `hline` zones + `alert` on crossover.
 - **Indicator composition** — producer + consumer in separate files
   with `.withInputs(...)` and `.output(...)`.
+- **Heikin-Ashi candles** — `plotcandle` with a derived OHLC series.
+- **Order signals** — `order.*` entries/exits guarded on
+  `order.position()`.
 
 ## 9. Common mistakes
 
@@ -471,3 +507,13 @@ complete, compileable scripts:
   `multiple-input-interval`.
 - **A non-literal `apiVersion`.** It must be the numeric literal `1`,
   not a variable. The compiler reads it statically.
+- **Reading `order.position()` and expecting the same bar's orders.**
+  The fold happens after `compute` returns, so a read inside the bar
+  that placed an order still shows the *previous* state. Write the
+  guard as "flat or short going into this bar", not "flat right now" —
+  and hoist the read out of your `if`s, one read per step.
+- **Carrying a backtest signal in an alert message.** `alert("Long
+  entry")` and prefix-parsing on the consumer side is the obsolete
+  convention `order.*` replaced; it misclassifies as soon as a message
+  happens to contain the word `close`. Emit `order.buy` / `order.sell` /
+  `order.close` instead, and keep `alert(...)` for notifications.

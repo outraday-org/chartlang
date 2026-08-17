@@ -37,7 +37,10 @@ These fire at parse time — the construct has no v1 analogue at all.
 > per-call [`strategy-signal-only`](./diagnostics.md#strategy-signal-only),
 > [`strategy-direction-assumed`](./diagnostics.md#strategy-direction-assumed),
 > and [`strategy-order-args-dropped`](./diagnostics.md#strategy-order-args-dropped).
-> Fill economics belong to whatever consumes the `orders` channel.
+> Fill economics belong to whatever consumes the `orders` channel — see
+> [Orders](../language/orders.md) for the language contract and
+> [supported § strategy signals](./supported.md#strategy-signals) for the full
+> mapping table.
 
 > **Parser limitation:** the Pine `[...]` square-bracket **array literal**
 > does not parse — `[` is only recognised as history access (`x[1]`). A

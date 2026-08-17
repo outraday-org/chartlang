@@ -117,8 +117,8 @@ bars; the runtime emits create / update / remove records.
 ## Emission
 
 One payload the runtime hands the adapter in a drained
-`RunnerEmissions` batch — plot, drawing, alert, alert-condition, log,
-or diagnostic. Wire shapes are normative in
+`RunnerEmissions` batch — plot, drawing, alert, alert-condition, order,
+log, or diagnostic. Wire shapes are normative in
 [Emission payloads](../spec/emissions.md).
 
 ## Golden bars
@@ -148,6 +148,26 @@ The JSON-clean sidecar the compiler emits next to each bundle. Hosts
 and adapters use it to size buffers, register secondary streams, render
 settings UIs, and check `apiVersion` support. See
 [Script manifest](../spec/manifest.md).
+
+## Nominal position
+
+The signed position the runtime folds from a script's own emitted order
+intents — `{ size, avgPrice, entryBar }`, read via `order.position()`.
+*Nominal* because it prices every fold at the signal bar's close and
+carries no capital, slippage, commission, or P&L: a consumer that fills
+at the next bar's open legitimately reports a different average price.
+Folds only at the end of a confirmed step, so a read never sees the same
+bar's own orders. See [Orders](../language/orders.md).
+
+## Order emission
+
+One `order.buy` / `order.sell` / `order.close` call on the append-only
+`RunnerEmissions.orders` channel, carrying the action as an enum plus
+`qty`, `label`, `bar`, `time`, `meta`, and a `dedupeKey`. Gated by
+`Capabilities.orders`; unlike plots and alerts it is **not** deduped per
+`(slotId, bar)`, because an order is an event rather than an idempotent
+visual. Wire shape:
+[Emission payloads § OrderEmission](../spec/emissions.md#orderemission).
 
 ## Output
 

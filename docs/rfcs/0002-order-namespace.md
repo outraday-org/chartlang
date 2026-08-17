@@ -18,6 +18,12 @@
 > tasks** (the shape was accepted, not merely proposed) but no code ships
 > with this document; it changes no package, type, or test.
 
+> **Errata (2026-08-18).** Implementing this RFC found three *factual* claims
+> in §6, §9 and §11 to be wrong, and one instruction in §6 that contradicts §5.
+> The decisions they sit beside were correct and are unchanged; the corrections
+> are recorded, dated, in the Errata section at the end of this document rather
+> than by editing the accepted text.
+
 ---
 
 ## 0. Decision summary (read this first)
@@ -968,3 +974,74 @@ rather than open:
 2. **A set-of-kinds `orders` capability.** Reserved for `apiVersion: 2`, and
    only if limit / stop orders land — a boolean is the honest shape for a
    market-only surface.
+
+---
+
+## 14. Errata (recorded 2026-08-18, post-implementation)
+
+Three claims in the accepted text turned out to be factually wrong, and one
+instruction turned out to contradict a rule this RFC states elsewhere. **No
+decision changes** — every one of the five accepted decisions shipped as
+written, and the sections above are left as they were accepted so the record
+stays honest about what was believed at decision time. What follows is what
+implementing them measured.
+
+### E1 — §6: "the existing optional `onAlert` factory option" is not universal
+
+§6 cites `onAlert` as the precedent an `onOrder` sibling mirrors, implying every
+bundled adapter already has one. Five do. **`examples/konva-adapter/` has
+none** — its only occurrence of the string is a comment recording that alert
+badges are still deferred there. So `onOrder` is konva's *first* per-emission
+app sink, not a sibling of an existing one.
+
+The decision is unaffected (the sink is still optional, still forwards the
+validated array, and all six adapters ship one now); only the "already has a
+precedent everywhere" framing was wrong.
+
+### E2 — §11: the react-starter **seam** was not unaffected
+
+§11 states "the seam is unaffected… an optional `onOrder` sink beside the
+existing `onAlert` feed" — and those two halves contradict each other.
+
+True of *rendering*: auto-markers are ordinary `arrow` / `label` plot
+emissions, so an order-emitting script draws correctly in every seam variant
+with zero seam change. **False of the sink §11 itself asks for.** `ChartPane`
+reaches an adapter only through `createActiveAdapter`, and no adapter accepts a
+sink after construction, so `CreateAdapterOpts` had to gain `onOrder?` and all
+six emitted seams had to forward it — a change that reaches the published
+`@invinite-org/create-chartlang` (`seamTemplates.ts`), not just this repo.
+
+The all-variants byte-identity check stayed green after the coordinated change,
+which is what §11 meant to promise; it was not free.
+
+### E3 — §9: the `order` collision is benign only for the *recognised* form
+
+§9 verifies that `ARRAY_SORT_ORDER_MAP` maps `order.ascending` /
+`order.descending` to the string literals `"asc"` / `"desc"` and concludes
+there is "no path by which `array.sort(a, order.ascending)` produces the token
+`order` in the output". That holds only when the sort's collection argument
+**resolves to a recognised collection slot**. Over an *unrecognised* collection
+the argument is passed through verbatim, so the Pine enum reaches the emitted
+text as a bare `order.ascending`.
+
+That is a pre-existing leak of the array lowering, not something this feature
+introduced — but it makes the naive detector unsafe. A `\border\b` usage scan
+would have imported chartlang's unrelated `order` namespace into a script that
+never calls an order primitive. The shipped converter therefore keys its
+`order` usage flag on **members**
+(`/\border\.(?:buy|sell|close|position)\(/`), and the both-features test §9
+prescribes is pinned against that.
+
+### E4 — §6's remedy for the stale capability count was superseded by §5's rule
+
+§6 closes by telling the docs task to write `15` where
+`docs/spec/emissions.md` said `13`. §5 of this same RFC forbids restating a
+total, on the evidence that the restated one goes stale. Both cannot hold, and
+§5 is right: `emissions.md` turned out to carry **four** stale totals, not one,
+and two of the tables they counted were themselves missing members
+(`PlotKind` lacked `candle` / `ohlc-bar`, `DrawingKind` lacked `fill-between`,
+the diagnostic table lacked nine codes).
+
+The docs task therefore completed the enumerating tables and **deleted every
+numeral** rather than writing `15`. The enumeration is now the count, and
+`emissions.md` names the four exported types to re-extract from instead.

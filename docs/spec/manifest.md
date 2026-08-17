@@ -22,7 +22,7 @@ MUST round-trip through `JSON.stringify` and `structuredClone` unchanged.
 | `kind` | Yes | `"indicator"` \| `"drawing"` \| `"alert"` \| `"alertCondition"` | The script constructor used by the source module. |
 | `name` | Yes | string | Human-readable script name. |
 | `inputs` | Yes | record of input descriptors | Static settings schema. Keys are script-authored input ids. |
-| `capabilities` | Yes | `CapabilityId[]` | Capability families the script may use: `"indicators"`, `"drawings"`, `"alerts"`, `"alertConditions"`. Values are deduplicated. |
+| `capabilities` | Yes | `CapabilityId[]` | Capability families the script may use: `"indicators"`, `"drawings"`, `"alerts"`, `"alertConditions"`, `"orders"`. Values are deduplicated. |
 | `requestedIntervals` | Yes | string array | Secondary interval ids the runtime must register, sorted and deduplicated from request primitives plus `requiresIntervals`. Empty when no secondary stream is needed. |
 | `userPickableInterval` | Yes | boolean | `true` when the input schema contains one `input.interval(...)`; otherwise `false`. |
 | `seriesCapacities` | Yes | record of non-negative integers | Extra per-series history capacities inferred by the compiler. The v1 dynamic-index fallback key is `dynamicFallback: 5000`, present **only** for a series index the compiler cannot prove bounded (provably-bounded indices fold into `maxLookback` instead). |
@@ -61,6 +61,14 @@ drawing reaches an adapter.
 
 Additional capability ids may appear when a script uses another family, such
 as an indicator that calls `alert(...)`.
+
+`"orders"` is the one `CapabilityId` **no script kind seeds**. It is derived
+purely from callsites — `order.buy`, `order.sell`, or `order.close` anywhere in
+`compute` adds it, exactly as `alert(...)` adds `"alerts"`. `order.position()`
+is a read and adds nothing, so a script that only inspects its position never
+asks the adapter for a capability it does not use. There is no strategy script
+kind. The adapter-side gate is the separate `Capabilities.orders` boolean; see
+[Adapter capabilities](../adapters/capabilities.md).
 
 ### Drawing Counts
 

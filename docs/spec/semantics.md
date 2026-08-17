@@ -376,10 +376,11 @@ queues in this order:
 2. `drawings`
 3. `alerts`
 4. `alertConditions`
-5. `logs`
-6. `diagnostics`
-7. `fromBar`
-8. `toBar`
+5. `orders`
+6. `logs`
+7. `diagnostics`
+8. `fromBar`
+9. `toBar`
 
 Adapters MUST process a drain payload as one atomic batch for the covered bar
 range. The runtime clears queues at the start of every close/tick compute step
@@ -388,8 +389,8 @@ queues with the previous `fromBar` and `toBar`.
 
 Plots and alerts dedupe within their own queues by `(slotId, bar)`;
 last-write-wins. Drawings dedupe within the drawing queue by
-`(handleId, bar)`; last-write-wins. Alert-condition emissions and logs preserve
-append order and are not queue-deduped.
+`(handleId, bar)`; last-write-wins. Alert-condition emissions, orders, and logs
+preserve append order and are not queue-deduped.
 
 ### Render ordering (normative)
 
@@ -514,6 +515,52 @@ false, the runtime drops signals and diagnoses
 not declared in the manifest, the runtime diagnoses `unknown-alert-condition`.
 Both `fired: true` and `fired: false` transitions are emitted when supported;
 they are not queue-deduped.
+
+## Order Semantics
+
+`order.buy(...)`, `order.sell(...)`, and `order.close(...)` queue one
+`OrderEmission` each. `order.position()` is a pure read and queues nothing.
+
+**The orders queue is append-only.** Orders are explicitly NOT deduped by
+`(slotId, bar)` the way plots and alerts are: replacement dedup exists for
+idempotent visuals, where the last state of a bar is the truth, but an order is
+an *event*, and the runtime's position tracker folds every accepted one. A
+dropped duplicate would leave the emitted stream and the reported position
+disagreeing. Host idempotency is served by `dedupeKey` instead, exactly as for
+alerts. A loop that issues two orders from one callsite in one bar therefore
+emits both.
+
+**Orders queue on any step; the position folds only at the end of a *confirmed*
+step** (`history` or `close`).
+
+- On a `tick` step an order emits — the host receives it, as it receives a
+  tick's alerts — but the position does not move and no markers are emitted.
+  Ticks are replaced rather than accumulated, so a folding tick would
+  double-apply the moment the head bar is re-ticked.
+- On a halted step (`runtime.error()`) or after a dependency error, the bar's
+  pending orders are discarded along with the visual queues. A halted bar's
+  intents are not trustworthy, and folding one that never reached the wire
+  would diverge the position from the stream.
+- `order.position()` therefore reads the state as of the **previous** confirmed
+  fold. This reproduces Pine's `strategy.position_size` lag and needs no
+  special case: reads happen during `compute`, folds happen after it returns.
+
+The nominal fill price is the folding step's `bar.close` and an absent `qty` is
+one unit. The position is *nominal* — no capital, no slippage, no commission,
+no P&L — so a consumer that fills at the next bar's open will legitimately
+report a different average price. Fold arithmetic and the consumer contract are
+in [Orders](../language/orders.md).
+
+Each runner folds its own position. A private dep's orders are dropped (only
+diagnostics escape a private dep); a sibling's orders are forwarded with the
+`export:<name>/` slot-id prefix, with `dedupeKey` left unrewritten.
+
+**Render bands are unchanged.** The auto-rendered entry/exit markers are
+ordinary `arrow` / `label` plot emissions on synthetic `${slotId}#marker` /
+`${slotId}#label` slots, so they inherit the plot render ordering above with no
+new band and no new kind — and they inherit plot dedup too, which is why a
+repeated same-bar fold collapses to one picture while the `orders` channel
+keeps every event.
 
 ## Capability Fallback
 

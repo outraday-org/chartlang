@@ -192,7 +192,45 @@ To steer a Camp C script into a bounded camp:
 | `array.get(coll, -1)` | Negative ring index. | Use `array.last(coll)`. |
 | `linefill.new(array.get(a,i), array.get(b,i))` | Cross-collection fill. | Use a single `draw.path(...)` over the anchor pair. |
 | `while` / `for ... in` | Unbounded loops. | Use a literal `for i = a to b`. |
-| `strategy(...)` | No backtester. | Convert as `indicator(...)`; emit orders as `alert(...)`. |
+
+## `strategy.*` — signals convert, the backtester does not
+
+Pine's strategy **signal** calls map onto chartlang's `order.*` namespace and
+ride the structured `orders` emission channel. A `strategy(...)` script is
+**not** a reject: it converts as a `defineIndicator` and its header settings
+are dropped with a `warning`.
+
+| Pine | chartlang |
+|---|---|
+| `strategy("Name", overlay = true, initial_capital = 10000)` | `defineIndicator({ name: "Name", overlay: true, ... })` — capital / commission / slippage / sizing / pyramiding / margin dropped with `unsupported-strategy` (**warning**, not an error) |
+| `strategy.entry("Long", strategy.long)` | `order.buy({ label: "Long" })` |
+| `strategy.entry("S", strategy.short, qty)` | `order.sell({ label: "S", qty })` |
+| `strategy.order("Scale", strategy.long, 3)` | `order.buy({ label: "Scale", qty: 3 })` |
+| `strategy.close("Long")` | `order.close({ label: "Long" })` |
+| `strategy.close("Long", when = cond)` | `if (cond) { order.close({ label: "Long" }); }` |
+| `strategy.close_all()` | `order.close()` |
+| `strategy.exit("X", "Long", stop, limit)` | `order.close({ label: "X" })` — goes **fully flat**; the stop / limit / trailing / OCA args drop with `strategy-order-args-dropped` |
+| `strategy.position_size` | `order.position().size` — signed, and lags one fold exactly like Pine's |
+| `strategy.position_avg_price` | `order.position().avgPrice` — at *nominal* prices (the signal bar's close), `null` when flat |
+| `strategy.equity`, `strategy.netprofit`, `strategy.opentrades.*` | **no equivalent.** Economics live in whatever consumes the `orders` channel |
+
+`strategy.long` / `strategy.short` resolve **at the callsite**, in the
+direction argument of a recognised signal call only — elsewhere they still fail
+as `unknown-identifier`. A direction the converter cannot resolve assumes
+`order.buy` and warns with `strategy-direction-assumed`.
+
+`qty` is an **unsigned** magnitude in chartlang: the action names the side, and
+only the tracked position is signed. A `buy` while short crosses zero and
+reverses in one order rather than stacking.
+
+**Do not emit orders as `alert(...)`.** That was the pre-`order.*` workaround,
+and it forced every consumer to guess a direction out of English prose. Keep
+`alert(...)` for notifications.
+
+**A Pine variable named `order` is renamed to `order2`.** Pine's own unrelated
+`order` root (`order.ascending` / `order.descending`, the `array.sort` enum)
+collides with the chartlang namespace the emitted script now imports, so the
+name allocator reserves it.
 
 ## `request.security` — timeframe AND symbol
 

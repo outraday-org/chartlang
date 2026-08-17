@@ -543,6 +543,48 @@ inside its `if`; for explicit deduplication, gate the `alert(...)` behind your
 own `state.*` flag. A bare `alert(message)` with no frequency arg passes
 through with no diagnostic. (`alertcondition(...)` is a deferred follow-up.)
 
+## Strategy signals
+
+A `strategy(...)` script converts as a `defineIndicator` whose signal calls
+lower to `order.*` market intents on the structured
+[`orders` emission channel](../language/orders.md). It is **not** a reject.
+
+| Pine | chartlang |
+|---|---|
+| `strategy.entry("Long", strategy.long)` | `order.buy({ label: "Long" })` |
+| `strategy.entry("S", strategy.short, qtyIn)` | `order.sell({ label: "S", qty: inputs.qtyIn })` |
+| `strategy.order("Scale", strategy.long, 3)` | `order.buy({ label: "Scale", qty: 3 })` |
+| `strategy.close("Long")` | `order.close({ label: "Long" })` |
+| `strategy.close("Long", when = cond)` | `if (cond) { order.close({ label: "Long" }); }` |
+| `strategy.close_all()` | `order.close()` |
+| `strategy.exit("X", "Long", stop = 90, limit = 110)` | `order.close({ label: "X" })` + [`strategy-order-args-dropped`](./diagnostics.md#strategy-order-args-dropped) |
+
+The entry id becomes the `label`; `qty` passes through when the Pine argument
+is a scalar the converter can emit inline (a literal or an `input.*`
+reference), and is omitted with a diagnostic otherwise. `strategy.long` /
+`strategy.short` resolve **at the callsite**, in the direction argument of a
+recognised signal call only — anywhere else they still fail as
+`unknown-identifier`. A direction the converter cannot resolve statically
+assumes `order.buy` and warns with
+[`strategy-direction-assumed`](./diagnostics.md#strategy-direction-assumed).
+
+`strategy.exit` goes **fully flat**: chartlang v1 has no resting orders, so the
+`stop` / `limit` / trailing / OCA / partial-`qty_percent` arguments are dropped.
+
+The `strategy(...)` header itself is a **warning**, not an error: the script
+converts, and only the backtester's own configuration — `initial_capital`,
+`commission_*`, `slippage`, `default_qty_*`, `pyramiding`, `margin_*` — is
+ignored, via [`unsupported-strategy`](./diagnostics.md#unsupported-strategy).
+Each converted call also carries
+[`strategy-signal-only`](./diagnostics.md#strategy-signal-only) as the reminder
+that fill economics are the consumer's.
+
+> **A Pine variable named `order` is renamed.** Pine has its own unrelated
+> `order` root (`order.ascending` / `order.descending`, the `array.sort`
+> direction enum), and the emitted script now imports and destructures
+> chartlang's `order` namespace. The name allocator reserves it, so a Pine
+> `order` variable becomes `order2` rather than shadowing the namespace.
+
 ## `ta.*` / `math.*` / `str.*`
 
 A substantial `ta.*` subset passes through (moving averages, oscillators,

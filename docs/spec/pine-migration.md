@@ -370,18 +370,40 @@ Status meanings:
 | Persistent matrices and non-numeric collections | `matrix.new`, `array<bool>`/`array<string>` | Matrices / non-numeric persistent collections are not v1 | not-supported: [persistent collections](#persistent-collections-and-large-arrays) |
 | Loops over history or drawing sets | Pivot Point levels, table rows, ZigZag segments | Bounded `for` loops with literal numeric bounds; no stateful calls inside loops | covered-inline: [grammar loop rules](/spec/grammar#typescript-subset) |
 | Pine libraries (`library()`, `import`) | PineCoders libraries, community utility packages | Normal bundled TypeScript helper modules only; Pine library scripts are not v1 | not-supported: [Pine library scripts](#pine-library-scripts) |
-| Strategy primitives (`strategy.*`) | RSI Strategy, SuperTrend Strategy, Chandelier strategy variants | No order, fill, P&L, or equity-curve language in v1 | not-supported: [strategy primitives](#strategy-primitives) |
+| Strategy primitives (`strategy.*`) | RSI Strategy, SuperTrend Strategy, Chandelier strategy variants | `order.buy` / `order.sell` / `order.close` market intents on the structured `orders` channel plus `order.position()`; **no** fill, P&L, or equity-curve language in v1 | covered: [strategy signals](#strategy-signals) |
 | TradingView-hosted fundamentals and corporate actions | Earnings overlays, dividends/splits/economic scripts | `input.externalSeries` for host-supplied data; Pine built-ins are absent | not-supported: [hosted fundamentals built-ins](#hosted-fundamentals-built-ins) |
 | Webhook payload transport | Alert webhook bots and automation scripts | Alert emissions are adapter-facing; core does not deliver webhooks | not-supported: [webhook delivery](#webhook-delivery) |
 
+## Strategy Signals
+
+Pine's strategy **signal** calls convert. Pine's **backtester** does not, and
+that split is the whole design: chartlang owns the signal, a consumer owns the
+economics.
+
+| Pine | chartlang | Notes |
+|---|---|---|
+| `strategy.entry("Long", strategy.long)` | `order.buy({ label: "Long" })` | The entry id becomes the label. |
+| `strategy.entry("S", strategy.short, qty)` | `order.sell({ label: "S", qty })` | `qty` passes through when it is a scalar the converter can emit inline. |
+| `strategy.order("Scale", strategy.long, 3)` | `order.buy({ label: "Scale", qty: 3 })` | Pine's no-reversal nuance is a fill-model detail a nominal tracker cannot express. |
+| `strategy.close("Long")` | `order.close({ label: "Long" })` | `when = cond` is lowered to the enclosing `if (cond) { ... }`. |
+| `strategy.close_all()` | `order.close()` | New coverage — unhandled before the mapping existed. |
+| `strategy.exit("X", "Long", stop, limit)` | `order.close({ label: "X" })` | Goes **fully flat**, labelled by the exit id. The `stop` / `limit` / trailing / OCA / partial-qty arguments are dropped with `strategy-order-args-dropped`. |
+| `strategy.long` / `strategy.short` | resolved at the callsite | Legal only in the direction argument of a recognised signal call; anywhere else they still fail as `unknown-identifier`. A direction the converter cannot resolve assumes `order.buy` and warns with `strategy-direction-assumed`. |
+
+A `strategy(...)` header converts the script as a `defineIndicator` and drops
+its backtester settings — `initial_capital`, `commission_*`, `slippage`,
+`default_qty_*`, `pyramiding`, `margin_*` — with the **warning**-severity
+`unsupported-strategy`. It is no longer a reject.
+
+What stays outside the language: fills, P&L accounting, risk sizing, equity
+curves, the Strategy Tester report, and resting limit / stop / bracket orders.
+`strategy.position_size` and `strategy.position_avg_price` map to
+`order.position().size` / `.avgPrice`, with the same one-fold lag and at
+*nominal* prices. See [Orders](../language/orders.md) for the consumer contract
+and [Converter § strategy signals](../converter/supported.md#strategy-signals)
+for the converter's own view.
+
 ## Not Supported in 1.0
-
-### Strategy Primitives
-
-Pine `strategy.entry`, `strategy.exit`, `strategy.close`, order fills, P&L
-accounting, risk sizing, and equity curves are outside chartlang v1.
-Strategy primitives are Beyond 1.0 and require a future
-`Capabilities.strategy` flag.
 
 ### Hosted Fundamentals Built-ins
 

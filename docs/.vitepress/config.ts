@@ -172,6 +172,7 @@ export default defineConfig({
                         { text: "Strings", link: "/language/strings" },
                         { text: "Multi-timeframe", link: "/language/multi-timeframe" },
                         { text: "Alerts", link: "/language/alerts" },
+                        { text: "Orders", link: "/language/orders" },
                         { text: "Version pinning", link: "/language/version-pinning" },
                         { text: "Forbidden constructs", link: "/language/forbidden-constructs" },
                     ],
