@@ -186,6 +186,16 @@
   `.length = 0`.** The adapter holds the snapshot's arrays; the
   runner gets fresh containers for the next step. `Object.freeze`
   the returned snapshot but leave the inner arrays mutable.
+- **`MutableRunnerEmissions.orders` is REQUIRED, and every queue-construction
+  site initialises it `[]`** — `createScriptRunner`, `dep/DepRunner`'s
+  `freshEmissions`, and `request/securityExprRunner`'s throwaway bag. That is
+  what lets `drain()` hand it over by reference with no `?? []`: an absent
+  orders queue is not a reachable state. The retrofit-optional
+  `alertConditions?` beside it is the counter-example — it seeded `?? []`
+  fallbacks across the codebase for a state that could not occur. Nothing
+  pushes to `orders` yet (the `order.*` emitters and the queue-lifecycle sweep
+  land with the order-emission work), so a drain today always reports
+  `orders: []`.
 - **`state.*` snapshots are host-owned once flushed.** Task 9 added
   `RuntimeContext.stateSlots` for committed/tentative `state.*` and
   immediately-committed `state.tick.*` slots. `onBarClose` commits and

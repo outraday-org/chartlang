@@ -1267,7 +1267,7 @@ var array = Object.freeze({
   percentile: (a, p) => a.percentile(p),
   indexOf: (a, v) => a.indexOf(v),
   includes: (a, v) => a.includes(v),
-  sort: (a, order) => a.sort(order)
+  sort: (a, order2) => a.sort(order2)
 });
 
 // ../core/dist/statefulPrimitives.js
@@ -1386,6 +1386,16 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "plotcandle", slot: true },
   { name: "plotbar", slot: true },
   { name: "alert", slot: true },
+  // order.* market intents. Slot-injected so each callsite owns a stable id
+  // for its emissions, its once-per-slot capability diagnostic, and its
+  // synthetic auto-marker slots. `order.position` is a pure read of the
+  // nominal position — it allocates nothing, so it is `slot: false` (and
+  // therefore legal inside a bounded loop) while still riding the in-loop
+  // diagnostic set.
+  { name: "order.buy", slot: true },
+  { name: "order.sell", slot: true },
+  { name: "order.close", slot: true },
+  { name: "order.position", slot: false },
   // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
   // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
   // format keeps the kebab-case `DrawingKind`.
@@ -2154,14 +2164,14 @@ function reduceIncludes(ring, value) {
   }
   return false;
 }
-function reduceSort(ring, order) {
+function reduceSort(ring, order2) {
   const n = ring.length;
   const out = [];
   for (let i = 0; i < n; i += 1) {
     out.push(ring.at(i));
   }
   out.sort((a, b) => a - b);
-  if (order === "desc")
+  if (order2 === "desc")
     out.reverse();
   return out;
 }
@@ -2242,8 +2252,8 @@ function buildArrayHandle(slot) {
     includes(value) {
       return reduceIncludes(slot.tentativeRing, value);
     },
-    sort(order) {
-      return reduceSort(slot.tentativeRing, order);
+    sort(order2) {
+      return reduceSort(slot.tentativeRing, order2);
     }
   };
 }
@@ -3351,6 +3361,7 @@ function buildExprContext(parent, slotId, foldStream) {
       drawings: [],
       alerts: [],
       alertConditions: [],
+      orders: [],
       logs: [],
       diagnostics: [],
       fromBar: 0,
@@ -3850,44 +3861,53 @@ var VALID_ALERT_CHANNELS = /* @__PURE__ */ new Set([
   "sms",
   "push"
 ]);
+var ORDER_ACTION_PRESENCE = {
+  buy: true,
+  sell: true,
+  close: true
+};
+var VALID_ORDER_ACTIONS = new Set(Object.keys(ORDER_ACTION_PRESENCE));
 var VALID_DIAGNOSTIC_SEVERITIES = /* @__PURE__ */ new Set(["info", "warning", "error"]);
 var VALID_DRAWING_KINDS = new Set(DRAWING_KINDS);
 var VALID_DRAWING_OPS = /* @__PURE__ */ new Set(["create", "update", "remove"]);
-var VALID_DIAGNOSTIC_CODES = /* @__PURE__ */ new Set([
-  "unsupported-plot-kind",
-  "unsupported-drawing-kind",
-  "unsupported-alert-channel",
-  "unsupported-pane",
-  "unsupported-interval",
-  "multi-timeframe-not-supported",
-  "multi-symbol-not-supported",
-  "unknown-secondary-stream",
-  "lookback-exceeded",
-  "drawing-budget-exceeded",
-  "dropped-by-policy",
-  "input-coercion-failed",
-  "alert-conditions-not-supported",
-  "unknown-alert-condition",
-  "alert-rate-limited",
-  "runtime-cpu-budget-exceeded",
-  "runtime-memory-budget-exceeded",
-  "runtime-log-budget-exceeded",
-  "malformed-log-meta",
-  "runtime-error-thrown",
-  "session-info-missing",
-  "fixed-range-inverted",
-  "state-snapshot-restored",
-  "state-snapshot-future-dated",
-  "state-snapshot-malformed",
-  "state-snapshot-save-failed",
-  "malformed-emission",
-  "dep-error",
-  "dep-cycle",
-  "dep-unknown-output",
-  "dep-invalid-input-override",
-  "dep-dynamic",
-  "dep-output-not-titled"
-]);
+var DIAGNOSTIC_CODE_PRESENCE = {
+  "unsupported-plot-kind": true,
+  "unsupported-drawing-kind": true,
+  "unsupported-alert-channel": true,
+  "unsupported-pane": true,
+  "unsupported-interval": true,
+  "unsupported-orders": true,
+  "multi-timeframe-not-supported": true,
+  "multi-symbol-not-supported": true,
+  "unknown-secondary-stream": true,
+  "lookback-exceeded": true,
+  "drawing-budget-exceeded": true,
+  "dropped-by-policy": true,
+  "input-coercion-failed": true,
+  "alert-conditions-not-supported": true,
+  "unknown-alert-condition": true,
+  "alert-rate-limited": true,
+  "runtime-cpu-budget-exceeded": true,
+  "runtime-memory-budget-exceeded": true,
+  "runtime-log-budget-exceeded": true,
+  "malformed-log-meta": true,
+  "runtime-error-thrown": true,
+  "session-info-missing": true,
+  "tz-dst-unsupported": true,
+  "fixed-range-inverted": true,
+  "state-snapshot-restored": true,
+  "state-snapshot-future-dated": true,
+  "state-snapshot-malformed": true,
+  "state-snapshot-save-failed": true,
+  "malformed-emission": true,
+  "dep-error": true,
+  "dep-cycle": true,
+  "dep-unknown-output": true,
+  "dep-invalid-input-override": true,
+  "dep-dynamic": true,
+  "dep-output-not-titled": true
+};
+var VALID_DIAGNOSTIC_CODES = new Set(Object.keys(DIAGNOSTIC_CODE_PRESENCE));
 function bad(message2, code = "malformed-emission") {
   return { ok: false, code, message: message2 };
 }
@@ -4316,6 +4336,34 @@ function validateAlertConditionEmission(e) {
   }
   if (!isFiniteNumber(e.time)) {
     return bad("alert-condition.time: must be a finite number");
+  }
+  return { ok: true };
+}
+function validateOrderEmission(e) {
+  if (!isNonEmptyString(e.slotId))
+    return bad("order.slotId: must be a non-empty string");
+  const action = e.action;
+  if (typeof action !== "string" || !VALID_ORDER_ACTIONS.has(action)) {
+    return bad(`order.action: '${String(action)}' is not a valid order action`);
+  }
+  const qty = e.qty;
+  if (qty !== null && (!isFiniteNumber(qty) || qty <= 0)) {
+    return bad("order.qty: must be a finite number greater than 0, or null");
+  }
+  if (typeof e.label !== "string")
+    return bad("order.label: must be a string");
+  if (!isNonNegativeInteger(e.bar)) {
+    return bad("order.bar: must be a non-negative integer");
+  }
+  if (!isFiniteNumber(e.time))
+    return bad("order.time: must be a finite number");
+  if (!isPlainObject(e.meta))
+    return bad("order.meta: must be a plain object");
+  const metaResult = walkMeta(e.meta, "order.meta");
+  if (!metaResult.ok)
+    return metaResult;
+  if (!isNonEmptyString(e.dedupeKey)) {
+    return bad("order.dedupeKey: must be a non-empty string");
   }
   return { ok: true };
 }
@@ -5321,6 +5369,8 @@ function validateEmission(e) {
       return validateAlertEmission(e);
     case "alert-condition":
       return validateAlertConditionEmission(e);
+    case "order":
+      return validateOrderEmission(e);
     case "log":
       return validateLogEmission(e);
     case "drawing":
@@ -16925,6 +16975,7 @@ function freshEmissions(barIndex) {
     drawings: [],
     alerts: [],
     alertConditions: [],
+    orders: [],
     logs: [],
     diagnostics: [],
     fromBar: barIndex,
@@ -17160,6 +17211,11 @@ function drain(state2) {
     drawings: state2.emissions.drawings,
     alerts: state2.emissions.alerts,
     alertConditions: state2.emissions.alertConditions ?? [],
+    // `orders` is required on the mutable twin and initialised `[]` at every
+    // queue-construction site, so it is handed over BY REFERENCE with no
+    // `?? []` — an absent orders queue is not a reachable state. Nothing
+    // pushes here yet; the emission plumbing task fills it.
+    orders: state2.emissions.orders,
     logs: state2.emissions.logs,
     diagnostics: state2.emissions.diagnostics,
     fromBar: state2.emissions.fromBar,
@@ -17169,6 +17225,7 @@ function drain(state2) {
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
   state2.emissions.alertConditions = [];
+  state2.emissions.orders = [];
   state2.emissions.logs = [];
   state2.emissions.diagnostics = [];
   return out;
@@ -17931,6 +17988,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
     drawings: [],
     alerts: [],
     alertConditions: [],
+    orders: [],
     logs: [],
     diagnostics: [],
     fromBar: 0,

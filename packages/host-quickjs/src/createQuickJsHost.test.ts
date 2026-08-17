@@ -127,6 +127,7 @@ class FakeContext implements QuickJsContextLike {
                             drawings: [],
                             alerts: [],
                             alertConditions: [],
+                            orders: [],
                             logs: [],
                             diagnostics: [],
                             fromBar: 0,
@@ -653,6 +654,21 @@ describe("createQuickJsHost", () => {
                     },
                     { kind: "alert-condition", conditionId: 1, bar: 0 },
                 ],
+                orders: [
+                    {
+                        kind: "order",
+                        slotId: "good-order",
+                        action: "buy",
+                        qty: null,
+                        label: "Long",
+                        bar: 0,
+                        time: 1,
+                        meta: {},
+                        dedupeKey: "good-order::0::abc",
+                    },
+                    // `qty` must be null or a finite magnitude > 0.
+                    { kind: "order", slotId: "bad-order", action: "buy", qty: 0, bar: 0 },
+                ],
                 logs: [
                     {
                         kind: "log",
@@ -687,13 +703,20 @@ describe("createQuickJsHost", () => {
         expect(emissions.plots).toEqual([]);
         expect(emissions.alerts).toHaveLength(1);
         expect(emissions.alertConditions).toHaveLength(1);
+        expect(emissions.orders).toHaveLength(1);
+        expect(emissions.orders[0].slotId).toBe("good-order");
         expect(emissions.logs).toHaveLength(1);
         expect(emissions.diagnostics.map((d) => d.code)).toEqual([
             "malformed-emission",
             "malformed-emission",
             "malformed-emission",
             "malformed-emission",
+            "malformed-emission",
         ]);
+        // An order's diagnostic is attributable — it carries the dropped
+        // callsite's slot id, like a plot's or an alert's and unlike an
+        // alert-condition's or a log's.
+        expect(emissions.diagnostics.filter((d) => d.slotId === "bad-order")).toHaveLength(1);
         host.dispose();
     });
 
@@ -750,6 +773,7 @@ describe("createQuickJsHost", () => {
             drawings: [],
             alerts: [],
             alertConditions: [],
+            orders: [],
             logs: [],
             diagnostics: [],
             fromBar: 0,

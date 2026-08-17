@@ -22,12 +22,19 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   `vitest.config.ts` coverage besides `dist/worker-boot.js`.
 - **Validation runs on `drain()`, not on every emit.** The worker's
   `filterEmissions` is the trust boundary into postMessage — it
-  walks every plot / alert through adapter-kit's `validateEmission`
+  walks every plot / alert / alert-condition / log / order through
+  adapter-kit's `validateEmission`
   and sinks failures into the diagnostics array. The runtime
   already validates on push (`pushPlot` / `pushAlert` in
   `runtime/src/emit/emissionsQueue.ts`), so `filterEmissions` is a
   defence-in-depth pass against a host-side compromise. Drawings
-  pass through unchanged (no `draw.*` in Phase 1).
+  pass through unchanged (no `draw.*` in Phase 1). A dropped
+  emission's diagnostic carries a `slotId` only where the channel has
+  one: plots, alerts and **orders** are attributable, alert-conditions
+  and logs pass `null`. The filter must never dedupe: `orders` is an
+  append-only channel (RFC 0002 §6), so two same-slot same-bar orders
+  both survive — collapsing one would diverge the emitted stream from
+  the runtime's own position fold.
 - **`step-overshoot` is fire-and-forget — no nonce.** Only `drain`
   round-trips carry a nonce. Overshoots happen inside `candleEvent`
   dispatch which is fire-and-forget by design. Adding a nonce

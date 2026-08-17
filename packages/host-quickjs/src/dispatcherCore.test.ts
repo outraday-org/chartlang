@@ -37,6 +37,7 @@ function makeCapabilities(): Capabilities {
         alerts: new Set(),
         alertConditions: false,
         logs: false,
+        orders: false,
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,
@@ -55,6 +56,7 @@ function emptyEmissions(): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,
@@ -298,6 +300,28 @@ describe("createDispatcher", () => {
             expect([...caps.inputs]).toEqual(["i1"]);
             expect([...caps.symInfoFields]).toEqual(["ticker"]);
         });
+
+        it.each([true, false])(
+            "carries the boolean `orders` capability across the JSON membrane as %s",
+            async (orders) => {
+                // `reviveCapabilities` revives exactly the five ReadonlySet
+                // fields; every boolean rides the `...value` spread. That is
+                // load-bearing rather than incidental: a presence-based
+                // revival would collapse `false` into `true` (or drop the key
+                // entirely), and the runtime gates every `order.*` call on
+                // this one flag — so a wrong value here silently turns a
+                // declining adapter into a trading one, or vice versa.
+                const { deps, runnerFactory } = makeDeps();
+                const handlers = createDispatcher(deps);
+                const raw = JSON.parse(loadFrame()) as { capabilities: Capabilities };
+                raw.capabilities = { ...raw.capabilities, orders };
+                const reply = await handlers.load(JSON.stringify(raw));
+                expect(JSON.parse(reply).kind).toBe("loaded");
+                const caps = (runnerFactory.mock.calls[0][0] as { capabilities: Capabilities })
+                    .capabilities;
+                expect(caps.orders).toBe(orders);
+            },
+        );
 
         it("forwards optional symInfo and inputOverrides into the runner factory", async () => {
             const { deps, runnerFactory } = makeDeps();

@@ -220,7 +220,11 @@ void key;
     });
 
     it("keeps the runtime stateful primitive registry at the non-numeric state cardinality", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(200);
+        // core's own `statefulPrimitives.test.ts` is the AUTHORITATIVE gate on
+        // this number; this copy is the compiler's canary that it resolves the
+        // registry it thinks it does. Move both in the same edit — the pair
+        // drifted once already (Task 2's four `order.*` entries).
+        expect(STATEFUL_PRIMITIVES.size).toBe(204);
     });
 
     it("resolves the stateful primitive registry exports from the ambient shim", () => {

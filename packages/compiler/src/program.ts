@@ -34,7 +34,12 @@ declare module "@invinite-org/chartlang-core" {
     export type GradientStop = Readonly<{ at: number; color: Color }>;
     export type LineStyle = "solid" | "dashed" | "dotted";
     export type AlertSeverity = "info" | "warning" | "critical";
-    export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
+    export type CapabilityId =
+        | "indicators"
+        | "drawings"
+        | "alerts"
+        | "alertConditions"
+        | "orders";
     export type IntervalDescriptor = Readonly<{
         readonly value: string;
         readonly label: string;
@@ -948,6 +953,29 @@ declare module "@invinite-org/chartlang-core" {
         meta?: Readonly<Record<string, JsonValue>>;
     }>;
     export function alert(message: string, opts?: AlertOpts): void;
+    // order.* market intents — mirrors \`packages/core/src/order/order.ts\`.
+    // Core DERIVES \`OrderNamespace\` from the frozen object; the shim declares
+    // the shape instead (no overloaded member, so the \`RequestNamespace\`
+    // interface rule does not apply here).
+    export type OrderAction = "buy" | "sell" | "close";
+    export type OrderOpts = Readonly<{
+        qty?: number;
+        label?: string;
+        marker?: boolean;
+        meta?: Readonly<Record<string, JsonValue>>;
+    }>;
+    export type OrderPosition = Readonly<{
+        size: number;
+        avgPrice: number | null;
+        entryBar: number | null;
+    }>;
+    export type OrderNamespace = Readonly<{
+        buy(opts?: OrderOpts): void;
+        sell(opts?: OrderOpts): void;
+        close(opts?: OrderOpts): void;
+        position(): OrderPosition;
+    }>;
+    export const order: OrderNamespace;
     export type LogLevel = "info" | "warn" | "error";
     export type RuntimeNamespace = Readonly<{
         log: Readonly<{
@@ -1577,6 +1605,7 @@ declare module "@invinite-org/chartlang-core" {
         readonly plotbar: typeof plotbar;
         readonly alert: typeof alert;
         readonly draw: DrawNamespace;
+        readonly order: OrderNamespace;
         readonly state: StateNamespace;
         readonly barstate: BarStateView;
         readonly syminfo: SymInfoView;

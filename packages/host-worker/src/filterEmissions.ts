@@ -6,6 +6,7 @@ import {
     type AlertConditionEmission,
     type DrawingEmission,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type RunnerEmissions,
     type RuntimeDiagnostic,
@@ -13,11 +14,11 @@ import {
 } from "@invinite-org/chartlang-adapter-kit";
 
 /**
- * Walk a `RunnerEmissions` snapshot and replace any plot / alert that fails
- * adapter-kit's `validateEmission` with a `malformed-emission` diagnostic.
- * Drawings pass through unchanged in Phase 1 (no `draw.*` primitives ship
- * yet); diagnostics are appended to (never validated against — recursive
- * validation would loop).
+ * Walk a `RunnerEmissions` snapshot and replace any plot / alert /
+ * alert-condition / log / order that fails adapter-kit's `validateEmission`
+ * with a `malformed-emission` diagnostic. Drawings pass through unchanged in
+ * Phase 1 (no `draw.*` primitives ship yet); diagnostics are appended to
+ * (never validated against — recursive validation would loop).
  *
  * The boot calls this on every `drain()` before posting `emissions` back to
  * the host; the trust boundary for the postMessage wire format is here.
@@ -35,6 +36,7 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
     const drawings: Array<DrawingEmission> = [];
     const alerts: Array<AlertEmission> = [];
     const alertConditions: Array<AlertConditionEmission> = [];
+    const orders: Array<OrderEmission> = [];
     const logs: Array<LogEmission> = [];
     const diagnostics: Array<RuntimeDiagnostic> = [...raw.diagnostics];
 
@@ -83,6 +85,24 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
             });
         }
     }
+    // Orders carry a compiler-injected slot id, so a malformed one is
+    // attributable and follows the ALERT side of this loop set rather than the
+    // null-slot alert-condition / log side.
+    for (const o of raw.orders) {
+        const r = validateEmission(o);
+        if (r.ok) {
+            orders.push(o);
+        } else {
+            diagnostics.push({
+                kind: "diagnostic",
+                severity: "warning",
+                code: r.code,
+                message: r.message,
+                slotId: o.slotId,
+                bar: o.bar,
+            });
+        }
+    }
     for (const log of raw.logs) {
         const r = validateEmission(log);
         if (r.ok) {
@@ -106,6 +126,7 @@ export function filterEmissions(raw: RunnerEmissions): RunnerEmissions {
         drawings,
         alerts,
         alertConditions,
+        orders,
         logs,
         diagnostics,
         fromBar: raw.fromBar,

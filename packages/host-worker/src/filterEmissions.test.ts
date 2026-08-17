@@ -6,6 +6,7 @@ import type {
     AlertConditionEmission,
     DrawingEmission,
     LogEmission,
+    OrderEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -56,6 +57,20 @@ function validAlertCondition(): AlertConditionEmission {
     };
 }
 
+function validOrder(): OrderEmission {
+    return {
+        kind: "order",
+        slotId: "demo.ts:4:1#0",
+        action: "buy",
+        qty: null,
+        label: "Long",
+        bar: 1,
+        time: 1_700_000_000_000,
+        meta: {},
+        dedupeKey: "demo.ts:4:1#0::1::deadbeef",
+    };
+}
+
 function validLog(): LogEmission {
     return {
         kind: "log",
@@ -96,6 +111,7 @@ function snapshot(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 1,
@@ -111,6 +127,7 @@ describe("filterEmissions", () => {
             drawings: [validDrawing()],
             alerts: [validAlert()],
             alertConditions: [validAlertCondition()],
+            orders: [validOrder()],
             logs: [validLog()],
             diagnostics: [existingDiagnostic()],
         });
@@ -118,6 +135,7 @@ describe("filterEmissions", () => {
         expect(out.plots).toHaveLength(1);
         expect(out.alerts).toHaveLength(1);
         expect(out.alertConditions).toHaveLength(1);
+        expect(out.orders).toEqual([validOrder()]);
         expect(out.logs).toHaveLength(1);
         expect(out.drawings).toHaveLength(1);
         expect(out.diagnostics).toHaveLength(1);
@@ -155,6 +173,31 @@ describe("filterEmissions", () => {
         expect(out.diagnostics[0].code).toBe("malformed-emission");
         expect(out.diagnostics[0].slotId).toBeNull();
         expect(out.diagnostics[0].bar).toBe(malformed.bar);
+    });
+
+    it("sinks malformed orders into the diagnostics array", () => {
+        // `qty` is either null or a finite magnitude > 0 — `0` is the
+        // adapter-kit rejection this asserts, and an order's diagnostic
+        // carries its slot id (unlike an alert-condition's or a log's).
+        const malformed = { ...validOrder(), qty: 0 } as unknown as OrderEmission;
+        const out = filterEmissions(snapshot({ orders: [malformed] }));
+        expect(out.orders).toEqual([]);
+        expect(out.diagnostics).toHaveLength(1);
+        expect(out.diagnostics[0].code).toBe("malformed-emission");
+        expect(out.diagnostics[0].slotId).toBe(malformed.slotId);
+        expect(out.diagnostics[0].bar).toBe(malformed.bar);
+    });
+
+    it("keeps two same-slot same-bar orders — the channel is append-only", () => {
+        // Orders do NOT collapse per (slotId, bar) the way plots and alerts do
+        // (RFC 0002 §6): an order is an event the runtime's position tracker
+        // folds, so dropping a duplicate would diverge the stream from the
+        // reported position. The filter must not introduce dedup of its own.
+        const first = validOrder();
+        const second = { ...validOrder(), dedupeKey: "demo.ts:4:1#0::1::feedface" };
+        const out = filterEmissions(snapshot({ orders: [first, second] }));
+        expect(out.orders).toEqual([first, second]);
+        expect(out.diagnostics).toHaveLength(0);
     });
 
     it("sinks malformed logs into the diagnostics array", () => {

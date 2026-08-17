@@ -67,7 +67,7 @@ plot(1);
 
     it("rewrites every slot: true primitive in STATEFUL_PRIMITIVES (and skips ta.nz)", () => {
         const source = `
-import { ta, plot, plotcandle, plotbar, hline, bgcolor, barcolor, alert, draw, request, state } from "@invinite-org/chartlang-core";
+import { ta, plot, plotcandle, plotbar, hline, bgcolor, barcolor, alert, draw, order, request, state } from "@invinite-org/chartlang-core";
 declare const close: import("@invinite-org/chartlang-core").Series<number>;
 declare const flag: import("@invinite-org/chartlang-core").Series<boolean>;
 ta.sma(close, 14);
@@ -177,6 +177,10 @@ barcolor("#000");
 plotcandle(close, close, close, close);
 plotbar(close, close, close, close);
 alert("msg");
+order.buy({ label: "L" });
+order.sell();
+order.close();
+order.position();
 state.float(0);
 state.int(0);
 state.bool(false);
@@ -295,6 +299,35 @@ void slot;
         });
         const text = printSourceFile(result.transformed);
         expect(text).toMatch(/state\.float\("demo\.chart\.ts:3:14#0", 0\)/);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("injects a slot id for the three order.* emitters but not order.position", () => {
+        // Slot injection is generic over any dotted `slot: true` registry
+        // name, so `order.*` needs no per-namespace transformer code —
+        // this pins that. `order.position` is `slot: false` (a pure read of
+        // the nominal position) and must stay un-rewritten, or its call
+        // would gain a leading string argument the runtime never reads.
+        const source = `
+import { order } from "@invinite-org/chartlang-core";
+order.buy({ label: "L" });
+order.sell();
+order.close();
+void order.position().size;
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "demo.chart.ts",
+        });
+        const result = injectCallsiteIds(sourceFile, checker, {
+            sourcePath: "demo.chart.ts",
+            statefulByName: STATEFUL_PRIMITIVES_BY_NAME,
+        });
+        const text = printSourceFile(result.transformed);
+        expect(text).toMatch(/order\.buy\("demo\.chart\.ts:3:1#0", \{ label: "L" \}\)/);
+        expect(text).toMatch(/order\.sell\("demo\.chart\.ts:4:1#0"\)/);
+        expect(text).toMatch(/order\.close\("demo\.chart\.ts:5:1#0"\)/);
+        expect(text).toMatch(/order\.position\(\)/);
+        expect(text).not.toMatch(/order\.position\("/);
         expect(result.diagnostics).toHaveLength(0);
     });
 

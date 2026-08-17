@@ -123,6 +123,7 @@ function freshEmissions(barIndex: number): MutableRunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: barIndex,

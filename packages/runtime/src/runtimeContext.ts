@@ -7,6 +7,7 @@ import type {
     Capabilities,
     DrawingEmission,
     LogEmission,
+    OrderEmission,
     PlotEmission,
     PlotOverride,
     RuntimeDiagnostic,
@@ -79,12 +80,20 @@ export type DrawingSlot = {
  * here during `compute`; `drain()` snapshots into the readonly
  * `RunnerEmissions` shape the adapter receives.
  *
+ * `orders` is REQUIRED (never `?`) and is initialised `[]` at every site that
+ * builds a queue set, so no consumer ever needs a `?? []` fallback for a state
+ * that cannot occur — the retrofit-optional `alertConditions?` above is the
+ * counter-example that seeded exactly those fallbacks. Nothing pushes to it
+ * yet: `emit/order.ts` and the full queue-lifecycle sweep land with the
+ * order-emission plumbing task, so a drain today always reports `orders: []`.
+ *
  * @since 0.1
  * @example
  *     // const emissions: MutableRunnerEmissions = {
  *     //     plots: [],
  *     //     drawings: [],
  *     //     alerts: [],
+ *     //     orders: [],
  *     //     diagnostics: [],
  *     //     fromBar: 0,
  *     //     toBar: 0,
@@ -95,6 +104,7 @@ export type MutableRunnerEmissions = {
     drawings: DrawingEmission[];
     alerts: AlertEmission[];
     alertConditions?: AlertConditionEmission[];
+    orders: OrderEmission[];
     logs: LogEmission[];
     diagnostics: RuntimeDiagnostic[];
     fromBar: number;

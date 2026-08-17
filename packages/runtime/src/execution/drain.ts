@@ -29,6 +29,11 @@ export function drain(state: RunnerState): RunnerEmissions {
         drawings: state.emissions.drawings,
         alerts: state.emissions.alerts,
         alertConditions: state.emissions.alertConditions ?? [],
+        // `orders` is required on the mutable twin and initialised `[]` at every
+        // queue-construction site, so it is handed over BY REFERENCE with no
+        // `?? []` — an absent orders queue is not a reachable state. Nothing
+        // pushes here yet; the emission plumbing task fills it.
+        orders: state.emissions.orders,
         logs: state.emissions.logs,
         diagnostics: state.emissions.diagnostics,
         fromBar: state.emissions.fromBar,
@@ -38,6 +43,7 @@ export function drain(state: RunnerState): RunnerEmissions {
     state.emissions.drawings = [];
     state.emissions.alerts = [];
     state.emissions.alertConditions = [];
+    state.emissions.orders = [];
     state.emissions.logs = [];
     state.emissions.diagnostics = [];
     return out;

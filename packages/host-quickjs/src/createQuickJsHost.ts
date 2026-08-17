@@ -198,12 +198,16 @@ function validateDrain(raw: RunnerEmissions): RunnerEmissions {
     const plots = partitionValidated(raw.plots, diagnostics, (p) => p.slotId);
     const alerts = partitionValidated(raw.alerts, diagnostics, (a) => a.slotId);
     const alertConditions = partitionValidated(raw.alertConditions, diagnostics, () => null);
+    // An order carries a compiler-injected slot id, so its diagnostic is
+    // attributable — the alert side of this set, not the null-slot side.
+    const orders = partitionValidated(raw.orders, diagnostics, (o) => o.slotId);
     const logs: LogEmission[] = partitionValidated(raw.logs, diagnostics, () => null);
     return {
         plots,
         drawings: raw.drawings,
         alerts,
         alertConditions,
+        orders,
         logs,
         diagnostics,
         fromBar: raw.fromBar,
@@ -569,6 +573,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 drawings: [],
                 alerts: [],
                 alertConditions: [],
+                orders: [],
                 logs: [],
                 diagnostics: [],
                 fromBar: 0,
