@@ -26,6 +26,7 @@ import type { Adapter, CandleEvent, Capabilities, RunnerEmissions } from "../typ
  *             alerts: new Set(),
  *             alertConditions: false,
  *             logs: false,
+ *             orders: false,
  *             inputs: new Set(),
  *             intervals: [],
  *             multiTimeframe: false,

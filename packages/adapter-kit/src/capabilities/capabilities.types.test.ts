@@ -59,4 +59,8 @@ describe("capabilities Phase 4 builder types", () => {
     it("logs(...) returns the typed logs partial", () => {
         expectTypeOf(capabilities.logs(false)).toEqualTypeOf<{ logs: boolean }>();
     });
+
+    it("orders(...) returns the typed orders partial", () => {
+        expectTypeOf(capabilities.orders(false)).toEqualTypeOf<{ orders: boolean }>();
+    });
 });

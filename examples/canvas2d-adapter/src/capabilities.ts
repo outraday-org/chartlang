@@ -104,6 +104,10 @@ export const CANVAS2D_CAPABILITIES: Capabilities = Object.freeze({
     }),
     ...capabilities.alertConditions(true),
     ...capabilities.logs(true),
+    // Placeholder: this adapter needs no rendering code to honour the `orders`
+    // channel (markers ride the `arrow` / `label` plot pipeline), so the flip to
+    // `true` lands with the `orders` example category.
+    ...capabilities.orders(false),
 });
 
 /**

@@ -247,6 +247,24 @@ export const capabilities = {
     logs(enabled: boolean): { logs: boolean } {
         return { logs: enabled };
     },
+    /**
+     * Declares whether the adapter consumes the `orders` emission channel.
+     * Rendering is not part of the promise — order markers arrive as ordinary
+     * `arrow` / `label` plot emissions — so an adapter opts in just by being
+     * willing to read `RunnerEmissions.orders`. `false` makes every `order.*`
+     * call a drop plus one `unsupported-orders` diagnostic per slot per mount.
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     import { capabilities } from "@invinite-org/chartlang-adapter-kit";
+     *
+     *     const partial = capabilities.orders(false);
+     *     void partial;
+     */
+    orders(enabled: boolean): { orders: boolean } {
+        return { orders: enabled };
+    },
 
     // ------------------------------------------------------------
     // Phase 3 — per-kind drawing builders (62, incl. the Phase-2

@@ -190,6 +190,11 @@ describe("capabilities builders", () => {
         expect(capabilities.logs(true)).toEqual({ logs: true });
         expect(capabilities.logs(false)).toEqual({ logs: false });
     });
+
+    it("orders(...) returns the expected partial", () => {
+        expect(capabilities.orders(true)).toEqual({ orders: true });
+        expect(capabilities.orders(false)).toEqual({ orders: false });
+    });
 });
 
 type DrawBuilder = () => ReadonlySet<DrawingKind>;

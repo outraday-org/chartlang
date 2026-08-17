@@ -289,6 +289,34 @@ layer** every adapter shares.
   draws at flush, mirroring `renderFilledBandSeries`. Both kinds are additive
   `PlotKind` members (in core, re-exported here) and are deliberately NOT in
   `PHASE_5_PLOT_KINDS` (frozen) — adapters opt in individually.
+- **`RunnerEmissions.orders` is APPEND-ONLY and sits after `alertConditions`,
+  before `logs`; every `OrderEmission` field is REQUIRED.** The position is not
+  cosmetic — the field order here, the normative queue list in
+  `docs/spec/semantics.md` ("Emission Ordering"), and the conformance
+  `BufferedRun` are read as ONE roster, so all three move together. Append-only
+  (matching `alertConditions` / `logs`, NOT the `(slotId, bar)` last-write-wins
+  of plots and alerts) is a correctness rule, not a taste one: replacement-dedup
+  exists for idempotent visuals, an order is an EVENT, and the runtime's nominal
+  position folds every accepted order — so a dropped duplicate would leave the
+  emitted stream and the reported position disagreeing. Host idempotency rides
+  `dedupeKey` instead. The auto-drawn entry/exit markers are ordinary `arrow` /
+  `label` PLOT emissions and therefore DO collapse per `(slotId, bar)`: the two
+  dedup policies differ on purpose on the same event — the event must not be
+  lost, the picture of it must not be doubled. `OrderOpts.marker` is
+  render-side only and deliberately absent from the wire. Every field being
+  required is deliberate too: the retrofit-optional `alertConditions?` on the
+  runtime's mutable twin seeded `?? []` fallbacks for a state that could not
+  occur. Future fields follow the omitted-when-absent optional-tail rule.
+  `Capabilities.orders` is a required boolean (no subkinds in `apiVersion: 1`);
+  declaring `true` promises only that the array is READ, never that anything is
+  rendered.
+- **`VALID_DIAGNOSTIC_CODES` and `VALID_ORDER_ACTIONS` are derived from
+  `Readonly<Record<Union, true>>` presence maps — never re-flatten them into a
+  bare array.** The map shape makes a member the union carries but the accepted
+  set omits a COMPILE error (and the reverse an excess-property error).
+  `tz-dst-unsupported` is why: it sat in `DiagnosticCode` and not in the set for
+  three minors, so it type-checked at every call site and was then rejected at
+  runtime by the validator whose job is to accept it.
 - **`Capabilities.multiSymbol` is a required boolean, independent of
   `multiTimeframe`.** It gates non-chart-symbol `request.security` requests
   (a strictly larger ask than a higher timeframe of the chart's own symbol).
