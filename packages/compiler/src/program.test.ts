@@ -219,12 +219,35 @@ void key;
         expect(diagnostics.map((diagnostic) => diagnostic.messageText)).toEqual([]);
     });
 
-    it("keeps the runtime stateful primitive registry at the non-numeric state cardinality", () => {
-        // core's own `statefulPrimitives.test.ts` is the AUTHORITATIVE gate on
-        // this number; this copy is the compiler's canary that it resolves the
-        // registry it thinks it does. Move both in the same edit — the pair
-        // drifted once already (Task 2's four `order.*` entries).
-        expect(STATEFUL_PRIMITIVES.size).toBe(204);
+    it("declares every stateful-primitive root namespace in the ambient shim", () => {
+        // This DERIVES its expectation from the registry instead of pinning a
+        // cardinality. The old form asserted `STATEFUL_PRIMITIVES.size` against a
+        // hardcoded total, which made this the THIRD home of that number (core's
+        // JSDoc, core's own authoritative `statefulPrimitives.test.ts`, and here)
+        // — and RFC 0002 §5 forbids restating a total precisely because the extra
+        // copies go stale. It went stale on the very next append.
+        //
+        // The property is the one the compiler actually depends on: a registry
+        // name whose ROOT is not declared in the ambient shim cannot resolve
+        // through `resolveCalleeName`, so its callsites silently skip slot-id
+        // injection and capability extraction. A missing `order` declaration
+        // fails here; a fifth `order.*` entry does not.
+        const { program } = createProgramForSource(VALID_DEFINE, {
+            sourcePath: "demo.chart.ts",
+        });
+        const shim = program.getSourceFile(CORE_MODULE_PATH);
+        expect(shim).toBeDefined();
+        const shimText = shim?.text ?? "";
+        const roots = new Set(
+            [...STATEFUL_PRIMITIVES].map((entry) => entry.name.split(".")[0] ?? entry.name),
+        );
+        expect(roots.size).toBeGreaterThan(0);
+        const undeclared = [...roots].filter(
+            (root) =>
+                !new RegExp(`export (?:const|function) ${root}\\b`).test(shimText) &&
+                !new RegExp(`export declare (?:const|function) ${root}\\b`).test(shimText),
+        );
+        expect(undeclared).toEqual([]);
     });
 
     it("resolves the stateful primitive registry exports from the ambient shim", () => {
