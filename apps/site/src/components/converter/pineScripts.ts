@@ -22,6 +22,10 @@
 //   • Colors          — color.rgb / color.new transparency + dynamic bases.
 //   • Namespaces/lang — math.* / str.* / time.* helpers, bgcolor/barcolor,
 //                        switch multi-assign, and a pure user function.
+//   • Strategy orders — a strategy(...) script whose strategy.entry /
+//                        order / close / exit / close_all calls lower to
+//                        order.buy / order.sell / order.close market
+//                        intents on the structured `orders` channel.
 //   • Rejections      — intentional hard rejects (for…in over a handle
 //                        collection, an unbounded Camp C set, a recursive
 //                        UDF) that surface a structured diagnostic instead
@@ -41,6 +45,7 @@ export type PineCategory =
     | "multi-symbol"
     | "colors"
     | "language"
+    | "orders"
     | "rejects";
 
 /** Human labels for each category, shown as the sidebar section name. */
@@ -52,6 +57,7 @@ export const CATEGORY_LABELS: Record<PineCategory, string> = {
     "multi-symbol": "Multi-symbol",
     colors: "Colors",
     language: "Namespaces & language",
+    orders: "Strategy orders",
     rejects: "Rejections",
 };
 
@@ -64,6 +70,7 @@ export const CATEGORY_ORDER: ReadonlyArray<PineCategory> = [
     "multi-symbol",
     "colors",
     "language",
+    "orders",
     "rejects",
 ];
 
@@ -610,6 +617,50 @@ plot(clamped_close)
 plot(clamped_open)
 `;
 
+// ── Strategy orders ────────────────────────────────────────────────────
+
+const STRATEGY_ORDERS = `//@version=6
+strategy("Strategy orders", overlay = true, initial_capital = 10000)
+
+// A strategy(...) head is NOT a reject: it converts to a defineIndicator
+// whose signal calls become order.buy / order.sell / order.close market
+// intents on the structured \`orders\` channel. Only the backtester itself
+// (capital, sizing, commission, slippage, the fill model, and any resting
+// limit / stop bracket) is left to the consumer — each drop is named by a
+// diagnostic rather than being silent.
+qtyIn = input.int(2)
+fast = ta.ema(close, 12)
+slow = ta.ema(close, 26)
+
+// A bounded var array<float> lives alongside the orders: array.sort's
+// direction enum is Pine's OWN unrelated \`order\` root, and it folds to a
+// "asc"/"desc" string, so the two \`order\` spellings never collide.
+var array<float> hist = array.new<float>()
+array.push(hist, close)
+if array.size(hist) > 20
+    array.shift(hist)
+array.sort(hist, order.ascending)
+
+// strategy.long / strategy.short resolve at the CALLSITE — they are not
+// legal identifiers anywhere else in the script.
+if ta.crossover(fast, slow)
+    strategy.entry("Long", strategy.long)
+if ta.crossunder(fast, slow)
+    strategy.entry("Short", strategy.short, qtyIn)
+strategy.order("Scale", strategy.long, 3)
+
+// A deprecated when= is LOWERED to the enclosing if, never dropped —
+// dropping it would fire the order on every bar.
+strategy.close("Long", when = close < slow)
+
+// exit's stop / limit brackets have no market-intent analogue: the close
+// targets flat and a strategy-order-args-dropped warning names each one.
+strategy.exit("Bracket", "Long", stop = 90, limit = 110)
+strategy.close_all()
+plot(fast)
+plot(slow)
+`;
+
 // ── Rejections (intentional hard rejects) ──────────────────────────────
 
 const REJECT_FOR_IN = `//@version=6
@@ -945,6 +996,15 @@ export const PINE_SCRIPTS: ReadonlyArray<PineScript> = [
             "A pure user-defined function (no series state) called with two argument sets — emitted as a real chartlang function (a udf-emitted-function info notes it), not inlined per call site.",
         category: "language",
         source: UDF_PURE_LIMIT,
+    },
+    // ── Strategy orders ──
+    {
+        id: "strategy-orders",
+        label: "Strategy → orders",
+        description:
+            "A strategy(...) script: entry / order / close / exit / close_all lower to order.buy / order.sell / order.close market intents, strategy.long / strategy.short resolve at the callsite, a when= becomes the enclosing if, and exit's stop / limit brackets are named by a diagnostic rather than dropped silently.",
+        category: "orders",
+        source: STRATEGY_ORDERS,
     },
     // ── Rejections ──
     {
