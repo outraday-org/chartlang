@@ -155,3 +155,4 @@ already wired and enforces the `primitives/ta/` byte equality today.
 | `reference/` | Glossary + FAQ. | 2 |
 | `skills/` | Hand-written overview of the `skills/` Agent Skills (index + one page per skill). Not auto-generated, not gated. | 3 |
 | `converter/` | Pine v6 → chartlang converter docs. `index.md`/`usage.md`/`supported.md`/`rejects.md` are **hand-authored**; `diagnostics.md` is **generated** by `pnpm converter:docs:generate` and gated by `pnpm converter:docs:check` (byte-diff vs `DIAGNOSTIC_CODE_ENTRIES`). Do not hand-edit `diagnostics.md`. | none |
+| `rfcs/` | Accept/reject records for cross-package architecture decisions. Hand-authored, byte-diff-ungated, but **VitePress-built** — see `rfcs/README.md` for the convention (numbering, no MIT header, `file:line` citations as code spans because `ignoreDeadLinks: false`). | none |

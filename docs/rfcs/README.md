@@ -21,9 +21,15 @@ accept/reject with the rejected alternatives preserved.
   source and `README.md` files, not `docs/**` (see `docs/CLAUDE.md`). The
   byte-diff doc gates (`docs:gate`, `examples:gate`, `adapters:gate`,
   `converter:docs:check`) cover generated subtrees only; `docs/rfcs/` is not one.
+- Ungated is **not** unbuilt: VitePress renders `docs/rfcs/**` like any other
+  page (`config.ts` `srcExclude` covers only `**/CLAUDE.md`) and
+  `ignoreDeadLinks: false`, so `docs:build` fails on a Markdown link to a page
+  that does not exist yet. Write `file:line` citations as **code spans**, never
+  as links — an RFC routinely cites files a later task creates.
 
 ## Index
 
 | # | Title | Status |
 |---|-------|--------|
 | [0001](./0001-mutable-drawing-handles.md) | Mutable drawing handles | Proposed |
+| [0002](./0002-order-namespace.md) | Order namespace + `orders` emission channel | Accepted |
