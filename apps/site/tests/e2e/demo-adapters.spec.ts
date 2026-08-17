@@ -18,6 +18,7 @@ const ADAPTERS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "uplot", label: "uPlot" },
   { id: "echarts", label: "ECharts" },
   { id: "konva", label: "Konva" },
+  { id: "webgl", label: "WebGL" },
 ]
 
 // Fails the test on any uncaught page error or console.error fired while
@@ -70,6 +71,39 @@ test("the demo renders every adapter when switched", async ({ page }) => {
     await page.getByRole("option", { name: adapter.label, exact: true }).click()
     await expect(adapterSelect).toHaveText(new RegExp(adapter.label), { timeout: 30_000 })
     await expectSurfaceRendered(page)
+    stop()
+  }
+})
+
+// Every adapter declares `orders: true` and forwards the channel to its
+// `onOrder` factory sink, so an order-emitting example must fill the demo's
+// orders panel on ALL six — with no per-adapter rendering code, since the
+// entry/exit arrows ride the ordinary plot pipeline.
+//
+// Deep-linking (rather than driving the switcher) keeps each adapter's case
+// independent and additionally proves `?script=` + `?adapter=` compose. The
+// panel is a per-RUN view: the static history replay fills it, so no Play
+// press and no random-walk luck is involved — the assertion is deterministic
+// against the committed `bars.json`.
+test("every adapter surfaces the orders channel for an order example", async ({ page }) => {
+  for (const adapter of ADAPTERS) {
+    const stop = trackErrors(page)
+    await page.goto(`/?script=order-ema-cross&adapter=${adapter.id}#demo`)
+
+    const demo = page.locator("#demo")
+    await expect(demo.locator(".cm-content")).toBeVisible({ timeout: 30_000 })
+    await expect(demo.locator("button.play-button")).toBeEnabled({ timeout: 30_000 })
+    await expectSurfaceRendered(page)
+
+    // The structured rows, not the arrows: `emissions.orders` reached React.
+    const orders = demo.locator(".chart-orders .order")
+    await expect.poll(() => orders.count(), { timeout: 30_000 }).toBeGreaterThan(0)
+    // order-ema-cross alternates buy/close, so the capped tail always holds
+    // at least one entry.
+    await expect(demo.locator(".chart-orders .order-buy").first()).toBeVisible()
+    // `text-transform: uppercase` is presentational; the DOM text is the enum.
+    await expect(demo.locator(".chart-orders .order-buy .order-action").first()).toHaveText(/^buy$/i)
+    await expect(demo.locator(".chart-orders .orders-summary")).toContainText(/\d+ orders? · last:/)
     stop()
   }
 })

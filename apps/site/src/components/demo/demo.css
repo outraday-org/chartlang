@@ -225,6 +225,85 @@
   font-style: italic;
 }
 
+/* ── Orders panel (the structured `orders` channel) ──────────────────── */
+
+.cl-demo .chart-orders {
+  width: 100%;
+  max-width: 800px;
+  overflow-y: auto;
+}
+
+.cl-demo .orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.cl-demo .order {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cl-demo .order:last-child {
+  border-bottom: none;
+}
+
+/* buy = green, sell = red, close = neutral. The action is the enum a
+   consumer switches on, so it leads the row. */
+.cl-demo .order-action {
+  min-width: 42px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.cl-demo .order-buy .order-action {
+  color: var(--cl-ok);
+}
+
+.cl-demo .order-sell .order-action {
+  color: var(--cl-error);
+}
+
+.cl-demo .order-time {
+  color: var(--muted-foreground);
+}
+
+.cl-demo .order-qty {
+  color: var(--foreground);
+}
+
+.cl-demo .order-label {
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cl-demo .orders-empty {
+  color: var(--muted-foreground);
+  margin: 0;
+  font-style: italic;
+}
+
+.cl-demo .orders-summary {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin: 6px 0 0;
+}
+
+.cl-demo .orders-note {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin: 2px 0 0;
+}
+
 /* ── "Browse examples" dialog ───────────────────────────────────────── */
 
 .cl-demo .example-browser-trigger {

@@ -66,6 +66,17 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`)
   const parts = url.pathname.split("/").filter(Boolean)
 
+  // Liveness probe. `playwright.config.ts` waits on `/` before starting the
+  // run, and Playwright only accepts 2xx/3xx/400/401/402/403 as "up" — a 404
+  // here (which is what the catch-all below returns) makes it wait out the
+  // 30s webServer timeout and abort the whole suite. Yahoo never serves `/`,
+  // so answering it costs no fidelity.
+  if (parts.length === 0) {
+    res.writeHead(200, { "content-type": "application/json" })
+    res.end(JSON.stringify({ ok: true }))
+    return
+  }
+
   // /v8/finance/chart/{ticker}
   if (parts[0] === "v8" && parts[1] === "finance" && parts[2] === "chart" && parts[3]) {
     const ticker = decodeURIComponent(parts[3]).toUpperCase()

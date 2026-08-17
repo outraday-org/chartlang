@@ -267,6 +267,17 @@ and the demo 500s, the client bundle fails to load, or the whole site
   an app→`scripts` bundling dependency); a maintenance comment in
   `adapters/registry.ts` records that adding/removing an adapter means
   updating BOTH lists.
+- **The alerts feed is live-only; the ORDERS panel is per-RUN.** `ChartPane`
+  forwards an alert only when `alert.bar >= historyLength` (the feed is
+  append-only across mounts, so history would pile up). `onOrder` has NO bar
+  filter and is paired with `onRunStart`, which fires at the top of every mount
+  effect so `DemoBody` clears the feed and the history replay repopulates it —
+  without that reset an adapter switch / recompile / Play would DOUBLE every
+  historical order. Both props are optional: the converter preview
+  (`CompilePreview.tsx`) mounts the same pane with neither. Order arrows need
+  no app code at all (the runtime lowers them to `arrow` / `label` plots), so
+  the driver layer's `onOrder` threading is plumbing only — and **konva's is
+  its ONLY per-emission sink**: that adapter declares no `onAlert`.
 - **Every driver `dispose()` is idempotent and empties `mountEl`**
   (`mountEl.replaceChildren()`) after one `handle.dispose()`, so switching
   adapters leaves no orphan canvas/svg/stage behind.

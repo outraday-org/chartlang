@@ -34,6 +34,7 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
             : {}),
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
         ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+        ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
     });
 
     let disposed = false;

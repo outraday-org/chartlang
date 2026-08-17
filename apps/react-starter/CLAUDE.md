@@ -199,7 +199,7 @@ The chart renders through ONE swappable module — `src/lib/chart/activeAdapter.
 default **webgl**. It is the **only** file in the app that names a concrete
 `chartlang-example-*-adapter` (plus the npm chart lib). Everything else —
 `ChartPane` especially — drives charts through the abstract surface it exports:
-`createActiveAdapter({ container, candleSource, interval?, onAlert? })`,
+`createActiveAdapter({ container, candleSource, interval?, onAlert?, onOrder? })`,
 `runActiveLoop(handle, { signal })`, `ActiveAdapterHandle`, `ACTIVE_ADAPTER_ID`.
 
 - **`ChartPane` (and any component) MUST NEVER import a concrete adapter.**
@@ -209,6 +209,12 @@ default **webgl**. It is the **only** file in the app that names a concrete
   is per-library (echarts `runEChartsLoop`, canvas2d/lwc `runRendererLoop`,
   uplot `runUplotLoop`, konva has none — a local loop over `feedCandleEvent`),
   so the seam wraps it as `runActiveLoop`; the pane never names a loop.
+- **`onOrder` is a FACTORY option on all six, including konva** — the reverse
+  of `onAlert`, which konva's factory does not carry (its seam relays alerts
+  from the drain loop through `KONVA_ON_ALERT`). Do not mirror the alert relay
+  for orders. The order ARROWS need no seam change at all: the runtime lowers
+  them to ordinary `arrow` / `label` plot emissions, so only the structured
+  channel travels through this option.
 - **The stream plumbing is local + seam-clean.**
   `src/components/workspace/streamPump.ts` (`createPushCandleSource`) and
   `secondaryStreams.ts` (`createResamplingCandlePump`, the MTF resample) are
@@ -314,7 +320,13 @@ is no quota to budget against — Yahoo is unmetered.
 `tests/chart.spec.ts` drives the test-only `/test/chart` harness route
 (`src/routes/test.chart.tsx`, which mounts `ChartPane` standalone until Task 6
 wires it into `/`): it compiles a seed script through `/api/compile` and
-asserts the webgl chart paints a `<canvas>` + an alert surfaces as a toast.
+asserts the webgl chart paints a `<canvas>`, an alert surfaces as a toast, and
+the structured `orders` channel reaches the orders feed (the harness seed emits
+on both channels — keep both legs when editing it).
+**`tests/eodMockServer.ts` must answer `GET /` with a 2xx.** Playwright accepts
+only 2xx/3xx/400–403 from a `webServer.url` probe, so the catch-all 404 made
+every local run abort on the 30s webServer timeout before any test started.
+The route is a liveness probe only — Yahoo serves no `/`.
 `tests/adapter-matrix.spec.ts` proves the seam is interchangeable — for each
 `SEAM_VARIANTS` entry it swaps `activeAdapter.ts` and runs `vite build` into a
 throwaway out dir (so the served `dist` is untouched), asserting every library

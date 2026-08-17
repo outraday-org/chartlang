@@ -4,7 +4,7 @@
 // Test-only harness route for the e2e chart suite (tests/chart.spec.ts).
 // Task 6 wires ChartPane into the real workspace (/) with the editor + EOD
 // data; until then this route mounts ChartPane standalone so the chart
-// render + alert-toast path can be asserted in isolation. It compiles a
+// render + alert-toast + orders-feed paths can be asserted in isolation. It compiles a
 // seed script through the real /api/compile route and feeds synthetic daily
 // bars. Reachable in dev/preview; harmless in a clone (no nav links to it).
 
@@ -16,23 +16,38 @@ import { ChartPane, type CompiledArtifact } from "@/components/workspace/ChartPa
 
 export const Route = createFileRoute("/test/chart")({ component: TestChart })
 
-// An SMA-cross-with-alert seed: exercises compute / ta.sma / ta.crossover /
-// plot / alert through the real compiler, and fires a live alert so the
-// toast path is exercised. Follows the required convention (top-level
-// imports AND destructured compute params).
-const SEED_SOURCE = `import { alert, defineIndicator, plot, ta } from "@invinite-org/chartlang-core"
+// An SMA-cross seed with BOTH signal channels: it exercises compute /
+// ta.sma / ta.crossover / plot / alert / order.* through the real compiler,
+// fires a live alert so the toast path is covered, and emits structured
+// orders so the orders feed is covered. Follows the required convention
+// (top-level imports AND destructured compute params).
+//
+// The crossing tests and the position read are hoisted out of the `if`s: a
+// stateful `ta.*` callsite evaluated only on some bars desyncs its own
+// history, and `order.position()` reads the PREVIOUS confirmed fold (the
+// one-bar lag that keeps consecutive crossovers from stacking an entry).
+const SEED_SOURCE = `import { alert, defineIndicator, order, plot, ta } from "@invinite-org/chartlang-core"
 
 export default defineIndicator({
   name: "SMA cross",
   apiVersion: 1,
   overlay: true,
-  compute({ bar, ta, plot, alert }) {
+  compute({ bar, ta, plot, alert, order }) {
     const fast = ta.sma(bar.close, 3)
     const slow = ta.sma(bar.close, 8)
     plot(fast, { title: "SMA(3)" })
     plot(slow, { title: "SMA(8)" })
-    if (ta.crossover(fast, slow).current) {
+    const up = ta.crossover(fast, slow).current
+    const down = ta.crossunder(fast, slow).current
+    const flat = order.position().size <= 0
+    if (up) {
       alert("SMA(3) crossed above SMA(8)", { severity: "info" })
+    }
+    if (flat && up) {
+      order.buy({ label: "Long" })
+    }
+    if (!flat && down) {
+      order.close({ label: "Exit" })
     }
   },
 })

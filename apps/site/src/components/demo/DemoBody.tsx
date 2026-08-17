@@ -9,7 +9,7 @@
 // page. Lazy-loaded as the default export so CodeMirror + the canvas
 // adapter split out of the `/` entry chunk.
 
-import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit"
+import type { AlertEmission, OrderEmission } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar } from "@invinite-org/chartlang-core"
 import { DEFAULT_EDITOR_FONT_SIZE } from "@invinite-org/chartlang-editor"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
@@ -23,6 +23,16 @@ import { type CompiledArtifact, createHybridLanguageService } from "./hybridLang
 import { DEMO_SCRIPTS } from "./scripts"
 
 const MAX_ALERTS_SHOWN = 6
+const MAX_ORDERS_SHOWN = 6
+
+/**
+ * The orders panel's per-run state. `count` is every order the run emitted
+ * (what the summary line reports); `recent` is the capped tail actually
+ * rendered. One atom so both move in a single update.
+ */
+type OrderFeed = Readonly<{ count: number; recent: ReadonlyArray<OrderEmission> }>
+
+const EMPTY_ORDER_FEED: OrderFeed = { count: 0, recent: [] }
 
 /**
  * Resolve the initial script id from a `?script=<id>` query param so the
@@ -84,15 +94,50 @@ function AlertsList(props: Readonly<{ alerts: ReadonlyArray<AlertEmission> }>): 
   )
 }
 
+/** `1712345678000` → `2024-04-05` (UTC). The demo streams daily bars, so the
+ *  date is the useful part of an order's timestamp. */
+function orderDate(time: number): string {
+  const iso = new Date(time).toISOString()
+  return iso.slice(0, 10)
+}
+
+/**
+ * The structured `orders` channel, rendered. Deliberately NOT a simulated
+ * equity curve: chartlang emits the intent (action, qty, label, bar), and
+ * fill economics — slippage, commission, P&L — stay consumer-side.
+ */
+function OrdersList(props: Readonly<{ orders: ReadonlyArray<OrderEmission> }>): ReactElement {
+  if (props.orders.length === 0) {
+    return <p className="orders-empty">No orders emitted yet.</p>
+  }
+  return (
+    <ul className="orders">
+      {props.orders.map((order, i) => (
+        <li
+          className={`order order-${order.action}`}
+          // biome-ignore lint/suspicious/noArrayIndexKey: append-only feed
+          key={i}
+        >
+          <span className="order-action">{order.action}</span>
+          <span className="order-time">{orderDate(order.time)}</span>
+          {order.qty !== null ? <span className="order-qty">×{order.qty}</span> : null}
+          {order.label !== "" ? <span className="order-label">{order.label}</span> : null}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * The live demo. Wires the editor (left), chart (right), a script
- * switcher, and a recent-alerts card. The hybrid service is created
- * once and shared for the component's lifetime.
+ * switcher, a recent-alerts card, and a recent-orders card. The hybrid
+ * service is created once and shared for the component's lifetime.
  */
 export default function DemoBody(): ReactElement {
   const [artifact, setArtifact] = useState<CompiledArtifact | null>(null)
   const [bars, setBars] = useState<ReadonlyArray<Bar>>([])
   const [alerts, setAlerts] = useState<ReadonlyArray<AlertEmission>>([])
+  const [orderFeed, setOrderFeed] = useState<OrderFeed>(EMPTY_ORDER_FEED)
   const [scriptId, setScriptId] = useState(initialScriptId)
   const [adapterId, setAdapterId] = useState(resolveInitialAdapterId)
   // Ephemeral editor font size. Lives here (not in EditorPane) so it survives
@@ -139,6 +184,21 @@ export default function DemoBody(): ReactElement {
     })
   }
 
+  // Every order of the current run lands here — history included, because
+  // ChartPane's `onRunStart` clears the feed at the top of each mount, so the
+  // replay repopulates it instead of doubling it.
+  const handleOrder = (order: OrderEmission): void => {
+    setOrderFeed((previous) => {
+      const next = [...previous.recent, order]
+      return {
+        count: previous.count + 1,
+        recent: next.length > MAX_ORDERS_SHOWN ? next.slice(next.length - MAX_ORDERS_SHOWN) : next,
+      }
+    })
+  }
+
+  const lastOrder = orderFeed.recent[orderFeed.recent.length - 1]
+
   return (
     <div className="cl-demo mt-10 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -148,6 +208,7 @@ export default function DemoBody(): ReactElement {
             setScriptId(id)
             syncDemoParam("script", id)
             setAlerts([])
+            setOrderFeed(EMPTY_ORDER_FEED)
             setArtifact(null)
           }}
           scripts={DEMO_SCRIPTS}
@@ -180,13 +241,31 @@ export default function DemoBody(): ReactElement {
               syncDemoParam("adapter", id)
             }}
             onAlert={handleAlert}
+            onOrder={handleOrder}
             onPlayStart={() => setAlerts([])}
+            onRunStart={() => setOrderFeed(EMPTY_ORDER_FEED)}
           />
           <div className="chart-alerts">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Recent alerts
             </h3>
             <AlertsList alerts={alerts} />
+          </div>
+          <div className="chart-orders">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Recent orders
+            </h3>
+            <OrdersList orders={orderFeed.recent} />
+            {lastOrder !== undefined ? (
+              <p className="orders-summary">
+                {orderFeed.count} order{orderFeed.count === 1 ? "" : "s"} · last:{" "}
+                {lastOrder.action} @ {orderDate(lastOrder.time)}
+              </p>
+            ) : null}
+            <p className="orders-note">
+              Fill economics (next-bar fills, slippage, commission, equity) stay consumer-side by
+              design — the channel carries the intent.
+            </p>
           </div>
         </section>
       </div>
