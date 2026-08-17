@@ -4,7 +4,7 @@
 import { resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mockCandleSource } from "@invinite-org/chartlang-adapter-kit";
-import type { RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
+import type { OrderEmission, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
 import { compileFile } from "@invinite-org/chartlang-compiler";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import {
@@ -14,6 +14,7 @@ import {
     createWorkerBoot,
     createWorkerHost,
 } from "@invinite-org/chartlang-host-worker";
+import { ORDER_LABEL_SLOT_SUFFIX, ORDER_MARKER_SLOT_SUFFIX } from "@invinite-org/chartlang-runtime";
 import { describe, expect, it } from "vitest";
 
 import { CANVAS2D_CAPABILITIES, CANVAS2D_SYM_INFO } from "./capabilities.js";
@@ -165,6 +166,10 @@ export default {
 type CapturedRun = {
     readonly emissions: ReadonlyArray<RunnerEmissions>;
     readonly alerts: ReadonlyArray<unknown>;
+    // What the adapter's own `onOrder` sink received — the app-layer door, not
+    // the raw drain. Proving the forward here is what makes the auto-marker
+    // render test a REAL-adapter test rather than a wire assertion.
+    readonly orders: ReadonlyArray<OrderEmission>;
     readonly workerErrors: ReadonlyArray<string>;
     readonly ctx: MockCanvas2DContext;
 };
@@ -359,6 +364,37 @@ export default {
 };
 `;
     }
+    if (relPath.endsWith("order-ema-cross.chart.ts")) {
+        // Plot slot ids come off THIS run's manifest (the `htf-trend-filter`
+        // precedent) so editing prose in the example cannot silently shift the
+        // hand-written body's ids. The `order.*` slots stay literal: the manifest
+        // carries no order-slot roster, and the runtime only needs each callsite
+        // to pass a STABLE id — these mirror the real script's `line:col`.
+        const plotSlotIds = (manifest.plots ?? []).map((slot) => slot.slotId);
+        const fastPlotId = plotSlotIds[0] ?? "";
+        const slowPlotId = plotSlotIds[1] ?? "";
+        return `
+const manifest = ${manifestJson};
+export default {
+    manifest,
+    compute: (ctx) => {
+        const fast = ctx.ta.ema("order-ema-cross.chart.ts:11:22#0", ctx.bar.close, 12);
+        const slow = ctx.ta.ema("order-ema-cross.chart.ts:12:22#0", ctx.bar.close, 26);
+        ctx.plot(${JSON.stringify(fastPlotId)}, fast, { color: "#26a69a", title: "EMA(12)" });
+        ctx.plot(${JSON.stringify(slowPlotId)}, slow, { color: "#ef5350", title: "EMA(26)" });
+        const up = ctx.ta.crossover("order-ema-cross.chart.ts:21:23#0", fast, slow).current;
+        const down = ctx.ta.crossunder("order-ema-cross.chart.ts:22:25#0", fast, slow).current;
+        const flatOrShort = ctx.order.position().size <= 0;
+        if (flatOrShort && up) {
+            ctx.order.buy("order-ema-cross.chart.ts:32:13#0", { label: "Long" });
+        }
+        if (!flatOrShort && down) {
+            ctx.order.close("order-ema-cross.chart.ts:35:13#0", { label: "Exit" });
+        }
+    },
+};
+`;
+    }
     throw new Error(`no Phase-4 module fixture for ${relPath}`);
 }
 
@@ -395,6 +431,7 @@ async function runExampleScript(
     const emissions: RunnerEmissions[] = [];
     const workerErrors: string[] = [];
     const alerts: unknown[] = [];
+    const orders: OrderEmission[] = [];
     const host = captureHost(
         createWorkerHost({
             capabilities: CANVAS2D_CAPABILITIES,
@@ -426,6 +463,7 @@ async function runExampleScript(
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
         ...(opts.resolveInputs !== undefined ? { resolveInputs: opts.resolveInputs } : {}),
         onAlert: (a) => alerts.push(a),
+        onOrder: (o) => orders.push(o),
     });
 
     const compiled = await compileFile(resolvePath(REPO_ROOT, relPath), {
@@ -439,7 +477,7 @@ async function runExampleScript(
     await runRendererLoop(adapter);
     adapter.dispose();
 
-    return { emissions, alerts, workerErrors, ctx };
+    return { emissions, alerts, orders, workerErrors, ctx };
 }
 
 function phase4Bar(i: number, close: number, interval: string): Bar {
@@ -708,6 +746,50 @@ describe("canvas2d adapter integration", () => {
         expect(
             rightPlots.some((p) => typeof p.value === "number" && Number.isFinite(p.value)),
         ).toBe(true);
+    });
+
+    it("renders order-ema-cross with auto-drawn arrow + label marker plots", async () => {
+        // The only real-adapter render test of the auto-marker path. Nothing in
+        // the script draws: each accepted order lowers to an `arrow` plot on a
+        // synthetic `${slotId}#marker` slot and (because both calls pass a
+        // `label`) a `label` plot on `${slotId}#label`, both of which this bag's
+        // `plots` set declares. `emitOrderMarkers` pre-gates on those two kinds
+        // SILENTLY, so a bag missing either would paint nothing with no
+        // diagnostic — hence asserting the glyphs, not just the orders.
+        const run = await runExampleScript(
+            "examples/scripts/order-ema-cross.chart.ts",
+            HISTORY_BARS,
+        );
+        expect(run.workerErrors).toEqual([]);
+        expect(hasErrorDiagnostics(run.emissions)).toBe(false);
+
+        // HISTORY_BARS is shaped down / up / down, so the EMA(12) crosses the
+        // EMA(26) up (entry) and back down (exit) exactly once each.
+        expect(run.orders.map((o) => `${o.action}:${o.label}`)).toEqual(["buy:Long", "close:Exit"]);
+
+        const plots = run.emissions.flatMap((frame) => frame.plots);
+        const arrows = plots.filter(
+            (p) => p.slotId.endsWith(ORDER_MARKER_SLOT_SUFFIX) && p.style.kind === "arrow",
+        );
+        const labels = plots.filter(
+            (p) => p.slotId.endsWith(ORDER_LABEL_SLOT_SUFFIX) && p.style.kind === "label",
+        );
+        expect(arrows.length).toBe(2);
+        expect(labels.length).toBe(2);
+        // A buy's arrow points up and anchors at `bar.low`; a close's points down
+        // and anchors at `bar.high`. That pairing IS the anchor contract.
+        const buyArrow = arrows[0];
+        const closeArrow = arrows[1];
+        expect(buyArrow.style).toMatchObject({ kind: "arrow", direction: "up" });
+        expect(closeArrow.style).toMatchObject({ kind: "arrow", direction: "down" });
+        expect(buyArrow.value).toBe(HISTORY_BARS[buyArrow.bar].low);
+        expect(closeArrow.value).toBe(HISTORY_BARS[closeArrow.bar].high);
+        expect(labels.map((p) => (p.style.kind === "label" ? p.style.text : ""))).toEqual([
+            "Long",
+            "Exit",
+        ]);
+        // And the frame actually painted: the arrow renderer strokes a path.
+        expect(run.ctx.calls.some((c) => c.kind === "fill" || c.kind === "stroke")).toBe(true);
     });
 
     it("renders the forecast-line example with a future-projected line that stays on-screen", async () => {

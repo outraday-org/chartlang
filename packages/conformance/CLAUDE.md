@@ -474,9 +474,10 @@ plot hashes, alert counts, and diagnostic codes.
   and its `marker: false` sibling would pass for the wrong reason. Same lever as
   `plot-kind-candle`, used to force a kind PRESENT.
 - **`orders` is pinned per scenario (`true` / `false`), never inherited.** The six
-  example bags shipped `orders: false` from the adapter-kit task and flip to
-  `true` in the examples task; pinning it means these scenarios are byte-stable
-  on both sides of that flip and never need re-pinning for it.
+  example bags shipped `orders: false` from the adapter-kit task and were flipped
+  to `true` by the examples task; pinning it is why these scenarios were
+  byte-stable across that flip and why the gated scenario still proves the
+  `orders: false` path now that no bundled adapter declines.
 - **`order-at-bar` compares ONLY the bars its `expected` list names.** Unlike
   `alert-condition-fired-at-bar` (whole channel, JSON-compared), the EMA-cross
   strategy emits 152 orders over the golden bars, so a whole-list pin is

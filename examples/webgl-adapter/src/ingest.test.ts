@@ -41,6 +41,7 @@ function emissions(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         drawings: overrides.drawings ?? [],
         alerts: overrides.alerts ?? [],
         alertConditions: overrides.alertConditions ?? [],
+        orders: overrides.orders ?? [],
         logs: overrides.logs ?? [],
         diagnostics: overrides.diagnostics ?? [],
         fromBar: overrides.fromBar ?? 0,

@@ -10,6 +10,7 @@ import {
     type DrawingEmission,
     type InteractionHandlers,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type PlotStyle,
     RENDER_BAND,
@@ -275,6 +276,15 @@ export type CreateUplotAdapterOpts = {
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly feedExternalSeries?: Adapter["feedExternalSeries"];
     readonly onAlert?: (a: AlertEmission) => void;
+    /**
+     * App-layer sink for the structured `orders` channel, mirroring `onAlert`.
+     * Every order that passes `validateEmission` is forwarded in wire order on
+     * each drain. Order markers need no help from this option — they arrive as
+     * ordinary `arrow` / `label` plot emissions — so this is purely the door an
+     * embedding app uses to read the intents themselves. Omit it and the channel
+     * is ignored, exactly as `orders: false` would have it.
+     */
+    readonly onOrder?: (o: OrderEmission) => void;
     readonly host?: ScriptHost;
     readonly workerLike?: WorkerLike;
     /**
@@ -1565,6 +1575,7 @@ function ingest(
     state: AdapterState,
     emissions: RunnerEmissions,
     onAlert?: (a: AlertEmission) => void,
+    onOrder?: (o: OrderEmission) => void,
 ): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
@@ -1573,6 +1584,10 @@ function ingest(
     applyValidated(emissions.alertConditions, (condition) =>
         state.currentAlertConditions.push(condition),
     );
+    // Orders keep no adapter state — their picture already rode in on the plot
+    // channel above — so the only thing to do is hand the validated intents to
+    // the app-layer sink, in the queue position the wire declares them.
+    applyValidated(emissions.orders, (order) => onOrder?.(order));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
     for (const d of emissions.diagnostics) {
         if (d.severity === "warning" || d.severity === "error") {
@@ -1695,7 +1710,7 @@ export function createUplotAdapter(opts: CreateUplotAdapterOpts): UplotAdapterHa
         symInfo: UPLOT_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
-            ingest(state, emissions, opts.onAlert);
+            ingest(state, emissions, opts.onAlert, opts.onOrder);
             renderFrame(state);
         },
         dispose: () => {

@@ -27,6 +27,7 @@ describe("KONVA_CAPABILITIES", () => {
         expect(KONVA_CAPABILITIES.alerts.has("toast")).toBe(true);
         expect(KONVA_CAPABILITIES.alertConditions).toBe(true);
         expect(KONVA_CAPABILITIES.logs).toBe(true);
+        expect(KONVA_CAPABILITIES.orders).toBe(true);
         expect(KONVA_CAPABILITIES.multiTimeframe).toBe(true);
         expect(KONVA_CAPABILITIES.multiSymbol).toBe(true);
         expect(KONVA_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);

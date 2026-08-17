@@ -7,6 +7,7 @@ import type {
     CandleEvent,
     DrawingEmission,
     LogEmission,
+    OrderEmission,
     PlotEmission,
     RunnerEmissions,
     RuntimeDiagnostic,
@@ -55,6 +56,20 @@ function alertEmission(overrides: Partial<AlertEmission> & { slotId: string }): 
         meta: overrides.meta ?? {},
         channels: overrides.channels ?? ["log"],
         dedupeKey: overrides.dedupeKey ?? "k",
+    };
+}
+
+function orderEmission(overrides: Partial<OrderEmission> & { slotId: string }): OrderEmission {
+    return {
+        kind: "order",
+        slotId: overrides.slotId,
+        action: overrides.action ?? "buy",
+        qty: overrides.qty ?? null,
+        label: overrides.label ?? "",
+        bar: overrides.bar ?? 0,
+        time: overrides.time ?? SAMPLE_BARS[0].time,
+        meta: overrides.meta ?? {},
+        dedupeKey: overrides.dedupeKey ?? "o",
     };
 }
 
@@ -122,6 +137,7 @@ function emissions(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         drawings: overrides.drawings ?? [],
         alerts: overrides.alerts ?? [],
         alertConditions: overrides.alertConditions ?? [],
+        orders: overrides.orders ?? [],
         logs: overrides.logs ?? [],
         diagnostics: overrides.diagnostics ?? [],
         fromBar: overrides.fromBar ?? 0,
@@ -174,6 +190,7 @@ function buildAdapter(args: {
     resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     onAlert?: (a: AlertEmission) => void;
     alertBadgeFilter?: (a: AlertEmission) => boolean;
+    onOrder?: (o: OrderEmission) => void;
     initialVisibleBars?: number;
     devicePixelRatio?: number;
 }): { adapter: Canvas2dAdapterHandle; ctx: MockCanvas2DContext; host: StubHost } {
@@ -188,6 +205,7 @@ function buildAdapter(args: {
         ...(args.resolveInputs !== undefined ? { resolveInputs: args.resolveInputs } : {}),
         ...(args.onAlert !== undefined ? { onAlert: args.onAlert } : {}),
         ...(args.alertBadgeFilter !== undefined ? { alertBadgeFilter: args.alertBadgeFilter } : {}),
+        ...(args.onOrder !== undefined ? { onOrder: args.onOrder } : {}),
         ...(args.initialVisibleBars !== undefined
             ? { initialVisibleBars: args.initialVisibleBars }
             : {}),
@@ -1167,6 +1185,53 @@ describe("onEmissions dispatch", () => {
         } as unknown as AlertEmission;
         adapter.onEmissions(emissions({ alerts: [bad] }));
         expect(seen.length).toBe(0);
+    });
+
+    it("forwards validated orders to opts.onOrder in wire order", () => {
+        const seen: OrderEmission[] = [];
+        const { adapter } = buildAdapter({
+            onOrder: (o) => {
+                seen.push(o);
+            },
+        });
+        adapter.onEmissions(
+            emissions({
+                orders: [
+                    orderEmission({ slotId: "s:1:1#0", action: "buy", bar: 3, dedupeKey: "o0" }),
+                    orderEmission({ slotId: "s:2:1#0", action: "close", bar: 7, dedupeKey: "o1" }),
+                ],
+            }),
+        );
+        // The channel is append-only on the wire, so the sink sees every intent
+        // in emission order — never a per-(slot, bar) collapse like plots/alerts.
+        expect(seen.map((o) => `${o.action}@${o.bar}`)).toEqual(["buy@3", "close@7"]);
+    });
+
+    it("drops a malformed order instead of forwarding it", () => {
+        const seen: OrderEmission[] = [];
+        const { adapter } = buildAdapter({
+            onOrder: (o) => {
+                seen.push(o);
+            },
+        });
+        const bad = {
+            ...orderEmission({ slotId: "s:1:1#0" }),
+            action: "hedge",
+        } as unknown as OrderEmission;
+        adapter.onEmissions(emissions({ orders: [bad] }));
+        expect(seen.length).toBe(0);
+    });
+
+    it("ignores the orders channel when no onOrder sink is supplied", () => {
+        const { adapter, ctx } = buildAdapter({});
+        expect(() => {
+            adapter.onEmissions(
+                emissions({ orders: [orderEmission({ slotId: "s:1:1#0", label: "Long" })] }),
+            );
+        }).not.toThrow();
+        // Orders carry no adapter state, so a drain that holds only orders still
+        // paints the ordinary frame — the markers ride the plot channel.
+        expect(ctx.calls.some((c) => c.kind === "fillRect")).toBe(true);
     });
 
     it("applies valid alert-condition and log emissions while dropping malformed ones", () => {

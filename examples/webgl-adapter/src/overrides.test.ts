@@ -45,6 +45,7 @@ function ingest(state: AdapterState, plots: PlotEmission[]): void {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,

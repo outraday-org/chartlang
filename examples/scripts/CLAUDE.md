@@ -211,6 +211,29 @@ Example `.chart.ts` scripts compiled by `packages/cli/src/e2e.test.ts`.
   (pine-converter fixtures 61–64). Compile-only in the CLI e2e gate; not in the
   integration render test; no `DEMO_SCRIPTS` mirror (skipped by `examples:sync`).
 
+- **`order-*.chart.ts` are the three `orders`-category scripts** and the only
+  examples that reach the `order.*` namespace. Two facts they all encode:
+  a stateful `ta.*` callsite and the `order.position()` read are **hoisted out
+  of the `if`s** (a conditionally-evaluated `ta.*` desyncs its own history, and
+  hoisting the read leaves the one-fold lag as the only thing the branches
+  depend on), and the position they read is the state as of the **previous**
+  confirmed step — the runtime folds a bar's orders after `compute` returns.
+  `order-ema-cross.chart.ts` is the flagship (EMA(12)/EMA(26) golden cross,
+  `order.buy` / `order.close` guarded by the position read) and is the ONE
+  order script in `examples/canvas2d-adapter/src/integration.test.ts`, which
+  asserts the auto-drawn `#marker` arrow + `#label` plots actually reach a real
+  adapter — the only real-adapter coverage of the auto-marker path. Its
+  hand-written `phase4ModuleSource` fixture reads the two plot slot ids off the
+  LIVE `compiled.manifest` (the `htf-trend-filter` precedent) because the
+  manifest carries no order-slot roster to read the `order.*` ids from.
+  `order-rsi-reversal.chart.ts` covers the SHORT side and the signed
+  `order.position().size` branch (a buy while short reverses in one order —
+  no `state.bool` flag). `order-silent-markers.chart.ts` covers the per-call
+  `marker: false` opt-out plus an author-owned `draw.arrowMarkUp` glyph;
+  `marker` is render-side only and never reaches the wire emission, so the
+  order still rides the channel and still folds. Compile-only in the CLI e2e
+  gate except `order-ema-cross`.
+
 ## Conventions
 
 - Every script carries the two-line MIT header at the top — same as

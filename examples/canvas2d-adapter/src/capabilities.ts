@@ -104,10 +104,11 @@ export const CANVAS2D_CAPABILITIES: Capabilities = Object.freeze({
     }),
     ...capabilities.alertConditions(true),
     ...capabilities.logs(true),
-    // Placeholder: this adapter needs no rendering code to honour the `orders`
-    // channel (markers ride the `arrow` / `label` plot pipeline), so the flip to
-    // `true` lands with the `orders` example category.
-    ...capabilities.orders(false),
+    // No rendering code is needed to honour the `orders` channel: the runtime's
+    // auto-markers arrive as ordinary `arrow` / `label` plot emissions, and this
+    // bag declares both kinds. An app-layer sink reads the structured feed
+    // through the factory's optional `onOrder` option.
+    ...capabilities.orders(true),
 });
 
 /**

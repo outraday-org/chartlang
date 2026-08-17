@@ -41,6 +41,7 @@ describe("LWC_CAPABILITIES", () => {
         expect(LWC_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
         expect(LWC_CAPABILITIES.alertConditions).toBe(true);
         expect(LWC_CAPABILITIES.logs).toBe(true);
+        expect(LWC_CAPABILITIES.orders).toBe(true);
     });
 
     it("declares the eight-entry interval list", () => {

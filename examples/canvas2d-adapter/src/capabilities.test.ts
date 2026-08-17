@@ -59,6 +59,10 @@ describe("CANVAS2D_CAPABILITIES", () => {
         expect(CANVAS2D_CAPABILITIES.inputs.size).toBe(0);
         expect(CANVAS2D_CAPABILITIES.alertConditions).toBe(true);
         expect(CANVAS2D_CAPABILITIES.logs).toBe(true);
+        // `orders` needs no renderer — the auto-markers are `arrow` / `label`
+        // plots this bag already declares — so the only thing that can regress
+        // the flip is the flag itself.
+        expect(CANVAS2D_CAPABILITIES.orders).toBe(true);
         expect(CANVAS2D_CAPABILITIES.multiTimeframe).toBe(true);
         expect(CANVAS2D_CAPABILITIES.multiSymbol).toBe(true);
     });

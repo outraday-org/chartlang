@@ -39,6 +39,10 @@
             "reason": "Companion to the `request.security` / `request.lowerTf` primitives (covered by composites + the `define-bar-context` category), not a standalone idiom."
         },
         {
+            "page": "orders",
+            "reason": "Companion to the `order.*` primitive family (the `orders` category) — owned by the per-primitive `examples:coverage` gate, not an idiom."
+        },
+        {
             "page": "state-map",
             "reason": "Companion to the `state.map` primitive (covered once its `docs/primitives/state/map.md` page lands), not an idiom."
         },

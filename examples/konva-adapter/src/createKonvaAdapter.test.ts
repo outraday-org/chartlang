@@ -51,6 +51,7 @@ function emissions(plots: ReadonlyArray<PlotEmission>): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,
@@ -1240,6 +1241,7 @@ describe("createKonvaAdapter — drawings + non-rendered emissions", () => {
                         time: 0,
                     },
                 ],
+                orders: [],
                 logs: [{ kind: "log", level: "info", message: "L", bar: 0, time: 0, meta: {} }],
                 diagnostics: [
                     {

@@ -27,6 +27,7 @@ function emissions(plots: PlotEmission[]): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,

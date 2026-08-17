@@ -38,6 +38,7 @@ describe("UPLOT_CAPABILITIES", () => {
         expect(UPLOT_CAPABILITIES.subPanes).toBe(Number.MAX_SAFE_INTEGER);
         expect(UPLOT_CAPABILITIES.alertConditions).toBe(true);
         expect(UPLOT_CAPABILITIES.logs).toBe(true);
+        expect(UPLOT_CAPABILITIES.orders).toBe(true);
     });
 
     it("preserves interval picker order", () => {

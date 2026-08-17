@@ -10,6 +10,7 @@ import {
     type DrawingEmission,
     type InteractionHandlers,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type PlotStyle,
     type RunnerEmissions,
@@ -125,6 +126,18 @@ export type CreateCanvas2dAdapterOpts = {
      * alerts from the chart without losing its own feed.
      */
     readonly alertBadgeFilter?: (a: AlertEmission) => boolean;
+    /**
+     * App-layer sink for the structured `orders` channel, mirroring
+     * {@link CreateCanvas2dAdapterOpts.onAlert}. Every order that passes
+     * `validateEmission` is forwarded in wire order on each drain.
+     *
+     * The adapter renders order markers with no help from this option — they
+     * arrive as ordinary `arrow` / `label` plot emissions — so this is purely
+     * the door an embedding app uses to read the intents themselves (an order
+     * panel, a backtest simulator). Omit it and the channel is simply ignored,
+     * exactly as `orders: false` would have it.
+     */
+    readonly onOrder?: (o: OrderEmission) => void;
     /**
      * Device-pixel ratio of the canvas the caller mounted (default `1`).
      * When `> 1`, `renderFrame` applies an ambient
@@ -1226,12 +1239,17 @@ function ingest(
     emissions: RunnerEmissions,
     onAlert?: (a: AlertEmission) => void,
     badgeFilter?: (a: AlertEmission) => boolean,
+    onOrder?: (o: OrderEmission) => void,
 ): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
     applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert, badgeFilter));
     state.currentAlertConditions.length = 0;
     applyValidated(emissions.alertConditions, (condition) => applyAlertCondition(state, condition));
+    // Orders keep no adapter state — their picture already rode in on the plot
+    // channel above — so the only thing to do is hand the validated intents to
+    // the app-layer sink, in the queue position the wire declares them.
+    applyValidated(emissions.orders, (order) => onOrder?.(order));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
     for (const d of emissions.diagnostics) {
         if (d.severity === "warning" || d.severity === "error") {
@@ -1396,7 +1414,7 @@ export function createCanvas2dAdapter(opts: CreateCanvas2dAdapterOpts): Canvas2d
         symInfo: CANVAS2D_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
-            ingest(state, emissions, opts.onAlert, opts.alertBadgeFilter);
+            ingest(state, emissions, opts.onAlert, opts.alertBadgeFilter, opts.onOrder);
             renderFrame(state);
         },
         dispose: () => {
