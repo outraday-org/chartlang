@@ -16,6 +16,7 @@ import type { EnumDeclaration, FunctionDeclaration } from "../ast/statements.js"
 import { makeDiagnostic } from "../diagnostics/codes.js";
 import type { Diagnostic, SourceSpan } from "../index.js";
 import { type SecurityFeedInputs, collectSecurityFeedInputs } from "../transform/securityShape.js";
+import { isStrategyDirectionExpr, isStrategySignalCall } from "../transform/strategySignals.js";
 import { type IndicatorCaps, classifyDrawingSites } from "./drawingCamp.js";
 import { createLifetimeCollector } from "./lifetimes.js";
 import { dottedName, rootIdentifier } from "./nodes.js";
@@ -264,8 +265,22 @@ function walkCall(
     call: CallExpression,
     contextHandle: NaContext,
 ): void {
-    walkExpression(state, scope, call.callee, null);
+    // A recognised `strategy.*` order call is a converter INTRINSIC, resolved
+    // at THIS callsite: its `strategy.<member>` callee and a `strategy.long` /
+    // `strategy.short` direction argument name no symbol the script declares,
+    // and the transform lowers both into an `order.*` intent. Registering
+    // `strategy` as a namespace instead would be position-independent and
+    // would legalize `strategy.long` in any expression, so the skip is scoped
+    // to this call — a `strategy.long` anywhere else still reports
+    // `unknown-identifier`.
+    const isSignal = isStrategySignalCall(call);
+    if (!isSignal) {
+        walkExpression(state, scope, call.callee, null);
+    }
     for (const arg of call.args) {
+        if (isSignal && isStrategyDirectionExpr(arg.value)) {
+            continue;
+        }
         walkExpression(state, scope, arg.value, contextHandle);
     }
     checkUdfArity(state, scope, call);

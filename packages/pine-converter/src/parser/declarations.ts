@@ -112,8 +112,10 @@ function parseArgumentName(ctx: ParserContext): Token | null {
 /**
  * Parse a top-level `indicator(...)` / `strategy(...)` / `library(...)`
  * declaration. `strategy` and `library` parse fully but each emit one
- * rejection diagnostic (`unsupported-strategy` / `unsupported-library`) so
- * the body is still walked. Returns `null` when the head token is not a
+ * diagnostic: `unsupported-strategy` is a WARNING (a strategy converts to a
+ * `defineIndicator` whose signal calls lower to `order.*`; only the
+ * backtester's own settings are ignored), `unsupported-library` a rejection.
+ * Either way the body is still walked. Returns `null` when the head token is not a
  * declaration keyword (the caller treats the head as the first body
  * statement instead).
  *

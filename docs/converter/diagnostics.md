@@ -139,9 +139,9 @@ hard-rejects and the recommended Pine rewrites.
 ### unsupported-strategy
 
 - **Code:** `pine-converter/parse/unsupported-strategy`
-- **Severity:** error
-- **Message:** `strategy(...)` declarations are not supported.
-- **Suggested fix:** Strip the backtester and convert the signal logic as an `indicator(...)`.
+- **Severity:** warning
+- **Message:** `strategy(...)` was converted as an indicator with `order.*` signals; the backtester's own settings (capital, sizing, commission, slippage, fill model) are ignored.
+- **Suggested fix:** Review the converted `order.*` calls, and configure position sizing and fill economics in whatever consumes the `orders` channel.
 
 ### unsupported-udt
 
@@ -764,14 +764,28 @@ hard-rejects and the recommended Pine rewrites.
 - **Code:** `pine-converter/transform/strategy-as-indicator`
 - **Severity:** info
 - **Message:** `strategy(...)` was stripped to a `defineIndicator`; backtester args were dropped.
-- **Suggested fix:** Re-create order logic as `alert(...)` emissions in the converted script.
+- **Suggested fix:** No action needed — the order logic converts to `order.*` calls; only the backtester's own configuration was dropped.
+
+### strategy-direction-assumed
+
+- **Code:** `pine-converter/transform/strategy-direction-assumed`
+- **Severity:** warning
+- **Message:** A `strategy.entry`/`strategy.order` direction argument is not the literal `strategy.long` or `strategy.short`, so the side could not be resolved at conversion time; `order.buy` was assumed.
+- **Suggested fix:** Pass `strategy.long` / `strategy.short` directly, or split the call into the two branches your condition selects between.
+
+### strategy-order-args-dropped
+
+- **Code:** `pine-converter/transform/strategy-order-args-dropped`
+- **Severity:** warning
+- **Message:** A `strategy.*` order call passed arguments the `order.*` market intent cannot honor (a resting `limit`/`stop`, a trailing stop, an OCA group, a partial `qty_percent`, a target entry id, …); they were dropped.
+- **Suggested fix:** Model resting orders and protective stops in whatever consumes the `orders` channel — chartlang v1 emits market intents only.
 
 ### strategy-signal-only
 
 - **Code:** `pine-converter/transform/strategy-signal-only`
 - **Severity:** info
-- **Message:** A `strategy.*` order call was lowered to an `alert(...)`; order sizing/fills are not reproduced.
-- **Suggested fix:** Wire the alert into your own execution layer if you need order semantics.
+- **Message:** A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.
+- **Suggested fix:** No action needed — read the structured `orders` emission channel and apply your own fill model to it.
 
 ### ta-not-mapped
 

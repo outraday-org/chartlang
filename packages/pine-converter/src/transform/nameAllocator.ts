@@ -5,7 +5,9 @@ import type { SemanticResult } from "../semantic/index.js";
 
 // The chartlang `compute(ctx)` destructure params — every name the generated
 // body might bind from the `ComputeContext` (kept in lockstep with
-// `codegen/emitCompute.ts`'s `destructureFields`). Reserved so a synthesized
+// `codegen/emitCompute.ts`'s `destructureFields` — which is why `order` is
+// here: a Pine variable named `order` must not shadow the `order.*` namespace
+// the converted signal calls bind). Reserved so a synthesized
 // name never shadows `bar`/`draw`/etc., AND `allocateForSymbol` never reclaims
 // one for a translated Pine symbol: a host param is a LIVE binding (a callee
 // like `bgcolor(...)` / `plot(...)`, or a view like `syminfo`) that cannot be
@@ -19,6 +21,7 @@ const COMPUTE_CONTEXT_NAMES: readonly string[] = [
     "bgcolor",
     "barcolor",
     "alert",
+    "order",
     "inputs",
     "state",
     "request",

@@ -168,4 +168,25 @@ describe("collision safety end-to-end (no `__` regression)", () => {
         expect(output).toContain("barIndex2");
         expect(output).not.toMatch(/\b__\w/);
     });
+
+    // The emitted script now imports + destructures `order`, so a Pine variable
+    // spelled `order` must be renamed rather than shadow the namespace the
+    // converted signal calls bind.
+    it("renames a Pine variable named `order` instead of shadowing the namespace", () => {
+        const output =
+            convert(
+                [
+                    "//@version=6",
+                    "strategy('Order shadow')",
+                    "order = close > open",
+                    "if order",
+                    "    strategy.entry('Long', strategy.long)",
+                    "plot(close)",
+                    "",
+                ].join("\n"),
+            ).output ?? "";
+        expect(output).toContain("let order2 = ");
+        expect(output).toContain("if (order2)");
+        expect(output).toContain('order.buy({ label: "Long" })');
+    });
 });

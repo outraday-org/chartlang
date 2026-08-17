@@ -221,6 +221,29 @@ describe("analyze — indicator caps + declaration shapes", () => {
     });
 });
 
+describe("analyze — strategy signal calls resolve at the callsite", () => {
+    const UNKNOWN = "pine-converter/semantic/unknown-identifier";
+
+    it("resolves the strategy.<member> callee and its direction argument", () => {
+        expect(codes(`${HEADER}strategy.entry("Long", strategy.long)\n`)).not.toContain(UNKNOWN);
+        expect(codes(`${HEADER}strategy.entry("S", strategy.short)\n`)).not.toContain(UNKNOWN);
+        expect(codes(`${HEADER}strategy.close_all()\n`)).not.toContain(UNKNOWN);
+    });
+
+    it("still reports strategy.long OUTSIDE a signal call", () => {
+        // Position-scoped, not a global constant: the same token in any other
+        // expression keeps failing.
+        expect(codes(`${HEADER}x = strategy.long\n`)).toContain(UNKNOWN);
+        expect(codes(`${HEADER}plot(strategy.long)\n`)).toContain(UNKNOWN);
+        // …including inside a NON-signal `strategy.*` call.
+        expect(codes(`${HEADER}strategy.cancel(strategy.long)\n`)).toContain(UNKNOWN);
+    });
+
+    it("still walks a signal call's non-direction arguments", () => {
+        expect(codes(`${HEADER}strategy.entry("L", strategy.long, mystery)\n`)).toContain(UNKNOWN);
+    });
+});
+
 describe("analyze — member access + na call edge cases", () => {
     it("emits unknown-identifier for a member chain with an unresolved root", () => {
         expect(codes(`${HEADER}x = mystery.field\n`)).toContain(

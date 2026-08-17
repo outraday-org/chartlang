@@ -19,12 +19,25 @@ These fire at parse time — the construct has no v1 analogue at all.
 |---|---|---|
 | [`unsupported-pine-version`](./diagnostics.md#unsupported-pine-version) | The `//@version` directive is not `6`. | Port to Pine v6 first. |
 | [`missing-version-directive`](./diagnostics.md#missing-version-directive) | No `//@version=6` on the first line. | Add `//@version=6`. |
-| [`unsupported-strategy`](./diagnostics.md#unsupported-strategy) | A `strategy(...)` declaration. | Strip the backtester; convert the signal logic as an `indicator(...)`, re-emitting orders as `alert(...)`. |
 | [`unsupported-library`](./diagnostics.md#unsupported-library) / [`unsupported-library-import`](./diagnostics.md#unsupported-library-import) | A `library(...)` declaration or an `import` of one. | Inline the library's functions into the script. |
 | [`unsupported-udt`](./diagnostics.md#unsupported-udt) | A user-defined `type`. | Replace the UDT with plain variables or arrays of primitives. |
 | [`unsupported-method`](./diagnostics.md#unsupported-method) | A `method` declaration. | Rewrite the method as a free function. |
 | [`unsupported-for-in`](./diagnostics.md#unsupported-for-in) / [`unsupported-while`](./diagnostics.md#unsupported-while) | A `for ... in` or `while` loop. | Rewrite as a literal-bounded `for i = a to b`. |
 | [`for-in-line-all`](./diagnostics.md#for-in-line-all) | Bulk iteration over `line.all` / `box.all` / `label.all`. | Track the handles explicitly in a `var array<line>` (Camp B). |
+
+> **`strategy(...)` is NOT a reject.** A strategy converts to a
+> `defineIndicator` whose `strategy.entry` / `order` / `close` / `exit` /
+> `close_all` calls lower to `order.buy` / `order.sell` / `order.close` market
+> intents on the structured `orders` emission channel, and `strategy.long` /
+> `strategy.short` resolve at the callsite. What is NOT
+> reproduced is the backtester itself — capital, sizing, commission, slippage,
+> the fill model, and any resting `limit` / `stop` / trailing bracket. Those
+> surface as the **warning**
+> [`unsupported-strategy`](./diagnostics.md#unsupported-strategy) plus a
+> per-call [`strategy-signal-only`](./diagnostics.md#strategy-signal-only),
+> [`strategy-direction-assumed`](./diagnostics.md#strategy-direction-assumed),
+> and [`strategy-order-args-dropped`](./diagnostics.md#strategy-order-args-dropped).
+> Fill economics belong to whatever consumes the `orders` channel.
 
 > **Parser limitation:** the Pine `[...]` square-bracket **array literal**
 > does not parse — `[` is only recognised as history access (`x[1]`). A

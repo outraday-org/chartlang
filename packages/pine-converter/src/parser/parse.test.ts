@@ -39,7 +39,7 @@ describe("parseStatements — declarations", () => {
         }
     });
 
-    it("rejects strategy() with exactly one unsupported-strategy diagnostic", () => {
+    it("flags strategy() with exactly one unsupported-strategy diagnostic", () => {
         const result = parse('//@version=6\nstrategy("x")\n');
         expect(result.script.declaration?.kind).toBe("strategy-declaration");
         expect(codes(result)).toEqual(["pine-converter/parse/unsupported-strategy"]);

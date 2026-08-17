@@ -62,15 +62,28 @@ describe("import minimization", () => {
                         "plot(ta.ema(bar.close, 5));",
                         "hline(0);",
                         'alert("x");',
+                        'order.buy({ label: "L" });',
                         'const r = request.security({ interval: "1h" });',
                         "void r;",
                     ],
                 },
             }),
         );
-        for (const name of ["ta", "plot", "hline", "alert", "input", "state", "request"]) {
+        for (const name of ["ta", "plot", "hline", "alert", "order", "input", "state", "request"]) {
             expect(line).toContain(name);
         }
+    });
+
+    it("imports `order` only for a real order.* member, never for Pine's sort enum", () => {
+        // `array.sort(a, order.ascending)` normally folds to a `"asc"` string
+        // literal, but an unrecognised collection leaks the Pine enum verbatim
+        // — which must NOT pull chartlang's unrelated `order` namespace in.
+        const leaked = emitImports(
+            scaffold({ computeBody: { statements: ["array.sort(a, order.ascending);"] } }),
+        );
+        expect(leaked).not.toContain("order");
+        const real = emitImports(scaffold({ computeBody: { statements: ["order.close();"] } }));
+        expect(real).toContain("order");
     });
 
     it("includes time and session when the body references the accessor namespaces", () => {

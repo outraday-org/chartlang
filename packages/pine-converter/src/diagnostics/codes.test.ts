@@ -44,7 +44,13 @@ describe("DIAGNOSTIC_CODE_ENTRIES", () => {
 
     it("pins the per-task severities that downstream tooling depends on", () => {
         const expected: ReadonlyArray<readonly [ParserDiagnosticCode, DiagnosticSeverity]> = [
-            ["unsupported-strategy", "error"],
+            // A `strategy(...)` head is a WARNING, not a reject: the script
+            // converts, its signals lower to `order.*`, and only the
+            // backtester's own configuration is ignored.
+            ["unsupported-strategy", "warning"],
+            ["strategy-signal-only", "info"],
+            ["strategy-direction-assumed", "warning"],
+            ["strategy-order-args-dropped", "warning"],
             ["pine-version-downlevel", "warning"],
             ["accidental-shadowing", "warning"],
             ["dynamic-handle-collection", "info"],
@@ -75,7 +81,7 @@ describe("makeDiagnostic", () => {
     it("carries the default message, severity, and suggestion from the registry", () => {
         const diag = makeDiagnostic("unsupported-strategy", SPAN);
         expect(diag.code).toBe("pine-converter/parse/unsupported-strategy");
-        expect(diag.severity).toBe("error");
+        expect(diag.severity).toBe("warning");
         expect(diag.message).toBe(DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].defaultMessage);
         expect(diag.suggestion).toBe(
             DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].defaultSuggestion,

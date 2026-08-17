@@ -23,6 +23,7 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         bgcolor: false,
  *         barcolor: false,
  *         alert: false,
+ *         order: false,
  *         input: false,
  *         request: false,
  *         barstate: true,
@@ -45,6 +46,7 @@ export type UsageFlags = Readonly<{
     bgcolor: boolean;
     barcolor: boolean;
     alert: boolean;
+    order: boolean;
     input: boolean;
     request: boolean;
     barstate: boolean;
@@ -108,6 +110,14 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         bgcolor: /\bbgcolor\b/.test(corpus),
         barcolor: /\bbarcolor\b/.test(corpus),
         alert: /\balert\b/.test(corpus),
+        // The `order` scan names the MEMBERS, not the namespace, because Pine
+        // has its own unrelated `order` root: `array.sort(a, order.ascending)`
+        // normally folds to a `"asc"`/`"desc"` string literal
+        // (`mapping/arrayReductions.ts`), but an `array.sort` over a collection
+        // the converter did not recognise passes the enum through verbatim. A
+        // bare `order.` scan would import the chartlang namespace for that
+        // leak, in a script with no order call at all.
+        order: /\border\.(?:buy|sell|close|position)\(/.test(corpus),
         input: corpus.includes("input."),
         request: corpus.includes("request."),
         barstate: corpus.includes("barstate."),
