@@ -216,6 +216,50 @@
   absent from `OrderEmission`. `orderPosition` is the *nominal* position
   `order.position()` reads; `FLAT_ORDER_POSITION` is the shared mount value.
   `unsupported-orders` fires once per slot per mount via `diagnosedOrderSlots`.
+- **The position folds at ONE seam — the tail of `runComputeBody`, PER RUNNER —
+  and its guard is `!isTick && !state.depErroredThisBar`.** Every runner
+  (primary, dep, sibling) drives its compute through that one function, so each
+  tracks its own position and a sibling's `order.position()` matches the stream
+  it actually forwards. Each guard term is load-bearing: a **tick** emits the
+  intent but must not fold (ticks are REPLACED, so a folding tick double-applies
+  when the head bar is re-ticked), and **`depErroredThisBar`** is checked because
+  `clearVisualEmissions` runs in `onBarClose` / `onBarTick` *after*
+  `runComputeBody` returns — folding first would apply orders the wire never
+  carried. A **halt** needs no term: the catch arm already emptied
+  `pendingOrders`. The call sits OUTSIDE the `finally` so it cannot resurrect
+  `ACTIVE_RUNTIME_CONTEXT`. "Discard pending orders on a tick" likewise needs no
+  code: the per-step reset already is that.
+- **Fold arithmetic (`emit/orderPosition.ts`) — the edges the RFC leaves to the
+  implementation.** Nominal price is the folding step's `bar.close`, coerced with
+  `Number(...)` because `bar.close` is the cached series VIEW, and every stored
+  price goes through `finiteOrNull`: a warmup `NaN` close must yield
+  `avgPrice: null`, or `captureStateSnapshot` fails its JSON-cleanliness check and
+  ALL persistence degrades to `state-snapshot-malformed`. Absent `qty` is one
+  unit. A fold landing exactly on `size === 0` is FLAT (the "crosses `<=0` to
+  `>0`" rule excludes zero on both sides). A same-side fold that does not grow
+  the position is a partial REDUCE and keeps `avgPrice` + `entryBar` — only added
+  units move a VWAP. `close` goes fully flat and ignores a partial-close `qty`.
+  Every folded position is a NEW frozen object assigned as a whole; never mutate
+  `orderPosition` in place, because `order.position()` handed it to script code.
+- **Auto-markers are pre-gated SILENTLY, outside `emitPlot`.** `emitPlot`'s own
+  capability branch pushes `unsupported-plot-kind`, and RFC §5 requires the
+  marker skip to be silent — so `emitOrderMarkers` checks
+  `capabilities.plots.has("arrow")` / `("label")` itself before delegating. The
+  synthetic slot ids are `${slotId}#marker` / `${slotId}#label`
+  (`ORDER_{MARKER,LABEL}_SLOT_SUFFIX`); they cannot collide with compiler-issued
+  ids, which end in `#<digits>`. Markers ride the ordinary plot queue, so they
+  inherit its `(slotId, bar)` last-write-wins: a repeated same-bar fold collapses
+  to one picture while the append-only `orders` channel keeps every event — the
+  two dedup policies differ on the same event on purpose. No new `PlotKind`, no
+  adapter code.
+- **`RunnerSnapshot.orderPosition` is optional and ABSENCE MEANS FLAT.** It rides
+  per runner (not top-level) so a sibling's position survives an eviction, and it
+  is **omitted while flat**, which keeps every pre-`orders` snapshot
+  byte-identical. Snapshot version stays `2`; no migration. Restore writes every
+  section's position, defaulting to `FLAT_ORDER_POSITION` — a lost position
+  silently inverts every later signal and presents as a strategy that changed its
+  mind, not as a missing field. A history RE-SEED resets it for free (the whole
+  `runtimeContext` is rebuilt), which is correct: the replay re-derives it.
 - **Dep / sibling orders follow the ALERT side of the policy, not the drawing
   side.** A private dep DROPS them (a data dependency must not trade through its
   consumer — only diagnostics escape); a sibling FORWARDS them with the

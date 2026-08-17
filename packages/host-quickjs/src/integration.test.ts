@@ -480,6 +480,54 @@ async function runQuickJsTwoSymbol(): Promise<string> {
     return JSON.stringify(emissions);
 }
 
+// `makeCapabilities()` is the pre-`orders` baseline every other fixture pins
+// byte-for-byte, so the order fixture gets its own bag rather than widening it:
+// `orders: true` plus the two plot kinds the runtime's auto-markers lower to.
+function orderCapabilities(): Capabilities {
+    return {
+        ...makeCapabilities(),
+        plots: capabilities.union(capabilities.allLines(), new Set(["arrow", "label"] as const)),
+        orders: true,
+    };
+}
+
+const ORDERS_FIXTURE: ScriptFixture = {
+    name: "orders",
+    manifest: manifest("orders"),
+    source: source(
+        manifest("orders"),
+        `({ bar, order, plot }) => {
+            plot("parity.ord:1:1#0", bar.close, {});
+            if (bar.close.current === 3) order.buy("parity.ord:2:1#0", { qty: 2, label: "Long" });
+            if (bar.close.current === 7) order.close("parity.ord:3:1#0", { marker: false });
+        }`,
+    ),
+};
+
+async function runWorkerWithOrders(): Promise<string> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({
+        capabilities: orderCapabilities(),
+        workerLike: worker,
+    });
+    await host.load({ moduleSource: ORDERS_FIXTURE.source, manifest: ORDERS_FIXTURE.manifest });
+    await host.push({ kind: "history", bars: bars(10) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
+async function runQuickJsWithOrders(): Promise<string> {
+    const host = createQuickJsHost({ capabilities: orderCapabilities() });
+    await host.load({ moduleSource: ORDERS_FIXTURE.source, manifest: ORDERS_FIXTURE.manifest });
+    await host.push({ kind: "history", bars: bars(10) });
+    const emissions = await host.drain();
+    host.dispose();
+    return JSON.stringify(emissions);
+}
+
 describe("host-quickjs integration parity", () => {
     for (const fixture of FIXTURES) {
         it(`matches host-worker emissions for ${fixture.name}`, async () => {
@@ -505,6 +553,48 @@ describe("host-quickjs integration parity", () => {
         expect(hidden?.visible).toBe(false);
         expect(recolored?.color).toBe("#ff0000");
         expect(recolored?.style.lineWidth).toBe(3);
+    });
+
+    it("matches host-worker emissions for the orders channel and its auto-markers", async () => {
+        const quickjs = await runQuickJsWithOrders();
+        const worker = await runWorkerWithOrders();
+        expect(quickjs).toBe(worker);
+
+        // Sanity: the channel and the courtesy markers actually rode the wire
+        // (not a no-op match on two empty arrays).
+        const drained = JSON.parse(quickjs) as {
+            orders: ReadonlyArray<{
+                slotId: string;
+                action: string;
+                qty: number | null;
+                label: string;
+                bar: number;
+                dedupeKey: string;
+            }>;
+            plots: ReadonlyArray<{
+                slotId: string;
+                bar: number;
+                value: number | null;
+                color: string | null;
+                style: { kind: string; direction?: string; text?: string; position?: string };
+            }>;
+        };
+        expect(drained.orders.map((o) => [o.action, o.bar, o.qty, o.label])).toEqual([
+            ["buy", 2, 2, "Long"],
+            ["close", 6, null, ""],
+        ]);
+        expect(drained.orders.every((o) => o.dedupeKey.length > 0)).toBe(true);
+        // `marker: false` on the close suppressed its plots; the buy drew an
+        // up arrow at the bar low plus a label below it.
+        const markers = drained.plots.filter((p) => p.slotId.startsWith("parity.ord:"));
+        expect(
+            markers
+                .filter((p) => p.slotId.includes("#marker") || p.slotId.includes("#label"))
+                .map((p) => [p.slotId, p.bar, p.value, p.color, p.style.kind]),
+        ).toEqual([
+            ["parity.ord:2:1#0#marker", 2, 2, "#26a69a", "arrow"],
+            ["parity.ord:2:1#0#label", 2, 2, "#26a69a", "label"],
+        ]);
     });
 
     it("matches host-worker emissions for external-series load and whole-map replacement", async () => {

@@ -272,3 +272,85 @@ describe("validateSnapshot", () => {
         ).toBe(false);
     });
 });
+
+describe("validateSnapshot — RunnerSnapshot.orderPosition", () => {
+    it("accepts an absent position (absence means flat)", () => {
+        expect(validateSnapshot(wellFormedStructured)).toBe(true);
+    });
+
+    it("accepts a well-formed position on any section", () => {
+        expect(
+            validateSnapshot({
+                ...wellFormedStructured,
+                primary: {
+                    ...wellFormedStructured.primary,
+                    orderPosition: { size: -2, avgPrice: 101.5, entryBar: 4 },
+                },
+                siblings: {
+                    slow: {
+                        ...wellFormedStructured.siblings.slow,
+                        orderPosition: { size: 0, avgPrice: null, entryBar: null },
+                    },
+                },
+            }),
+        ).toBe(true);
+    });
+
+    it("rejects a non-record position", () => {
+        expect(
+            validateSnapshot({
+                ...wellFormedStructured,
+                primary: { ...wellFormedStructured.primary, orderPosition: 1 },
+            }),
+        ).toBe(false);
+    });
+
+    it("rejects a non-finite size", () => {
+        for (const size of [Number.NaN, Number.POSITIVE_INFINITY, "1"]) {
+            expect(
+                validateSnapshot({
+                    ...wellFormedStructured,
+                    primary: {
+                        ...wellFormedStructured.primary,
+                        orderPosition: { size, avgPrice: null, entryBar: null },
+                    },
+                }),
+            ).toBe(false);
+        }
+    });
+
+    it("rejects a non-finite, non-null avgPrice", () => {
+        expect(
+            validateSnapshot({
+                ...wellFormedStructured,
+                primary: {
+                    ...wellFormedStructured.primary,
+                    orderPosition: { size: 1, avgPrice: Number.NaN, entryBar: 0 },
+                },
+            }),
+        ).toBe(false);
+    });
+
+    it("rejects a non-integer, non-null entryBar", () => {
+        expect(
+            validateSnapshot({
+                ...wellFormedStructured,
+                primary: {
+                    ...wellFormedStructured.primary,
+                    orderPosition: { size: 1, avgPrice: 10, entryBar: 1.5 },
+                },
+            }),
+        ).toBe(false);
+    });
+
+    it("rejects a malformed position on a sibling section", () => {
+        expect(
+            validateSnapshot({
+                ...wellFormedStructured,
+                siblings: {
+                    slow: { ...wellFormedStructured.siblings.slow, orderPosition: { size: 1 } },
+                },
+            }),
+        ).toBe(false);
+    });
+});

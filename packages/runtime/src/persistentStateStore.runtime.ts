@@ -3,6 +3,7 @@
 
 import type {
     JsonValue,
+    OrderPosition,
     RunnerSnapshot,
     StateSnapshot,
     StreamSnapshot,
@@ -11,7 +12,7 @@ import type {
 import type { RunnerState } from "./createScriptRunner.js";
 import { pushDiagnostic } from "./emit/index.js";
 import { validateSnapshot } from "./persistentStateStore.validate.js";
-import type { RuntimeContext } from "./runtimeContext.js";
+import { FLAT_ORDER_POSITION, type RuntimeContext } from "./runtimeContext.js";
 import {
     isArraySlotSnapshotKey,
     isMapSlotSnapshotKey,
@@ -69,6 +70,18 @@ function primarySectionSlots(state: RunnerState): Readonly<Record<string, JsonVa
     } as Record<string, JsonValue>);
 }
 
+// Omit-when-flat, the same idiom `xShift` / `z` / `visible` use on the plot
+// wire: a script that emits no orders leaves every captured section
+// byte-identical to the pre-`orders` shape, so no existing snapshot assertion
+// moves. Absence is read back as `FLAT_ORDER_POSITION`.
+function orderPositionSection(ctx: RuntimeContext): { orderPosition?: OrderPosition } {
+    const position = ctx.orderPosition;
+    if (position.size === 0 && position.avgPrice === null && position.entryBar === null) {
+        return {};
+    }
+    return { orderPosition: position };
+}
+
 function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
     return Object.freeze({
         slots: Object.freeze({
@@ -78,6 +91,7 @@ function runnerSection(ctx: RuntimeContext): RunnerSnapshot {
             ...serialiseArraySlots(ctx),
             ...serialiseMapSlots(ctx),
         } as Record<string, JsonValue>),
+        ...orderPositionSection(ctx),
     });
 }
 
@@ -107,7 +121,9 @@ function captureDependencies(
  * Returns the structured shape carrying `primary.slots`, optional
  * `siblings[exportName].slots`, and optional `dependencies[localId].slots`.
  * TA slots live in `primary.slots` because the bundle's deps and siblings
- * share the primary's `mainStream` (Task-4 invariant).
+ * share the primary's `mainStream` (Task-4 invariant). Each section also carries
+ * its own nominal `order.*` position, **omitted while flat** so a script that
+ * emits no orders captures a byte-identical payload.
  *
  * `state.barIndex` counts closed bars — `onBarClose` increments it AFTER
  * the compute body, and every capture site runs after that increment — so
@@ -132,7 +148,10 @@ export function captureStateSnapshot(state: RunnerState, savedAt: number): State
         streams,
         savedAt,
         snapshotVersion: 2,
-        primary: { slots: primarySectionSlots(state) },
+        primary: {
+            slots: primarySectionSlots(state),
+            ...orderPositionSection(state.runtimeContext),
+        },
         ...(siblings === undefined ? {} : { siblings }),
         ...(dependencies === undefined ? {} : { dependencies }),
     };
@@ -222,6 +241,7 @@ function restoreSiblingSections(
             section.slots,
             state.mainStream.ohlcv.close.capacity,
         );
+        sibling.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
     }
 }
 
@@ -244,6 +264,7 @@ function restoreDependencySections(
             section.slots,
             state.mainStream.ohlcv.close.capacity,
         );
+        dep.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
     }
 }
 
@@ -258,6 +279,11 @@ function restoreDependencySections(
  * `state-snapshot-malformed` diagnostic.
  *
  * Legacy flat-shape snapshots (pre-0.7) restore into the primary only.
+ *
+ * Every restored section's nominal `order.*` position is written too, and an
+ * absent field restores {@link FLAT_ORDER_POSITION} — a lost position would
+ * silently invert the direction of every later signal, which presents as a
+ * strategy that changed its mind rather than as a missing field.
  *
  * The runner's cursor comes from the snapshot's explicit `barIndex` (the
  * last bar folded in), so the next bar the host feeds is `barIndex + 1` —
@@ -289,6 +315,7 @@ export function restoreStateSnapshot(state: RunnerState, snapshot: StateSnapshot
     const primarySlots = primarySlotsOf(snapshot);
     restoreTaSlots(state.mainStream, primarySlots);
     restoreRunnerSlots(state.runtimeContext, primarySlots, state.mainStream.ohlcv.close.capacity);
+    state.runtimeContext.orderPosition = primaryOrderPositionOf(snapshot);
 
     if (snapshot.siblings !== undefined) {
         restoreSiblingSections(state, snapshot.siblings);
@@ -321,6 +348,14 @@ function primarySlotsOf(snapshot: StateSnapshot): Readonly<Record<string, JsonVa
     /* c8 ignore next 2 — validateSnapshot guarantees one of primary/slots is present. */
     if (view.slots === undefined) return EMPTY_SLOTS;
     return view.slots;
+}
+
+// Absence means flat — both for a legacy flat-shape payload (no `primary`
+// section at all) and for a structured one captured while the position was flat.
+// Read through the same legacy-aware view as the slots above.
+function primaryOrderPositionOf(snapshot: StateSnapshot): OrderPosition {
+    const view = snapshot as LegacySnapshotView;
+    return view.primary?.orderPosition ?? FLAT_ORDER_POSITION;
 }
 
 /**

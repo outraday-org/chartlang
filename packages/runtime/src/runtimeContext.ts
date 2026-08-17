@@ -394,8 +394,11 @@ export type RuntimeContext = {
      * `runtime.error()` halt, a dep error), so it can only ever hold this
      * step's accepted orders. A rejected (malformed) order never lands here —
      * `pushOrder`'s boolean is what keeps the two in lockstep. Appended by
-     * `emit/order.ts`; the confirmed-step position fold and the auto-marker
-     * lowering consume it. @since 1.11
+     * `emit/order.ts` and consumed by `emit/orderPosition.ts:foldConfirmedOrders`
+     * (the position fold + auto-marker lowering) at the tail of
+     * `execution/runComputeStep.ts:runComputeBody`. Because the reset is
+     * per-step, "discard the pending orders on a tick" needs no code of its
+     * own — the tick simply never folds. @since 1.11
      */
     pendingOrders: PendingOrder[];
     /**
@@ -405,7 +408,12 @@ export type RuntimeContext = {
      * the authority on economics. Read by `order.position()`, which therefore
      * reports the state as of the previous confirmed fold (reproducing Pine's
      * `strategy.position_size` lag, since reads happen during `compute` and
-     * folds after it returns). Starts {@link FLAT_ORDER_POSITION}. @since 1.11
+     * folds after it returns). Starts {@link FLAT_ORDER_POSITION} and is
+     * REPLACED as a whole frozen object by the fold, never mutated in place —
+     * script code holds whatever `order.position()` handed it. A tick, a halted
+     * step and a dep-errored bar all leave it untouched. Rides the state
+     * snapshot per runner (`RunnerSnapshot.orderPosition`, absent ⇒ flat).
+     * @since 1.11
      */
     orderPosition: OrderPosition;
     /**

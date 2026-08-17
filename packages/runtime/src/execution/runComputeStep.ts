@@ -4,7 +4,7 @@
 import { buildComputeContext } from "../buildComputeContext.js";
 import type { RunnerState } from "../createScriptRunner.js";
 import { resetSubIdCounters } from "../emit/draw/index.js";
-import { isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
+import { foldConfirmedOrders, isRuntimeErrorHalt, pushDiagnostic } from "../emit/index.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
 import {
     advanceObjectSeriesSlots,
@@ -100,6 +100,11 @@ export function resetBarEmissions(state: RunnerState): void {
  * single-script behaviour byte-for-byte. Non-halt throws propagate
  * out unchanged.
  *
+ * On a **confirmed** step (`history` / `close`) that neither halted nor lost a
+ * dep, the tail folds the step's accepted `order.*` intents into the runner's
+ * nominal position and auto-renders their markers — see the comment at the
+ * call site for why each suppressing condition is there.
+ *
  * @since 0.7
  * @stable
  * @example
@@ -165,6 +170,23 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
     } finally {
         if (isTick) state.runtimeContext.isTick = false;
         ACTIVE_RUNTIME_CONTEXT.current = null;
+    }
+    // THE confirmed-step fold seam (RFC 0002 §7). Runs per runner — primary,
+    // dep and sibling all drive their compute through this one function — so
+    // each runner's `order.position()` matches its own emitted stream. Two
+    // suppressing conditions, and one that needs no term:
+    //   - `isTick`: ticks are REPLACED, not accumulated, so a folding tick would
+    //     double-apply the moment the head bar is re-ticked. The intents still
+    //     reached the wire; only the position stands still.
+    //   - `depErroredThisBar`: `clearVisualEmissions` runs in `onBarClose` /
+    //     `onBarTick` AFTER this function returns, so folding first would apply
+    //     orders that never reach the wire. (Sub-runner states never set it.)
+    //   - a HALT needs no term: the catch arm above already emptied
+    //     `pendingOrders`, which makes the fold a no-op by construction.
+    // Deliberately OUTSIDE the `finally`: the fold takes its context explicitly
+    // and must not resurrect `ACTIVE_RUNTIME_CONTEXT`.
+    if (!isTick && !state.depErroredThisBar) {
+        foldConfirmedOrders(state.runtimeContext);
     }
     return outcome;
 }

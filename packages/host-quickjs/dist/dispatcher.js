@@ -8385,6 +8385,78 @@ function position() {
 }
 var ORDER_NAMESPACE = Object.freeze({ buy, sell, close, position });
 
+// ../runtime/dist/emit/orderPosition.js
+var MARKER_BUY_COLOR = "#26a69a";
+var MARKER_SELL_COLOR = "#ef5350";
+var MARKER_ARROW_SIZE = 12;
+var MARKER_TITLE = "Order";
+var ORDER_MARKER_SLOT_SUFFIX = "#marker";
+var ORDER_LABEL_SLOT_SUFFIX = "#label";
+function freezePosition(size, avgPrice, entryBar) {
+  return Object.freeze({ size, avgPrice, entryBar });
+}
+function applyOrderToPosition(prev, emission, bar, price) {
+  if (emission.action === "close")
+    return FLAT_ORDER_POSITION;
+  const qty = emission.qty ?? 1;
+  const size = prev.size + (emission.action === "buy" ? qty : -qty);
+  if (size === 0)
+    return FLAT_ORDER_POSITION;
+  if (prev.size === 0 || Math.sign(prev.size) !== Math.sign(size)) {
+    return freezePosition(size, finiteOrNull(price), bar);
+  }
+  const prevUnits = Math.abs(prev.size);
+  const addedUnits = Math.abs(size) - prevUnits;
+  if (addedUnits <= 0 || prev.avgPrice === null) {
+    return freezePosition(size, prev.avgPrice, prev.entryBar);
+  }
+  const weighted = (prev.avgPrice * prevUnits + price * addedUnits) / Math.abs(size);
+  return freezePosition(size, finiteOrNull(weighted), prev.entryBar);
+}
+function emitOrderMarkers(ctx, emission) {
+  const isBuy = emission.action === "buy";
+  const color2 = isBuy ? MARKER_BUY_COLOR : MARKER_SELL_COLOR;
+  const value = resolveValue(Number(isBuy ? ctx.stream.bar.low : ctx.stream.bar.high));
+  if (ctx.capabilities.plots.has("arrow")) {
+    emitPlot(ctx, `${emission.slotId}${ORDER_MARKER_SLOT_SUFFIX}`, { kind: "arrow", direction: isBuy ? "up" : "down", size: MARKER_ARROW_SIZE }, {
+      title: MARKER_TITLE,
+      value,
+      color: color2,
+      paneOpt: "overlay",
+      visible: void 0,
+      xShift: 0,
+      z: 0,
+      colorValue: void 0
+    });
+  }
+  if (emission.label !== "" && ctx.capabilities.plots.has("label")) {
+    emitPlot(ctx, `${emission.slotId}${ORDER_LABEL_SLOT_SUFFIX}`, { kind: "label", text: emission.label, position: isBuy ? "below" : "above" }, {
+      title: MARKER_TITLE,
+      value,
+      color: color2,
+      paneOpt: "overlay",
+      visible: void 0,
+      xShift: 0,
+      z: 0,
+      colorValue: void 0
+    });
+  }
+}
+function foldConfirmedOrders(ctx) {
+  const pending = ctx.pendingOrders;
+  if (pending.length === 0)
+    return;
+  const bar = ctx.barIndex();
+  const price = Number(ctx.stream.bar.close);
+  let position2 = ctx.orderPosition;
+  for (const record of pending) {
+    position2 = applyOrderToPosition(position2, record.emission, bar, price);
+    if (record.marker)
+      emitOrderMarkers(ctx, record.emission);
+  }
+  ctx.orderPosition = position2;
+}
+
 // ../runtime/dist/emit/plotCandle.js
 var CANDLE_OUTSIDE_CTX_MESSAGE = "plotcandle called outside an active script step";
 var BAR_OUTSIDE_CTX_MESSAGE = "plotbar called outside an active script step";
@@ -16964,6 +17036,9 @@ async function runComputeBody(args) {
       state2.runtimeContext.isTick = false;
     ACTIVE_RUNTIME_CONTEXT.current = null;
   }
+  if (!isTick && !state2.depErroredThisBar) {
+    foldConfirmedOrders(state2.runtimeContext);
+  }
   return outcome;
 }
 
@@ -17534,8 +17609,21 @@ function isStreamSnapshot(value) {
 function isSlotsRecord(value) {
   return isRecord2(value) && Object.values(value).every((entry) => isJsonValue2(entry));
 }
+function isOrderPosition(value) {
+  if (!isRecord2(value))
+    return false;
+  if (!isSnapshotNumber(value.size))
+    return false;
+  if (value.avgPrice !== null && !isSnapshotNumber(value.avgPrice))
+    return false;
+  return value.entryBar === null || isBarIndex(value.entryBar);
+}
 function isRunnerSnapshot(value) {
-  return isRecord2(value) && isSlotsRecord(value.slots);
+  if (!isRecord2(value))
+    return false;
+  if (!isSlotsRecord(value.slots))
+    return false;
+  return value.orderPosition === void 0 || isOrderPosition(value.orderPosition);
 }
 function isRunnerSnapshotMap(value) {
   return isRecord2(value) && Object.values(value).every((entry) => isRunnerSnapshot(entry));
@@ -17785,6 +17873,13 @@ function primarySectionSlots(state2) {
     ...serialiseTaSlots(state2.mainStream)
   });
 }
+function orderPositionSection(ctx) {
+  const position2 = ctx.orderPosition;
+  if (position2.size === 0 && position2.avgPrice === null && position2.entryBar === null) {
+    return {};
+  }
+  return { orderPosition: position2 };
+}
 function runnerSection(ctx) {
   return Object.freeze({
     slots: Object.freeze({
@@ -17793,7 +17888,8 @@ function runnerSection(ctx) {
       ...serialiseObjectSeriesSlots(ctx),
       ...serialiseArraySlots(ctx),
       ...serialiseMapSlots(ctx)
-    })
+    }),
+    ...orderPositionSection(ctx)
   });
 }
 function captureSiblings(state2) {
@@ -17824,7 +17920,10 @@ function captureStateSnapshot(state2, savedAt) {
     streams,
     savedAt,
     snapshotVersion: 2,
-    primary: { slots: primarySectionSlots(state2) },
+    primary: {
+      slots: primarySectionSlots(state2),
+      ...orderPositionSection(state2.runtimeContext)
+    },
     ...siblings === void 0 ? {} : { siblings },
     ...dependencies === void 0 ? {} : { dependencies }
   };
@@ -17874,6 +17973,7 @@ function restoreSiblingSections(state2, siblings) {
       continue;
     }
     restoreRunnerSlots(sibling.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
+    sibling.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
   }
 }
 function restoreDependencySections(state2, dependencies) {
@@ -17885,6 +17985,7 @@ function restoreDependencySections(state2, dependencies) {
       continue;
     }
     restoreRunnerSlots(dep.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
+    dep.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
   }
 }
 function restoreStateSnapshot(state2, snapshot6) {
@@ -17902,6 +18003,7 @@ function restoreStateSnapshot(state2, snapshot6) {
   const primarySlots = primarySlotsOf(snapshot6);
   restoreTaSlots(state2.mainStream, primarySlots);
   restoreRunnerSlots(state2.runtimeContext, primarySlots, state2.mainStream.ohlcv.close.capacity);
+  state2.runtimeContext.orderPosition = primaryOrderPositionOf(snapshot6);
   if (snapshot6.siblings !== void 0) {
     restoreSiblingSections(state2, snapshot6.siblings);
   }
@@ -17917,6 +18019,10 @@ function primarySlotsOf(snapshot6) {
   if (view.slots === void 0)
     return EMPTY_SLOTS;
   return view.slots;
+}
+function primaryOrderPositionOf(snapshot6) {
+  const view = snapshot6;
+  return view.primary?.orderPosition ?? FLAT_ORDER_POSITION;
 }
 async function saveStateSnapshot(state2, savedAt) {
   const store = state2.runtimeContext.persistentStateStore;
