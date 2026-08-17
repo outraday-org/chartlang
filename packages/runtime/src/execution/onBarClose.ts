@@ -15,6 +15,11 @@ function clearVisualEmissions(state: RunnerState): void {
     state.emissions.drawings = [];
     state.emissions.alerts = [];
     state.emissions.alertConditions = [];
+    // A dep error invalidates the bar for the primary the same way a halt does,
+    // so its order intents (and the pending records the fold would read) go
+    // too — see the halt comment in `runComputeStep.ts`.
+    state.emissions.orders = [];
+    state.runtimeContext.pendingOrders = [];
     state.emissions.logs = [];
 }
 

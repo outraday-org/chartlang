@@ -26,7 +26,7 @@ export { createScriptRunner, resetStateForHistoryReseed } from "./createScriptRu
 export type { CreateScriptRunnerArgs, ScriptRunner } from "./createScriptRunner.js";
 export { buildBundleFromModule } from "./loadBundle.js";
 export type { CompiledModuleExport } from "./loadBundle.js";
-export { alert, applyPlotOverride, draw, hline, plot, pushDrawing } from "./emit/index.js";
+export { alert, applyPlotOverride, draw, hline, order, plot, pushDrawing } from "./emit/index.js";
 export { TA_REGISTRY, ta } from "./ta/index.js";
 export { maRibbonOutputKeys } from "./ta/index.js";
 export type { RuntimeTaNamespace, ScalarOrSeries } from "./ta/index.js";

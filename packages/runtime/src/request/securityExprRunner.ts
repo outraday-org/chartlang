@@ -10,7 +10,11 @@ import type {
 } from "@invinite-org/chartlang-core";
 import { feedKey } from "@invinite-org/chartlang-core";
 
-import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
+import {
+    ACTIVE_RUNTIME_CONTEXT,
+    FLAT_ORDER_POSITION,
+    type RuntimeContext,
+} from "../runtimeContext.js";
 import { Float64RingBuffer } from "../ringBuffer.js";
 import { advanceSeriesSlots, commitSeriesSlots, resetSeriesHeads } from "../state/index.js";
 import { inMemoryStateStore } from "../stateStore.js";
@@ -140,6 +144,9 @@ function buildExprContext(
         diagnosedRequestKeys: new Set(),
         diagnosedTzKeys: new Set(),
         sessionCalendar: parent.sessionCalendar,
+        diagnosedOrderSlots: new Set(),
+        pendingOrders: [],
+        orderPosition: FLAT_ORDER_POSITION,
         logBudget: 0,
         logBudgetExceededDiagnosed: false,
         resolvedInputs: parent.resolvedInputs,

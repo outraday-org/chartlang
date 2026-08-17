@@ -72,10 +72,15 @@ export function resetBarEmissions(state: RunnerState): void {
     state.emissions.drawings = [];
     state.emissions.alerts = [];
     state.emissions.alertConditions = [];
+    state.emissions.orders = [];
     state.emissions.logs = [];
     state.emissions.diagnostics = [];
     state.emissions.fromBar = state.barIndex;
     state.emissions.toBar = state.barIndex;
+    // `pendingOrders` is per-STEP, like the queues above: it holds only the
+    // orders this step accepted onto the wire, which is what lets the
+    // confirmed-step fold read it without filtering.
+    state.runtimeContext.pendingOrders = [];
     state.runtimeContext.requestSecurityAlignments.clear();
     state.runtimeContext.requestSecurityAscendingBars.clear();
     state.runtimeContext.requestSecurityExprSeries?.clear();
@@ -139,6 +144,13 @@ export async function runComputeBody(args: RunComputeStepArgs): Promise<RunCompu
             state.emissions.drawings = [];
             state.emissions.alerts = [];
             state.emissions.alertConditions = [];
+            // Orders are signals rather than visuals, which is why they survive
+            // DEDUP — but that framing buys them nothing against a HALT: a
+            // halted bar's intents are not trustworthy, so they are discarded
+            // with the visual queues, and `pendingOrders` goes with them or the
+            // position would fold an order that never reached the wire.
+            state.emissions.orders = [];
+            state.runtimeContext.pendingOrders = [];
             state.emissions.logs = [];
             pushDiagnostic(state.emissions, {
                 kind: "diagnostic",

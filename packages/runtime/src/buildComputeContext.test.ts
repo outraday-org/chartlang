@@ -116,7 +116,7 @@ function freshState(): RunnerState {
 }
 
 describe("buildComputeContext", () => {
-    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / state / time / session / request / runtime / views", () => {
+    it("returns an object with bar / inputs / ta / plot / hline / alert / draw / order / state / time / session / request / runtime / views", () => {
         const state = freshState();
         const ctx = buildComputeContext(state);
         expect(ctx).toHaveProperty("bar");
@@ -128,6 +128,7 @@ describe("buildComputeContext", () => {
         expect(ctx).toHaveProperty("barcolor");
         expect(ctx).toHaveProperty("alert");
         expect(ctx).toHaveProperty("draw");
+        expect(ctx).toHaveProperty("order");
         expect(ctx).toHaveProperty("state");
         expect(ctx).toHaveProperty("request");
         expect(ctx).toHaveProperty("runtime");

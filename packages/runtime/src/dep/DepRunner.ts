@@ -15,7 +15,7 @@ import {
     replaceExternalSeriesFeedMap,
 } from "../inputs/externalSeriesFeeds.js";
 import { resolveInputs } from "../inputs/resolveInputs.js";
-import type { MutableRunnerEmissions } from "../runtimeContext.js";
+import { FLAT_ORDER_POSITION, type MutableRunnerEmissions } from "../runtimeContext.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import type { StreamState } from "../streamState.js";
 import { createRuntimeViews } from "../views/index.js";
@@ -212,6 +212,9 @@ function buildSubRunnerState(
             sessionCalendar: args.sessionCalendar,
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),
+            diagnosedOrderSlots: new Set(),
+            pendingOrders: [],
+            orderPosition: FLAT_ORDER_POSITION,
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),

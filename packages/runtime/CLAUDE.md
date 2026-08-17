@@ -192,10 +192,43 @@
   what lets `drain()` hand it over by reference with no `?? []`: an absent
   orders queue is not a reachable state. The retrofit-optional
   `alertConditions?` beside it is the counter-example — it seeded `?? []`
-  fallbacks across the codebase for a state that could not occur. Nothing
-  pushes to `orders` yet (the `order.*` emitters and the queue-lifecycle sweep
-  land with the order-emission work), so a drain today always reports
-  `orders: []`.
+  fallbacks across the codebase for a state that could not occur.
+- **The `orders` queue is APPEND-ONLY, and every queue-lifecycle site must
+  handle it — a miss is silent data loss, never an error.** `pushOrder`
+  validates then appends (`pushAlertCondition` / `pushLog`'s shape, NOT
+  `pushAlert`'s `(slotId, bar)` last-write-wins): an order is an *event* the
+  position tracker folds, so a dropped same-slot duplicate would leave the
+  emitted stream and the reported position disagreeing; host idempotency is
+  `dedupeKey`'s job, and because that key is payload-derived, two byte-identical
+  intents in one bar deliberately share it. The sites are
+  `runComputeStep.resetBarEmissions`, the `runtime.error()` halt, both
+  `clearVisualEmissions` dep-error paths (`onBarClose` / `onBarTick`),
+  `drain`, **`onHistory`'s accumulator** (the easiest to miss — omit it and a
+  1000-bar backfill reports only the LAST bar's orders), `emissionFilter`, and
+  `DepRunner.freshEmissions`. `pushOrder` returns whether it queued, which is
+  what keeps `RuntimeContext.pendingOrders` in lockstep with the wire.
+- **Orders survive DEDUP but not a HALT.** A `runtime.error()` halt and a dep
+  error discard the bar's `orders` with the visual queues, and
+  `RuntimeContext.pendingOrders` goes with them — otherwise the fold would apply
+  an intent that never reached the wire. `pendingOrders` is per-STEP (reset in
+  `resetBarEmissions`, which every runner including deps/siblings routes
+  through) and carries the render-only `marker` flag, which is deliberately
+  absent from `OrderEmission`. `orderPosition` is the *nominal* position
+  `order.position()` reads; `FLAT_ORDER_POSITION` is the shared mount value.
+  `unsupported-orders` fires once per slot per mount via `diagnosedOrderSlots`.
+- **Dep / sibling orders follow the ALERT side of the policy, not the drawing
+  side.** A private dep DROPS them (a data dependency must not trade through its
+  consumer — only diagnostics escape); a sibling FORWARDS them with the
+  `export:<name>/` slot-id prefix and an **untouched `dedupeKey`**, which embeds
+  the original unprefixed slot id and would break host idempotency across a
+  remount if rewritten.
+- **There is exactly ONE `meta` snapshot implementation** —
+  `emit/snapshotMeta.ts`, shared by `alert`, `runtime.log.*` and `order.*`. It
+  deep-clones (so a post-call mutation or a revoked proxy cannot reach a queued
+  emission) **and** freezes every level (so a consumer cannot mutate what it was
+  handed). It was two divergent private copies before; do not add a third, and
+  do not re-split it — `emitLog` pre-rejects non-plain meta, `alert` / `order`
+  let `validateEmission` arbitrate, and both are satisfied by the one helper.
 - **`state.*` snapshots are host-owned once flushed.** Task 9 added
   `RuntimeContext.stateSlots` for committed/tentative `state.*` and
   immediately-committed `state.tick.*` slots. `onBarClose` commits and
@@ -748,7 +781,8 @@
   script runners pass through with empty `depRunners`/`siblingRunners`
   arrays and a `null` store. Dep halts flip `state.depErroredThisBar`
   which clears the primary's plots/drawings/alerts/alertConditions/
-  logs (NOT diagnostics) after `runComputeBody` returns. Sibling
+  orders/logs and its `pendingOrders` (NOT diagnostics) after
+  `runComputeBody` returns. Sibling
   halts do NOT propagate. `__chartlang_depOutput` is installed on
   `globalThis` the first time a bundle mounts; the compiler-emitted
   bundle's inline shim resolves to that global reference, and the

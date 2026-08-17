@@ -18,11 +18,13 @@ export {
     pushAlertCondition,
     pushDiagnostic,
     pushLog,
+    pushOrder,
     pushPlot,
 } from "./emissionsQueue.js";
 export { hashStringStable } from "./hash.js";
 export { hline } from "./hline.js";
 export { buildRuntimeNamespace, emitLog } from "./logEmission.js";
+export { ORDER_NAMESPACE as order } from "./order.js";
 export { resolveDefaultPane, resolvePane, resolveScriptPane } from "./paneResolver.js";
 export { plot } from "./plot.js";
 export { plotbar, plotcandle } from "./plotCandle.js";

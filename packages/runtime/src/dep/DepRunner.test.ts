@@ -214,8 +214,9 @@ describe("runDepStep / runSiblingStep — end-to-end via createScriptRunner", ()
         const primary = defineIndicator({
             name: "primary",
             apiVersion: 1,
-            compute: ({ plot }) => {
+            compute: ({ order, plot }) => {
                 plot("primary:1:1#0", 99, { title: "out" });
+                (order.buy as unknown as (slotId: string) => void)("primary:2:1#0");
             },
         });
         return Object.freeze({
@@ -225,14 +226,17 @@ describe("runDepStep / runSiblingStep — end-to-end via createScriptRunner", ()
         });
     }
 
-    it("dep halt sets dep-error diagnostic and clears primary visuals", async () => {
+    it("dep halt sets dep-error diagnostic and clears primary visuals AND orders", async () => {
         const runner = createScriptRunner({
             compiled: bundleWithDepThatHalts(),
-            capabilities: makeCapabilities(),
+            capabilities: { ...makeCapabilities(), orders: true },
         });
         await runner.onBarClose(makeBar());
         const drained = runner.drain();
         expect(drained.plots).toHaveLength(0);
+        // A dep error invalidates the bar for the primary the same way a halt
+        // does, so its order intents go with the visuals.
+        expect(drained.orders).toHaveLength(0);
         const depErr = drained.diagnostics.find((d) => d.code === "dep-error");
         expect(depErr).toBeDefined();
         expect(depErr?.slotId).toBe("dep:bad/");
@@ -472,8 +476,9 @@ describe("runDepStep / runSiblingStep — additional cases", () => {
         const primary = defineIndicator({
             name: "p",
             apiVersion: 1,
-            compute: ({ plot }) => {
+            compute: ({ order, plot }) => {
                 plot("p:1:1#0", 9, { title: "out" });
+                (order.sell as unknown as (slotId: string) => void)("p:2:1#0");
             },
         });
         const bundle: CompiledScriptBundle = Object.freeze({
@@ -483,7 +488,7 @@ describe("runDepStep / runSiblingStep — additional cases", () => {
         });
         const runner = createScriptRunner({
             compiled: bundle,
-            capabilities: makeCapabilities(),
+            capabilities: { ...makeCapabilities(), orders: true },
         });
         await runner.onBarClose(makeBar());
         runner.drain(); // discard close emissions
@@ -491,6 +496,7 @@ describe("runDepStep / runSiblingStep — additional cases", () => {
         const drained = runner.drain();
         // Primary's emissions were cleared due to dep halt.
         expect(drained.plots.find((p) => p.title === "out")).toBeUndefined();
+        expect(drained.orders).toHaveLength(0);
         const depErr = drained.diagnostics.find((d) => d.code === "dep-error");
         expect(depErr?.slotId).toBe("dep:halt/");
         await runner.dispose();

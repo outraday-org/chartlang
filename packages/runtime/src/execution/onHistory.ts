@@ -68,6 +68,11 @@ export async function onHistory(state: RunnerState, bars: ReadonlyArray<Bar>): P
     const drawings = state.emissions.drawings;
     const alerts = state.emissions.alerts;
     const alertConditions = state.emissions.alertConditions ?? [];
+    // Orders accumulate here like every other channel. Omitting a channel from
+    // this hoist is silent: `onBarClose` resets the per-bar queues, so the drain
+    // would report only the LAST bar's orders — a 1000-bar backfill reporting
+    // one order, which reads as a script bug rather than a lost hoist.
+    const orders = state.emissions.orders;
     const logs = state.emissions.logs;
     const diagnostics = state.emissions.diagnostics;
     for (const bar of bars) {
@@ -76,6 +81,7 @@ export async function onHistory(state: RunnerState, bars: ReadonlyArray<Bar>): P
         drawings.push(...state.emissions.drawings);
         alerts.push(...state.emissions.alerts);
         alertConditions.push(...(state.emissions.alertConditions ?? []));
+        orders.push(...state.emissions.orders);
         logs.push(...state.emissions.logs);
         diagnostics.push(...state.emissions.diagnostics);
     }
@@ -83,6 +89,7 @@ export async function onHistory(state: RunnerState, bars: ReadonlyArray<Bar>): P
     state.emissions.drawings = drawings;
     state.emissions.alerts = alerts;
     state.emissions.alertConditions = alertConditions;
+    state.emissions.orders = orders;
     state.emissions.logs = logs;
     state.emissions.diagnostics = diagnostics;
     state.emissions.fromBar = fromBar;

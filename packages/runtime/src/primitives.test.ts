@@ -4,7 +4,7 @@
 import { DRAWING_KINDS, KIND_CAMELCASE } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { alert, draw, hline, plot, ta } from "./primitives.js";
+import { alert, draw, hline, order, plot, ta } from "./primitives.js";
 import { TA_REGISTRY } from "./ta/index.js";
 
 describe("primitives — ta seam (Task 7 wired)", () => {
@@ -52,6 +52,27 @@ describe("primitives — emit re-exports (Task 8 seam)", () => {
 
     it("alert throws the sentinel when called outside an active script step", () => {
         expect(() => alert("hi")).toThrow("alert called outside an active script step");
+    });
+});
+
+describe("primitives — order seam", () => {
+    it("exposes the four order members", () => {
+        for (const name of ["buy", "sell", "close", "position"] as const) {
+            expect(typeof (order as unknown as Record<string, unknown>)[name]).toBe("function");
+        }
+    });
+
+    it("throws the active-step sentinel for every member, not core's stub sentinel", () => {
+        for (const name of ["buy", "sell", "close", "position"] as const) {
+            const method = (order as unknown as Record<string, () => unknown>)[name];
+            expect(() => method()).toThrow(
+                new RegExp(`^order\\.${name} called outside an active script step$`),
+            );
+        }
+    });
+
+    it("is frozen", () => {
+        expect(Object.isFrozen(order)).toBe(true);
     });
 });
 

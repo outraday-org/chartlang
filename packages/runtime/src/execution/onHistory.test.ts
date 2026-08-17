@@ -194,6 +194,40 @@ describe("onHistory", () => {
         expect(out.alerts.map((a) => a.bar)).toEqual([0, 1, 2]);
     });
 
+    it("accumulates orders across every history bar, not only the last", async () => {
+        // The history accumulator is the easiest queue-lifecycle site to miss
+        // and it fails SILENTLY: `onBarClose` resets the per-bar queues, so a
+        // channel omitted from the hoist keeps only the LAST bar's entries — a
+        // 1000-bar backfill reporting one order, which reads as a script bug.
+        const compiled = defineIndicator({
+            name: "accum-orders",
+            apiVersion: 1,
+            compute: ({ order }) => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                if (!ctx) return;
+                const bar = ctx.barIndex();
+                if (bar === 1) return;
+                // The compiler injects the slot id; the script-facing type
+                // hides it, so drive the injected overload directly.
+                (order.buy as unknown as (slotId: string, opts?: { label?: string }) => void)(
+                    "accum.ts:1:1#0",
+                    { label: `b${String(bar)}` },
+                );
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: { ...makeCapabilities(), orders: true },
+        });
+        await runner.onHistory([makeBar(0), makeBar(1), makeBar(2)]);
+
+        const out = runner.drain();
+        expect(out.orders).toHaveLength(2);
+        expect(out.orders.map((order) => order.bar)).toEqual([0, 2]);
+        expect(out.orders.map((order) => order.label)).toEqual(["b0", "b2"]);
+        expect(out.diagnostics).toEqual([]);
+    });
+
     it("forward continuation: history strictly after a close APPENDS and preserves the undrained emission", async () => {
         // Re-seed semantics (@since 1.10) are OVERLAP-gated: a `history` push
         // whose first bar lands strictly AFTER the last closed bar is a

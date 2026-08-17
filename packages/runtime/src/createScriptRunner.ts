@@ -66,7 +66,11 @@ import {
     buildSecurityExprRunners,
     driveSecurityExpressions,
 } from "./request/securityExprRunner.js";
-import type { MutableRunnerEmissions, RuntimeContext } from "./runtimeContext.js";
+import {
+    FLAT_ORDER_POSITION,
+    type MutableRunnerEmissions,
+    type RuntimeContext,
+} from "./runtimeContext.js";
 import { type StateStore, inMemoryStateStore } from "./stateStore.js";
 import { type StreamState, createStreamState } from "./streamState.js";
 import { type AdapterSymInfo, createRuntimeViews, makeSymInfoView } from "./views/index.js";
@@ -559,6 +563,9 @@ function buildPrimaryState(
             sessionCalendar,
             alertConditions,
             diagnosedAlertConditionKeys: new Set(),
+            diagnosedOrderSlots: new Set(),
+            pendingOrders: [],
+            orderPosition: FLAT_ORDER_POSITION,
             logBudget: 0,
             logBudgetExceededDiagnosed: false,
             resolvedInputs: Object.freeze({}),

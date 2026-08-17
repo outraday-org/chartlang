@@ -7,10 +7,14 @@ import type { LogEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { RuntimeContext } from "../runtimeContext.js";
 import { pushDiagnostic, pushLog } from "./emissionsQueue.js";
 import { makeRuntimeErrorHalt } from "./runtimeError.js";
+import { snapshotMeta } from "./snapshotMeta.js";
 
 const MAX_LOGS_PER_STEP = 1000;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
+    // The null guard stays because `Object.getPrototypeOf(null)` throws, but
+    // `isJsonValue` — the only caller — answers `null` before reaching here.
+    /* v8 ignore next -- null is already gated by isJsonValue */
     if (typeof v !== "object" || v === null) return false;
     const proto = Object.getPrototypeOf(v);
     return proto === Object.prototype || proto === null;
@@ -33,26 +37,6 @@ function isJsonValue(v: unknown): v is JsonValue {
         if (!isJsonValue(child)) return false;
     }
     return true;
-}
-
-function snapshotJsonValue(value: JsonValue): JsonValue {
-    if (Array.isArray(value)) {
-        return Object.freeze(value.map((item) => snapshotJsonValue(item)));
-    }
-    if (isPlainObject(value)) {
-        const entries = Object.entries(value).map(([key, item]) => [
-            key,
-            snapshotJsonValue(item as JsonValue),
-        ]);
-        return Object.freeze(Object.fromEntries(entries)) as JsonValue;
-    }
-    return value;
-}
-
-function snapshotMeta(
-    meta: Readonly<Record<string, JsonValue>>,
-): Readonly<Record<string, JsonValue>> {
-    return snapshotJsonValue(meta) as Readonly<Record<string, JsonValue>>;
 }
 
 function diagnoseLogBudget(ctx: RuntimeContext): void {

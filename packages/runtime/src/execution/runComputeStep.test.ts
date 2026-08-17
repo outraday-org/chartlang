@@ -97,6 +97,53 @@ describe("runComputeStep — invoked via onBarClose", () => {
         await runner.dispose();
     });
 
+    it("a halt discards the bar's orders and its pending records", async () => {
+        // Orders are signals rather than visuals, which is why they survive
+        // DEDUP — but a halted bar's intents are not trustworthy, so they go
+        // with the visual queues. `pendingOrders` must go too, or the
+        // confirmed-step fold would apply an order that never reached the wire.
+        const compiled = defineIndicator({
+            name: "p",
+            apiVersion: 1,
+            compute: ({ order, runtime }) => {
+                (order.buy as unknown as (slotId: string) => void)("p:1:1#0");
+                runtime.error("boom");
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), orders: true },
+        });
+        await runner.onBarClose(makeBar());
+
+        const drained = runner.drain();
+        expect(drained.orders).toEqual([]);
+        expect(drained.diagnostics.map((d) => d.code)).toContain("runtime-error-thrown");
+        await runner.dispose();
+    });
+
+    it("keeps the order queue across a normal run and drains it frozen", async () => {
+        const compiled = defineIndicator({
+            name: "p",
+            apiVersion: 1,
+            compute: ({ order }) => {
+                (order.buy as unknown as (slotId: string) => void)("p:1:1#0");
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), orders: true },
+        });
+        await runner.onBarClose(makeBar());
+
+        const drained = runner.drain();
+        expect(Object.isFrozen(drained)).toBe(true);
+        expect(drained.orders).toHaveLength(1);
+        // A second drain sees the fresh container `drain()` installed.
+        expect(runner.drain().orders).toEqual([]);
+        await runner.dispose();
+    });
+
     it("re-throws non-halt errors from compute", async () => {
         const compiled = defineIndicator({
             name: "p",

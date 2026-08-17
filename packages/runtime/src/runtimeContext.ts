@@ -20,6 +20,7 @@ import type {
     DrawingKind,
     DrawingState,
     ExternalSeriesFeedMap,
+    OrderPosition,
     SecurityBar,
     Series,
     SessionCalendar,
@@ -83,9 +84,8 @@ export type DrawingSlot = {
  * `orders` is REQUIRED (never `?`) and is initialised `[]` at every site that
  * builds a queue set, so no consumer ever needs a `?? []` fallback for a state
  * that cannot occur — the retrofit-optional `alertConditions?` above is the
- * counter-example that seeded exactly those fallbacks. Nothing pushes to it
- * yet: `emit/order.ts` and the full queue-lifecycle sweep land with the
- * order-emission plumbing task, so a drain today always reports `orders: []`.
+ * counter-example that seeded exactly those fallbacks. It is **append-only**
+ * (`pushOrder`), unlike the `(slotId, bar)` last-write-wins `plots` / `alerts`.
  *
  * @since 0.1
  * @example
@@ -110,6 +110,41 @@ export type MutableRunnerEmissions = {
     fromBar: number;
     toBar: number;
 };
+
+/**
+ * One accepted `order.*` intent recorded for the current step, beside the wire
+ * emission it produced.
+ *
+ * `marker` is the per-call auto-arrow opt-out (`OrderOpts.marker`, default
+ * `true`). It is render-side only and is deliberately **absent from
+ * `OrderEmission`** — the wire records the intent, not how it was drawn — so
+ * this record is the only place the flag survives long enough for the
+ * marker-lowering pass to read it.
+ *
+ * @since 1.11
+ * @example
+ *     // const pending: PendingOrder = { emission, marker: true };
+ */
+export type PendingOrder = Readonly<{
+    readonly emission: OrderEmission;
+    readonly marker: boolean;
+}>;
+
+/**
+ * The flat nominal position: no size, no nominal average price, no entry bar.
+ * The mount-time value of {@link RuntimeContext.orderPosition} at every
+ * queue-construction site, so the three of them share one frozen literal
+ * instead of three that could drift.
+ *
+ * @since 1.11
+ * @example
+ *     // const start: OrderPosition = FLAT_ORDER_POSITION;
+ */
+export const FLAT_ORDER_POSITION: OrderPosition = Object.freeze({
+    size: 0,
+    avgPrice: null,
+    entryBar: null,
+});
 
 /**
  * The contract Task 6's execution loop hands to stateful primitives
@@ -344,6 +379,35 @@ export type RuntimeContext = {
      * by `code|conditionId`. Cleared on dispose. @since 0.5
      */
     readonly diagnosedAlertConditionKeys?: Set<string>;
+    /**
+     * Dedupe for the `unsupported-orders` capability diagnostic, keyed by the
+     * emitter's `slotId` — so a script running against `orders: false` warns
+     * **once per slot per mount** instead of once per order per bar (which on a
+     * 10k-bar backfill is a denial-of-service on the diagnostic channel, not a
+     * warning). Cleared on `dispose`. @since 1.11
+     */
+    readonly diagnosedOrderSlots: Set<string>;
+    /**
+     * The `order.*` intents accepted onto the wire during the ACTIVE step, in
+     * emission order. Reset with the emission queues at the start of every step
+     * and cleared again whenever the step's queues are discarded (a
+     * `runtime.error()` halt, a dep error), so it can only ever hold this
+     * step's accepted orders. A rejected (malformed) order never lands here —
+     * `pushOrder`'s boolean is what keeps the two in lockstep. Appended by
+     * `emit/order.ts`; the confirmed-step position fold and the auto-marker
+     * lowering consume it. @since 1.11
+     */
+    pendingOrders: PendingOrder[];
+    /**
+     * The **nominal** position tracked over emitted order intents — signed
+     * size, an average of *signal-bar closes*, and the bar the position opened.
+     * No capital, no slippage, no commission, no P&L: a consumer's simulator is
+     * the authority on economics. Read by `order.position()`, which therefore
+     * reports the state as of the previous confirmed fold (reproducing Pine's
+     * `strategy.position_size` lag, since reads happen during `compute` and
+     * folds after it returns). Starts {@link FLAT_ORDER_POSITION}. @since 1.11
+     */
+    orderPosition: OrderPosition;
     /**
      * Number of `runtime.log.*` emissions accepted in the active compute
      * step. Reset at the start of each close/tick. @since 0.5
