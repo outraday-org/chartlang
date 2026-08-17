@@ -291,6 +291,13 @@ export type {
 } from "./plot/plot.js";
 export { alert } from "./alert/index.js";
 export type { AlertOpts } from "./alert/alert.js";
+export { order } from "./order/index.js";
+export type {
+    OrderAction,
+    OrderNamespace,
+    OrderOpts,
+    OrderPosition,
+} from "./order/order.js";
 export { STATEFUL_PRIMITIVES, STATEFUL_PRIMITIVES_BY_NAME } from "./statefulPrimitives.js";
 export {
     DRAWING_KINDS,

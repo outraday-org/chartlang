@@ -25,15 +25,16 @@ import type {
     MacdResult,
     MutableSlot,
     NumberSeriesSlot,
+    OrderNamespace,
     OutputDeclaration,
     PlotKind,
     PlotOverride,
     PlotSlotDescriptor,
     Price,
     PriceSeries,
-    RequestedFeed,
     RequestNamespace,
     RequestSecurityOpts,
+    RequestedFeed,
     ScaleAxis,
     ScriptManifest,
     ScriptOverrides,
@@ -145,6 +146,10 @@ describe("public type surface", () => {
         expectTypeOf<ComputeContext["syminfo"]>().toEqualTypeOf<SymInfoView>();
         expectTypeOf<ComputeContext["timeframe"]>().toEqualTypeOf<TimeframeView>();
         expectTypeOf<ComputeContext["request"]>().toEqualTypeOf<RequestNamespace>();
+    });
+
+    it("ComputeContext exposes the order namespace", () => {
+        expectTypeOf<ComputeContext["order"]>().toEqualTypeOf<OrderNamespace>();
     });
 
     it("public request.security types resolve through the root export", () => {

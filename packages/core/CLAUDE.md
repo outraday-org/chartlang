@@ -2,7 +2,8 @@
 
 `@invinite-org/chartlang-core` — types + script-facing primitive holes
 (`defineIndicator`/`defineAlert`/`defineDrawing`, `input.*`, `state.*`,
-`ta.*`, `draw.*`, `plot`/`hline`/`bgcolor`/`barcolor`/`alert`, `request.*`, views) plus the
+`ta.*`, `draw.*`, `plot`/`hline`/`bgcolor`/`barcolor`/`alert`, `order.*`,
+`request.*`, views) plus the
 `STATEFUL_PRIMITIVES` registry the compiler and runtime share.
 
 ## Invariants
@@ -202,6 +203,34 @@
   per-bar mount data: it returns `t + timeframe.inSeconds` (the runtime reads
   the current bar's interval internally). The `program.ts` shim mirrors both
   namespaces in lockstep.
+
+- **`order` is a frozen namespace whose TYPE IS DERIVED, and `order.position` is
+  the one `slot: false` member.** `order/order.ts` exports `OrderAction` /
+  `OrderOpts` / `OrderPosition`, the frozen `order` object (`buy` / `sell` /
+  `close` / `position`, each a `"order.<member> called outside compiled runtime"`
+  sentinel), and `OrderNamespace = typeof order` — **never hand-write the
+  namespace type**. A hand-written `OrderNamespace` type *literal* would make
+  `scripts/gen-hover-registry.ts` emit each member TWICE: the
+  `*Namespace`-suffixed-type-literal path (`entriesFromNamespaceType`) falls back
+  to the PARENT's summary, so its entry is non-empty, survives the summary filter,
+  and races the object-literal entry on the same fqn with only file order deciding
+  the winner. `typeof order` is a type QUERY, so that path bails. The member JSDoc
+  therefore lives on the object literal (one home) — the same reason
+  `RequestNamespace` / `TimeNamespace` are derived. The three emitters are
+  `slot: true` (each callsite needs a stable id for its emissions, its
+  once-per-slot capability diagnostic, and its synthetic auto-marker slots);
+  `order.position()` is a pure read, allocates nothing, is `slot: false`, and is
+  therefore legal inside a bounded loop. `marker` is on `OrderOpts` but
+  deliberately NOT on the wire emission — the wire records the intent, not how it
+  was drawn. `@since 1.12`; see `docs/rfcs/0002-order-namespace.md`.
+
+- **`CapabilityId`'s `"orders"` arm is seeded by NO script kind.** The other four
+  arms (`types.ts`) are exactly the compiler's per-kind seeds, so a script of that
+  kind always declares one. `"orders"` is derived *only* from `order.buy` /
+  `order.sell` / `order.close` callsites — `order.position()` is a read and asks
+  for nothing — the way `"alerts"` is *additionally* callsite-derived from
+  `alert(...)`. Nothing in core enumerates capability ids beyond this union; do
+  not add a kind seed for it.
 
 - **`STATEFUL_PRIMITIVES` is additive within `apiVersion: 1`.** Appending an
   entry is additive (new callsites only). Removing/renaming an entry or

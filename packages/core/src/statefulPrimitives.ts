@@ -130,6 +130,16 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
     { name: "plotcandle", slot: true },
     { name: "plotbar", slot: true },
     { name: "alert", slot: true },
+    // order.* market intents. Slot-injected so each callsite owns a stable id
+    // for its emissions, its once-per-slot capability diagnostic, and its
+    // synthetic auto-marker slots. `order.position` is a pure read of the
+    // nominal position — it allocates nothing, so it is `slot: false` (and
+    // therefore legal inside a bounded loop) while still riding the in-loop
+    // diagnostic set.
+    { name: "order.buy", slot: true },
+    { name: "order.sell", slot: true },
+    { name: "order.close", slot: true },
+    { name: "order.position", slot: false },
     // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
     // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
     // format keeps the kebab-case `DrawingKind`.
@@ -253,9 +263,11 @@ const STATEFUL_PRIMITIVE_ENTRIES: ReadonlyArray<StatefulPrimitiveEntry> = [
  * entries (all `slot: true`), and Phase 4 appends 8 `state.*` /
  * `state.tick.*` entries plus request primitives. Phase 5 appends alert-condition signalling plus runtime
  * logging/error as stateless loop-diagnostic entries plus `draw.table`
- * as a slot-backed viewport drawing.
+ * as a slot-backed viewport drawing. The `order.*` batch appends the three
+ * market emitters as `slot: true` plus the stateless `order.position` read.
  *
- * Additive within `apiVersion: 1` (currently 193 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 204 entries — the exact cardinality
+ * is gated by `statefulPrimitives.test.ts`, which is the number to trust): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
@@ -279,11 +291,12 @@ export const STATEFUL_PRIMITIVES: ReadonlySet<StatefulPrimitiveEntry> = Object.f
  * Name → entry index of {@link STATEFUL_PRIMITIVES}. The compiler's
  * `callsiteIdInjection` and `statefulCallInLoop` passes consult this map
  * by callee name once per call site — O(1) lookup instead of an O(n) scan
- * over the 179-entry set on every visited call. The map is derived from
+ * over the 204-entry set on every visited call. The map is derived from
  * the same canonical entry list as {@link STATEFUL_PRIMITIVES} so adding
  * a primitive to the set adds it here automatically.
  *
- * Additive within `apiVersion: 1` (currently 193 entries): new entries MAY
+ * Additive within `apiVersion: 1` (currently 204 entries — the exact cardinality
+ * is gated by `statefulPrimitives.test.ts`, which is the number to trust): new entries MAY
  * be appended in a `1.x` release (a new call name is additive — new callsites
  * only, no change to any existing script). Removing or renaming an entry, or
  * flipping its `slot`, is a language change and requires `apiVersion: 2` — see
