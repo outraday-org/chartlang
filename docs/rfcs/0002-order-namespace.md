@@ -979,12 +979,13 @@ rather than open:
 
 ## 14. Errata (recorded 2026-08-18, post-implementation)
 
-Three claims in the accepted text turned out to be factually wrong, and one
+Some claims in the accepted text turned out to be factually wrong, and one
 instruction turned out to contradict a rule this RFC states elsewhere. **No
 decision changes** — every one of the five accepted decisions shipped as
 written, and the sections above are left as they were accepted so the record
 stays honest about what was believed at decision time. What follows is what
-implementing them measured.
+implementing them measured. (The entries below are the count; §5's
+do-not-restate-a-total rule applies to this section too.)
 
 ### E1 — §6: "the existing optional `onAlert` factory option" is not universal
 
@@ -1045,3 +1046,25 @@ the diagnostic table lacked nine codes).
 The docs task therefore completed the enumerating tables and **deleted every
 numeral** rather than writing `15`. The enumeration is now the count, and
 `emissions.md` names the four exported types to re-extract from instead.
+
+### E5 — §5's own stateful-primitives census was wrong
+
+§5 states the registry census measured while authoring this RFC as **202
+entries / 186 `slot: true` / 16 `slot: false`**. The real pre-implementation
+baseline was **200 / 185 / 15** (`git show 9e5371e5:packages/core/src/statefulPrimitives.ts`),
+and the shipped totals are **204 / 188 / 16** — so the RFC's stated
+`slot: false` count already matched the *post*-implementation number by
+coincidence, which is the most misleading way for a census to be wrong.
+
+The cause is the same trap §5 warns about from the other side: the file
+carries `{ name: …, slot: … }` object literals inside its own JSDoc
+`@example` blocks, and a naive count of that line shape reads them as
+registry entries.
+
+**No decision or instruction changes.** §5's normative statement is the
+**+4 delta** (+3 `slot: true`, +1 `slot: false`), which was correct, and it
+explicitly tells the implementation task to re-count from source — which it
+did, landing the true 204 / 188 / 16 in `statefulPrimitives.test.ts`. Nothing
+downstream ever consumed the wrong figure. It is recorded here only because a
+census presented as "measured" inside an Accepted decision record is exactly
+the kind of claim a later reader would trust without re-deriving.

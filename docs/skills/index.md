@@ -17,8 +17,9 @@ The two skills serve two different people:
   render emissions through a chart adapter.
 - **[chartlang-coding](./chartlang-coding)** — for the **LLM attached to an end
   user's coding editor** that helps them write `.chart.ts` indicator, drawing,
-  and alert scripts in the chartlang language. This skill is only useful once an
-  AI assistant is wired into the editor where scripts get authored.
+  alert, and order (strategy) scripts in the chartlang language. This skill is
+  only useful once an AI assistant is wired into the editor where scripts get
+  authored.
 
 In short: `chartlang-setup` is for *you, wiring chartlang into a product*;
 `chartlang-coding` is for *your users' assistant, writing chartlang scripts*.

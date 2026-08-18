@@ -48,12 +48,24 @@
         "suggestion": "Capture the sorted copy (`const sorted = win.sort(\"desc\")`) and read from it, instead of re-reading the original array."
     },
     {
+        "code": "pine-converter/transform/strategy-direction-assumed",
+        "severity": "warning",
+        "message": "A `strategy.entry`/`strategy.order` direction argument is not the literal `strategy.long` or `strategy.short`, so the side could not be resolved at conversion time; `order.buy` was assumed.",
+        "span": {
+            "startLine": 12,
+            "startColumn": 1,
+            "endLine": 12,
+            "endColumn": 42
+        },
+        "suggestion": "Pass `strategy.long` / `strategy.short` directly, or split the call into the two branches your condition selects between."
+    },
+    {
         "code": "pine-converter/transform/strategy-signal-only",
         "severity": "info",
         "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
         "span": {
             "startLine": 12,
-            "startColumn": 5,
+            "startColumn": 1,
             "endLine": 12,
             "endColumn": 42
         },
@@ -64,20 +76,8 @@
         "severity": "info",
         "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
         "span": {
-            "startLine": 14,
-            "startColumn": 5,
-            "endLine": 14,
-            "endColumn": 51
-        },
-        "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
-    },
-    {
-        "code": "pine-converter/transform/strategy-signal-only",
-        "severity": "info",
-        "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
-        "span": {
             "startLine": 15,
-            "startColumn": 1,
+            "startColumn": 5,
             "endLine": 15,
             "endColumn": 42
         },
@@ -88,34 +88,10 @@
         "severity": "info",
         "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
         "span": {
-            "startLine": 16,
-            "startColumn": 1,
-            "endLine": 16,
-            "endColumn": 44
-        },
-        "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
-    },
-    {
-        "code": "pine-converter/transform/strategy-order-args-dropped",
-        "severity": "warning",
-        "message": "`strategy.exit(...)` lowered to `order.close(...)`, a market intent that targets flat; chartlang has no resting-order model, so `from_entry`, `stop`, `limit` were dropped.",
-        "span": {
             "startLine": 17,
-            "startColumn": 1,
+            "startColumn": 5,
             "endLine": 17,
-            "endColumn": 57
-        },
-        "suggestion": "Model resting orders and protective stops in whatever consumes the `orders` channel — chartlang v1 emits market intents only."
-    },
-    {
-        "code": "pine-converter/transform/strategy-signal-only",
-        "severity": "info",
-        "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
-        "span": {
-            "startLine": 17,
-            "startColumn": 1,
-            "endLine": 17,
-            "endColumn": 57
+            "endColumn": 51
         },
         "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
     },
@@ -127,6 +103,54 @@
             "startLine": 18,
             "startColumn": 1,
             "endLine": 18,
+            "endColumn": 42
+        },
+        "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
+    },
+    {
+        "code": "pine-converter/transform/strategy-signal-only",
+        "severity": "info",
+        "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
+        "span": {
+            "startLine": 19,
+            "startColumn": 1,
+            "endLine": 19,
+            "endColumn": 44
+        },
+        "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
+    },
+    {
+        "code": "pine-converter/transform/strategy-order-args-dropped",
+        "severity": "warning",
+        "message": "`strategy.exit(...)` lowered to `order.close(...)`, a market intent that targets flat; chartlang has no resting-order model, so `from_entry`, `stop`, `limit` were dropped.",
+        "span": {
+            "startLine": 20,
+            "startColumn": 1,
+            "endLine": 20,
+            "endColumn": 57
+        },
+        "suggestion": "Model resting orders and protective stops in whatever consumes the `orders` channel — chartlang v1 emits market intents only."
+    },
+    {
+        "code": "pine-converter/transform/strategy-signal-only",
+        "severity": "info",
+        "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
+        "span": {
+            "startLine": 20,
+            "startColumn": 1,
+            "endLine": 20,
+            "endColumn": 57
+        },
+        "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."
+    },
+    {
+        "code": "pine-converter/transform/strategy-signal-only",
+        "severity": "info",
+        "message": "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
+        "span": {
+            "startLine": 21,
+            "startColumn": 1,
+            "endLine": 21,
             "endColumn": 21
         },
         "suggestion": "No action needed — read the structured `orders` emission channel and apply your own fill model to it."

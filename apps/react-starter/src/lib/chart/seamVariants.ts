@@ -3,8 +3,9 @@
 //
 // SEAM VARIANTS — the single source of truth for the per-library
 // `activeAdapter.ts` body. One entry per bundled adapter id. The committed
-// `activeAdapter.ts` is the `canvas2d` variant rendered from this table
-// (byte-identical to `SEAM_VARIANTS.find(v => v.id === "canvas2d").seamSource`).
+// `activeAdapter.ts` is the `webgl` variant rendered from this table
+// (byte-identical to `SEAM_VARIANTS.find(v => v.id === "webgl").seamSource`,
+// asserted verbatim by `tests/adapter-matrix.spec.ts`).
 //
 // Two consumers depend on this being the SSOT:
 //   1. `tests/adapter-matrix.spec.ts` rewrites `activeAdapter.ts` to each
