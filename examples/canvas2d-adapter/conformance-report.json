@@ -1,6 +1,6 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
-    "generatedBy": "@invinite-org/chartlang-conformance@1.4.1",
+    "generatedBy": "@invinite-org/chartlang-conformance@1.5.0",
     "passed": 265,
     "failed": 0,
     "scenarios": [

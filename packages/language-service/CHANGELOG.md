@@ -1,5 +1,27 @@
 # @invinite-org/chartlang-language-service
 
+## 1.6.0
+
+### Minor Changes
+
+- 3932418: Hover docs for the `order.*` namespace
+
+  `hoverRegistry.generated.ts` is regenerated from core's JSDoc, so the editor now
+  answers for `order`, `order.buy`, `order.sell`, `order.close`,
+  `order.position()` and the four `Order*` type aliases — nine new registry keys,
+  with the EMA-cross example rendered inline. No hand-written entries: the
+  registry is a generated artifact and the source of truth stays the JSDoc on the
+  primitive.
+
+### Patch Changes
+
+- Updated dependencies [3932418]
+- Updated dependencies [3932418]
+- Updated dependencies [3932418]
+  - @invinite-org/chartlang-adapter-kit@1.10.0
+  - @invinite-org/chartlang-compiler@1.13.0
+  - @invinite-org/chartlang-core@1.12.0
+
 ## 1.5.6
 
 ### Patch Changes
