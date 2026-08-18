@@ -41,6 +41,7 @@ describe("DEFAULT_ADAPTER", () => {
                 drawings: [],
                 alerts: [],
                 alertConditions: [],
+                orders: [],
                 logs: [],
                 diagnostics: [],
                 fromBar: 0,

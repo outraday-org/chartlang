@@ -56,6 +56,11 @@ Every constructor accepts `name: string`, `apiVersion: 1`, optional
 maxDrawings, requiresIntervals, conditions, ...) are listed in the
 [grammar spec](../spec/grammar.md#defineindicator).
 
+There is **no strategy kind**. An indicator, alert, or drawing script may
+emit `order.*` market intents; the `orders` capability is derived from
+those callsites the same way `alert(...)` derives `alerts`. See
+[Orders](./orders.md).
+
 ## The module surface
 
 Scripts may import from two specifiers and no others:
@@ -71,6 +76,7 @@ The frozen primitive namespaces are:
 | `plot`, `hline` | per-bar value plots and horizontal lines | [plot](../primitives/plot/plot.md), [hline](../primitives/plot/hline.md) |
 | `draw.*` | imperative drawing primitives (line, label, fib, ...) | [Draw primitives](../primitives/draw/) |
 | `alert` | immediate-fire alerts | [Alerts](./alerts.md) |
+| `order.*` | market order intents + the nominal position | [Orders](./orders.md) |
 | `input.*` | declarative input descriptors | [Inputs](./inputs.md) |
 | `state.*` | persistent and tick-mutable state slots | [state](../primitives/state/float.md) |
 | `barstate`, `syminfo`, `timeframe` | per-step views | [bar state](../primitives/barstate.md), [symbol info](../primitives/syminfo.md), [timeframe](../primitives/timeframe.md) |
@@ -126,8 +132,10 @@ Inside one step you may:
   (`series[1]`, `series[5]`, ...).
 - Call `ta.*` primitives — every call site allocates one stable runtime
   slot identified by `<sourcePath>:<line>:<col>#0`.
-- Emit through `plot`, `hline`, `draw.*`, `alert`, `runtime.log.*`.
+- Emit through `plot`, `hline`, `draw.*`, `alert`, `order.*`,
+  `runtime.log.*`.
 - Read and write `state.*` / `state.tick.*` slots.
+- Read the nominal order position with `order.position()`.
 
 You may not read `Date`, `Math.random`, `fetch`, dynamic `import()`, or
 any other host global. See [Forbidden constructs](./forbidden-constructs.md).
@@ -139,6 +147,8 @@ any other host global. See [Forbidden constructs](./forbidden-constructs.md).
 - [Inputs](./inputs.md) — declaring user-tunable parameters.
 - [Alerts](./alerts.md) — immediate `alert()`, `defineAlertCondition`,
   and runtime logs.
+- [Orders](./orders.md) — `order.*` market intents, the nominal
+  position, and the consumer-owns-economics contract.
 - [Version pinning](./version-pinning.md) — how `apiVersion: 1` keeps
   old scripts running unchanged.
 - [Forbidden constructs](./forbidden-constructs.md) — the diagnostic

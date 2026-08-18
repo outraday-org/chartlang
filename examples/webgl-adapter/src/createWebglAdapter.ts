@@ -4,6 +4,7 @@
 import {
     type Adapter,
     type AlertEmission,
+    type OrderEmission,
     type CandleEvent,
     type Capabilities,
     type PlotEmission,
@@ -95,6 +96,15 @@ export type CreateWebglAdapterOpts = {
      * opt is declared here so that task has the Task-1 filter to read.
      */
     readonly alertBadgeFilter?: (a: AlertEmission) => boolean;
+    /**
+     * App-layer sink for the structured `orders` channel, mirroring `onAlert`.
+     * Every order that passes `validateEmission` is forwarded in wire order on
+     * each drain. Order markers need no help from this option — they arrive as
+     * ordinary `arrow` / `label` plot emissions — so this is purely the door an
+     * embedding app uses to read the intents themselves. Omit it and the channel
+     * is ignored, exactly as `orders: false` would have it.
+     */
+    readonly onOrder?: (o: OrderEmission) => void;
     /**
      * Default visible window: when set, the chart opens framed on only the
      * most recent `initialVisibleBars` bars (the rest stay scrollable). Omit
@@ -546,7 +556,7 @@ export function createWebglAdapter(opts: CreateWebglAdapterOpts): WebglAdapterHa
         symInfo: WEBGL_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
-            applyEmissions(state, emissions, opts.onAlert, opts.alertBadgeFilter);
+            applyEmissions(state, emissions, opts.onAlert, opts.alertBadgeFilter, opts.onOrder);
             // With no GL context (headless / conformance), the draw is a safe
             // no-op — state still accumulated above.
             requestRender();

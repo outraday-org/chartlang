@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
+import type {
+    AlertEmission,
+    CandleEvent,
+    OrderEmission,
+} from "@invinite-org/chartlang-adapter-kit";
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 
@@ -32,6 +36,14 @@ const FALLBACK_BAR_INTERVAL_MS = 86_400_000;
  * provided the toolbar renders the adapter switcher (the live demo);
  * when omitted (the converter preview, which is locked to one adapter)
  * the switcher is hidden.
+ *
+ * `onOrder` + `onRunStart` are the orders pair and are optional together —
+ * the converter preview mounts this pane with neither. Unlike `onAlert`,
+ * `onOrder` is NOT bar-filtered: the alerts feed suppresses history because
+ * it is append-only across mounts, whereas `onRunStart` fires at the top of
+ * every mount effect so the host can clear its order feed and let the
+ * history replay repopulate it. Without that reset a re-mount (adapter
+ * switch, recompile, Play) would double every historical order.
  */
 export type ChartPaneProps = Readonly<{
     bars: ReadonlyArray<Bar>;
@@ -40,6 +52,8 @@ export type ChartPaneProps = Readonly<{
     onAlert: (alert: AlertEmission) => void;
     onPlayStart: () => void;
     onAdapterChange?: (id: string) => void;
+    onOrder?: (order: OrderEmission) => void;
+    onRunStart?: () => void;
 }>;
 
 type PushCandleSource = Readonly<{
@@ -128,7 +142,9 @@ function nextRandomBar(prev: Bar, intervalMs: number): Bar {
  * {@link PLAY_TOTAL_BARS} fresh random-walk bars paced evenly across
  * {@link PLAY_DURATION_MS}, auto-stopping at the end (Stop cancels
  * early). Alerts fired by those generated bars (bar index >= history
- * length) are the only ones forwarded to `onAlert`.
+ * length) are the only ones forwarded to `onAlert`. Orders take the other
+ * policy: every order of the run reaches `onOrder`, and `onRunStart` marks
+ * the boundary so the host discards the previous run's feed first.
  *
  * Cancellation flows through an `AbortController` that is wired into
  * `driver.run(signal)`, so the loop exits silently when a new artifact or
@@ -150,8 +166,16 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
     const pendingPlayRef = useRef(false);
     const onAlertRef = useRef(props.onAlert);
     const onPlayStartRef = useRef(props.onPlayStart);
+    const onOrderRef = useRef(props.onOrder);
+    const onRunStartRef = useRef(props.onRunStart);
     onAlertRef.current = props.onAlert;
     onPlayStartRef.current = props.onPlayStart;
+    onOrderRef.current = props.onOrder;
+    onRunStartRef.current = props.onRunStart;
+    // Captured once per mount: the pane forwards `onOrder` to the driver only
+    // when the host supplied one, so an unwired consumer (the converter
+    // preview) leaves the adapter's optional option absent entirely.
+    const wantsOrders = props.onOrder !== undefined;
 
     const stopPlaying = (): void => {
         pendingPlayRef.current = false;
@@ -178,6 +202,11 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
     useEffect(() => {
         const container = containerRef.current;
         if (container === null || artifact === null || bars.length === 0) return;
+
+        // A fresh mount replays the whole history, so anything the host
+        // accumulates per RUN (the orders feed) has to start empty here or the
+        // replay doubles it. Alerts are exempt: they are live-only.
+        onRunStartRef.current?.();
 
         // Size the renderer to the container's ACTUAL laid-out box, not the
         // nominal 800×480: `.chart-surface` is `width:800px; max-width:100%`,
@@ -294,6 +323,12 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
                         // from the play run.
                         if (alert.bar >= historyLength) onAlertRef.current(alert);
                     },
+                    // No bar filter: the orders panel is a per-run view (see
+                    // `onRunStart`), so the history replay is exactly what
+                    // fills it on load.
+                    ...(wantsOrders
+                        ? { onOrder: (order: OrderEmission) => onOrderRef.current?.(order) }
+                        : {}),
                 });
                 // A new artifact/adapter arrived while the lib was importing:
                 // discard this now-stale driver instead of mounting it.
@@ -338,7 +373,7 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
             driverRef.current?.dispose();
             driverRef.current = null;
         };
-    }, [artifact, bars, adapterId, playRun]);
+    }, [artifact, bars, adapterId, playRun, wantsOrders]);
 
     useEffect(() => {
         return () => {

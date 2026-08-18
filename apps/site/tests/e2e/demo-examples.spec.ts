@@ -36,6 +36,53 @@ test("the Browse examples dialog switches the active script", async ({ page }) =
   await expect(demo.locator("button.play-button")).toBeEnabled({ timeout: 30_000 })
 })
 
+// The `orders` category ("Orders & Backtesting") is the catalogue's newest
+// section. Its three scripts are the only ones in the tree that emit on the
+// `orders` channel, so this is where a broken compile of `order.*` surfaces
+// as a product failure rather than a unit-test failure.
+const ORDER_EXAMPLES: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "order-ema-cross", label: "Order EMA Cross" },
+  { id: "order-rsi-reversal", label: "Order RSI Reversal" },
+  { id: "order-silent-markers", label: "Order Silent Markers" },
+]
+
+test("the Orders & Backtesting category lists its examples", async ({ page }) => {
+  await page.goto("/#demo")
+
+  const demo = page.locator("#demo")
+  await expect(demo.locator(".cm-content")).toBeVisible({ timeout: 30_000 })
+
+  await demo.getByRole("button", { name: "Browse examples" }).click()
+  const dialog = page.getByRole("dialog")
+  await expect(dialog).toBeVisible()
+
+  await dialog.getByRole("button", { name: /Orders & Backtesting/ }).click()
+  for (const example of ORDER_EXAMPLES) {
+    await expect(dialog.getByRole("button", { name: new RegExp(example.label) })).toBeVisible()
+  }
+})
+
+test("every order example compiles and runs", async ({ page }) => {
+  // Three full compile→render cycles in one case; well past the 30s default.
+  test.setTimeout(180_000)
+  for (const example of ORDER_EXAMPLES) {
+    await page.goto(`/?script=${example.id}#demo`)
+
+    const demo = page.locator("#demo")
+    const editor = demo.locator(".cm-content")
+    await expect(editor).toBeVisible({ timeout: 30_000 })
+    await expect(editor).toContainText(example.label)
+    // Play re-enabling proves the compile→render loop reached a renderable
+    // state; the surface carries no error overlay.
+    await expect(demo.locator("button.play-button")).toBeEnabled({ timeout: 30_000 })
+    await expect(demo.locator(".chart-surface .error-overlay")).toHaveCount(0)
+    // Every one of the three emits at least one order over the history.
+    await expect
+      .poll(() => demo.locator(".chart-orders .order").count(), { timeout: 30_000 })
+      .toBeGreaterThan(0)
+  }
+})
+
 test("?script= deep-links straight to the requested example", async ({ page }) => {
   await page.goto("/?script=bollinger-bands#demo")
 

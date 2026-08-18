@@ -25,6 +25,7 @@ function emptyEmissions(): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,
@@ -112,6 +113,7 @@ describe("public surface", () => {
         expect(typeof createWebglAdapter).toBe("function");
         expect(typeof runWebglLoop).toBe("function");
         expect(WEBGL_CAPABILITIES.plots.has("line")).toBe(true);
+        expect(WEBGL_CAPABILITIES.orders).toBe(true);
         expect(WEBGL_SYM_INFO.ticker).toBe("DEMO");
         expect(DEFAULT_ADAPTER.id).toBe("webgl-reference-default");
     });

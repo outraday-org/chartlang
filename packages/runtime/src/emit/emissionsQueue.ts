@@ -5,6 +5,7 @@ import {
     type AlertEmission,
     type AlertConditionEmission,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type RuntimeDiagnostic,
     validateEmission,
@@ -109,6 +110,49 @@ export function pushAlertCondition(queue: MutableRunnerEmissions, e: AlertCondit
     const target = queue.alertConditions ?? [];
     queue.alertConditions = target;
     target.push(e);
+}
+
+/**
+ * Push an `OrderEmission` onto the runner's mutable order queue after
+ * adapter-kit validation. **Append-only** — an order is never replaced,
+ * matching {@link pushAlertCondition} / {@link pushLog} and deliberately NOT
+ * {@link pushAlert}'s `(slotId, bar)` last-write-wins.
+ *
+ * Replacement-dedup exists for *idempotent visuals*, where the last state of a
+ * bar is the truth. An order is not a state, it is an event, and the runtime's
+ * nominal position tracker folds every accepted order — so a dropped same-slot
+ * duplicate would leave the emitted stream and the reported position
+ * disagreeing, which is the exact class of bug the `orders` channel exists to
+ * remove. Hosts that dispatch asynchronously get idempotency from
+ * `OrderEmission.dedupeKey` instead, exactly as they do for alerts. That key is
+ * derived from the payload, so two byte-identical intents at one slot in one bar
+ * share it: the queue keeps both, and a host deduping on the key collapses them
+ * on purpose.
+ *
+ * Returns whether the emission was queued. A `false` return is what keeps
+ * `RuntimeContext.pendingOrders` in lockstep with the wire — a malformed order
+ * must not reach the position tracker either.
+ *
+ * @since 1.11
+ * @example
+ *     // import { pushOrder } from "@invinite-org/chartlang-runtime/emit";
+ *     // if (pushOrder(queue, orderEmission)) { ... }
+ */
+export function pushOrder(queue: MutableRunnerEmissions, e: OrderEmission): boolean {
+    const result = validateEmission(e);
+    if (!result.ok) {
+        pushDiagnostic(queue, {
+            kind: "diagnostic",
+            severity: "warning",
+            code: "malformed-emission",
+            message: result.message,
+            slotId: e.slotId,
+            bar: e.bar,
+        });
+        return false;
+    }
+    queue.orders.push(e);
+    return true;
 }
 
 /**

@@ -62,8 +62,11 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 - **A Pine variable colliding with a host `compute(ctx)` param is RENAMED, not
   left to shadow.** `COMPUTE_CONTEXT_NAMES` (`nameAllocator.ts`) is the canonical
   host-param set (kept in lockstep with `emitCompute.ts`'s `destructureFields` —
-  `bar`/`ta`/`plot`/`hline`/`bgcolor`/`barcolor`/`alert`/`inputs`/`state`/
-  `request`/`time`/`session`/`syminfo`/`barstate`); `isComputeContextName`
+  `bar`/`ta`/`plot`/`hline`/`bgcolor`/`barcolor`/`alert`/`order`/`inputs`/`state`/
+  `request`/`time`/`session`/`syminfo`/`barstate` — `order` is there because
+  Pine has its OWN unrelated `order` root (`order.ascending`), so a Pine
+  variable named `order` must take `order2` rather than shadow the namespace the
+  converted `strategy.*` signals bind); `isComputeContextName`
   exposes it. `allocateForSymbol` treats a host-param name as un-reclaimable (the
   host binding stays live — a `bgcolor(...)` callee, the `inputs` object), so a
   Pine `bgcolor` symbol takes a fresh `bgcolor2`. `transformOther` builds a
@@ -2036,6 +2039,36 @@ that has no byte-identical chartlang analogue.
   (`fill-handle-unresolved`) or a gradient/`fillgaps` form (narrowed
   `fill-not-mapped`) rejects. `math.random`/`math.round_to_mintick`/`ta.kcw` →
   `math-not-mapped`/`ta-not-mapped` warn + `/* TODO unmapped */`.
+- **`strategy.*` lowers to `order.*`, and `strategy.long`/`strategy.short`
+  resolve AT THE CALLSITE — never as a global constant.** `STRATEGY_SIGNALS`
+  (`strategySignals.ts`) is ONE table per member carrying `{ shape, params }`:
+  `shape` picks `order.buy`/`order.sell` (from the direction argument) or
+  `order.close`, and `params` — Pine's positional parameter names — does double
+  duty as the lookup for every role (`id`/`direction`/`qty`/`when` find their
+  slot by `indexOf`, a role the row omits is named-only) AND as the source of
+  the names in the dropped-args diagnostic. Adding a member means editing that
+  one row; there is deliberately no second index table to drift.
+  `strategy.cancel`/`cancel_all` are NOT members (there is no resting order to
+  cancel) and keep failing `unknown-identifier`. **The direction constants are
+  resolved by `semantic/analyze.ts`'s `walkCall`**, which skips the
+  `strategy.<member>` callee and a `strategy.long`/`strategy.short` argument of
+  a RECOGNISED signal call only — do NOT register `strategy` in
+  `NAMESPACE_NAMES` or the directions in `CONST_NAMES`: root resolution is
+  position-independent, so that would legalize `strategy.long` in any
+  expression (RFC 0002 §9; pinned by `analyze.test.ts`). Three lossy edges:
+  `label` takes a string-LITERAL id only, `qty` rides through `emitScalar`
+  unless it is a non-scalar shape, and **`when =` becomes the enclosing `if`
+  rather than being dropped** — dropping it would fire the order on every bar.
+  Everything else the call passed (`limit`/`stop`/`trail_*`/`oca_*`/
+  `from_entry`/…) raises `strategy-order-args-dropped` (warning) NAMING each
+  one; an unresolvable direction raises `strategy-direction-assumed` (warning)
+  and assumes `order.buy`; every lowered call raises `strategy-signal-only`
+  (info). A `strategy(...)` HEAD is a warning, not a reject — so its fixtures
+  are error-free and `fixtures-compile.test.ts` REQUIRES them to compile.
+  **The `order` usage flag scans for the MEMBERS (`/\border\.(buy|sell|close|
+  position)\(/`), not the namespace**: an `array.sort` over a collection the
+  converter did not recognise leaks Pine's own `order.ascending` verbatim, and a
+  bare `order.` scan would import chartlang's unrelated namespace for it.
 - **`emitStr` (`strFormat.ts`) lowers the FULL Pine v6 `str.*` surface to
   NATIVE JS** — the same native-where-native-exists shape as bare `Math.*` (NO
   `str` import/destructure is added to the generated output; the `str` namespace
@@ -2213,7 +2246,8 @@ that has no byte-identical chartlang analogue.
   emit was a static `plot(NaN, { style: { kind, color } })`, which LOST the
   per-bar color — do not revert to that shape.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
-  `plot-offset-needs-ta-call`, `plot-offset-overrides-ta-offset` (warnings),
+  `plot-offset-needs-ta-call`, `plot-offset-overrides-ta-offset`,
+  `strategy-direction-assumed`, `strategy-order-args-dropped` (warnings),
   `ta-signature-divergence`, `ta-not-mapped`, `math-not-mapped`,
   `str-format-not-mapped`, `str-not-mapped` (warnings), `fill-not-mapped`,
   `request-security-not-mapped`, `dynamic-series-index`,
@@ -2226,7 +2260,9 @@ that has no byte-identical chartlang analogue.
   multi-symbol landed; the CODE STRING is unchanged, only the severity/message
   are: a literal cross-symbol read now LOWERS to `{ symbol, interval }` rather
   than being rejected),
-  `strategy-signal-only`, `loop-body-unrolled`,
+  `strategy-signal-only` (REFITTED for the `order.*` lowering — the CODE STRING
+  is unchanged, only message/suggestion; `unsupported-strategy` was likewise
+  refitted from **error** to **warning**), `loop-body-unrolled`,
   `mtf-series-to-scalar-conversion`, `loop-unroll-frozen-at-input-default`,
   `scalar-state-type-defaulted`, `series-history-non-numeric`,
   `varip-series-approximated` (infos — the last two added by the

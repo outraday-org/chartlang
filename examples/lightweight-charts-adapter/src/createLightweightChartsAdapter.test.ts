@@ -73,6 +73,7 @@ function emissions(overrides: Partial<RunnerEmissions> = {}): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         ...overrides,

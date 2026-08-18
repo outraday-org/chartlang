@@ -7,7 +7,35 @@ import { HOVER_REGISTRY } from "./hoverRegistry.generated.js";
 
 describe("HOVER_REGISTRY", () => {
     it("contains the apiVersion 1 language-service symbol set", () => {
-        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(600);
+        expect(Object.keys(HOVER_REGISTRY)).toHaveLength(609);
+    });
+
+    it("contains the order.* namespace, its four members, and its four types (1.12)", () => {
+        // Nine entries, not five: the generator emits the frozen namespace plus
+        // one entry per member AND one per exported type, so a `+4 members`
+        // count bump would have been wrong by the four `Order*` type aliases.
+        expect(HOVER_REGISTRY.order).toMatchObject({
+            fqn: "order",
+            kind: "namespace",
+            since: "1.12",
+        });
+        for (const member of ["buy", "sell", "close", "position"]) {
+            expect(HOVER_REGISTRY[`order.${member}`]).toMatchObject({
+                fqn: `order.${member}`,
+                kind: "function",
+                since: "1.12",
+                stability: "stable",
+            });
+        }
+        // The three emitters take an `OrderOpts` parameter; `order.position()`
+        // takes none, so it carries no `paramTable` at all.
+        expect(HOVER_REGISTRY["order.buy"].paramTable).toEqual([
+            { name: "_opts", type: "OrderOpts", doc: "" },
+        ]);
+        expect(HOVER_REGISTRY["order.position"].paramTable).toBeUndefined();
+        for (const type of ["OrderAction", "OrderOpts", "OrderPosition", "OrderNamespace"]) {
+            expect(HOVER_REGISTRY[type]).toMatchObject({ fqn: type, kind: "type" });
+        }
     });
 
     it("contains the session-calendar entries (1.11)", () => {

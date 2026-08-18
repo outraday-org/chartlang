@@ -117,12 +117,32 @@ changes require `apiVersion: 2`.
 `DiagnosticCode` is additive across `1.x`. The indicator-composition
 feature extends the set with six new codes — `dep-error`, `dep-cycle`,
 `dep-unknown-output`, `dep-invalid-input-override`, `dep-dynamic`, and
-`dep-output-not-titled` — bringing the total to 32. Adapters that don't
-recognise an additive code MUST log + ignore it, never treat it as
+`dep-output-not-titled`. Adapters that don't recognise an additive code MUST
+log + ignore it, never treat it as
 schema corruption. The `STATEFUL_PRIMITIVES` set is unchanged by indicator
 composition; the new `.output(...)` / `.withInputs(...)` accessors are
 compiler-rewritten sentinels on `CompiledScriptObject`, not runtime
 primitives.
+
+#### Orders (`1.x` additive)
+
+The `order.*` surface lands entirely inside `apiVersion: 1.x` under three
+rules this page already states: new core exports (`order`, `OrderAction`,
+`OrderOpts`, `OrderPosition`), new `STATEFUL_PRIMITIVES` entries (`order.buy` /
+`order.sell` / `order.close` are slot-bearing, `order.position` is not), and
+additive emission wire surface — a `RunnerEmissions.orders` array of
+`OrderEmission`, a `Capabilities.orders` boolean, an `"orders"` `CapabilityId`,
+and one more `DiagnosticCode` (`unsupported-orders`). A script that emits no
+orders produces a byte-identical manifest and a byte-identical emission stream.
+
+One consequence is **not** silent, and it is deliberate: `Capabilities.orders`
+is a **required** key, so every hand-written capability bag outside this
+workspace fails to compile on upgrade. The break is enumerable and loud, which
+is the same shape `multiSymbol` already had.
+
+The persistent-state snapshot stays at `snapshotVersion: 2`. Position state
+rides an **optional** `orderPosition` field per section whose absence means the
+flat position, so a pre-orders snapshot keeps loading unchanged.
 
 ## Compiler Support Window
 

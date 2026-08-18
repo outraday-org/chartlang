@@ -90,8 +90,30 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   `limits: { maxStepMs: BENCH_STEP_BUDGET_MS }`; `sandbox.test.ts` is where the
   1 ms default is exercised, against a deliberate infinite loop.
 - **Emission validation happens on `drain()`.** Keep this aligned with
-  host-worker's trust boundary: plots and alerts pass through
-  `validateEmission`, drawings pass through unchanged, diagnostics append.
+  host-worker's trust boundary: plots, alerts, alert-conditions, logs and
+  orders pass through `validateEmission`, drawings pass through unchanged,
+  diagnostics append. `partitionValidated`'s `slotIdOf` is what decides
+  whether a dropped emission is attributable — plots, alerts and **orders**
+  hand it their `slotId`, alert-conditions and logs hand it `null`.
+- **A `Capabilities` boolean crosses the JSON membrane on the `...value`
+  spread; only the five `ReadonlySet` fields are revived.** `stringifyFrame`
+  turns a `Set` into an array and `dispatcherCore.reviveCapabilities` turns it
+  back for `plots` / `drawings` / `alerts` / `inputs` / `symInfoFields`. Every
+  boolean (`alertConditions`, `logs`, `orders`, `multiTimeframe`,
+  `multiSymbol`) rides the spread untouched — do NOT add presence-based
+  revival for one, because `false` and "absent" would become the same value
+  and the runtime gates every `order.*` call on exactly that flag. Pinned by
+  `dispatcherCore.test.ts`'s both-states case.
+- **The dispatcher bundle inlines the RUNTIME, so a runtime change is
+  invisible to the guest until you regenerate it.** `bundleDispatcher()`
+  esbuilds `src/dispatcher.ts` with `bundle: true`, which pulls in
+  `@invinite-org/chartlang-runtime`'s built `dist` (and core through it). An
+  edit to `runtime/src/execution/drain.ts` therefore changes nothing in
+  QuickJS until `pnpm build:dispatcher` re-emits
+  `dispatcherSource.generated.ts` + `dist/dispatcher.js`.
+  `dispatcherFreshness.test.ts` catches it, but its message says "run
+  `pnpm build`" and points at this package — read it as "some inlined
+  dependency moved", not only "you edited the dispatcher".
 - **Cross-host parity is the conformance contract.** Do not intentionally
   diverge from host-worker emission semantics. If QuickJS needs a host-specific
   sandbox rule, surface it as an error path rather than a different emission

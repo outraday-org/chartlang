@@ -4,7 +4,7 @@
 
 Generated from source JSDoc. Authoritative — do not hand-edit. Run
 `pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family /
-`math.*` / `str.*` primitive.
+`order.*` / `math.*` / `str.*` primitive.
 
 The chartlang compiler injects a leading `slotId: string` argument at
 every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`
@@ -3348,6 +3348,64 @@ style object. A fully-null bar is a legit gap; a partially-null bar is
 malformed.
 
 **Since:** 1.8 · stable
+
+## order.*
+
+### order.buy
+
+```ts
+buy(_opts?: OrderOpts): void {
+    sentinel("order.buy");
+}
+```
+
+Emit a market **buy** intent: open or add to a long, reversing an
+existing short that it crosses through. `qty` is unsigned magnitude.
+
+**Since:** 1.12 · stable
+
+### order.sell
+
+```ts
+sell(_opts?: OrderOpts): void {
+    sentinel("order.sell");
+}
+```
+
+Emit a market **sell** intent: open or add to a short, reversing an
+existing long that it crosses through. `qty` is unsigned magnitude.
+
+**Since:** 1.12 · stable
+
+### order.close
+
+```ts
+close(_opts?: OrderOpts): void {
+    sentinel("order.close");
+}
+```
+
+Emit a market **close** intent: target flat from either side. The nominal
+tracker always flattens fully — a partial-close `qty` rides the emission
+for consumers that simulate partials but is ignored here.
+
+**Since:** 1.12 · stable
+
+### order.position
+
+```ts
+position(): OrderPosition {
+    return sentinel("order.position");
+}
+```
+
+Read the nominal position. Pure — it allocates no per-callsite state, so
+it is the one `order.*` member that is legal inside a bounded loop and
+that does **not** make a script ask for the `orders` capability. Returns
+the state as of the previous confirmed step (see the lag note on the
+namespace).
+
+**Since:** 1.12 · stable
 
 ## math.*
 

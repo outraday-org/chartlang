@@ -179,6 +179,12 @@ export const starterCapabilities: Capabilities = Object.freeze({
     }),
     ...capabilities.alertConditions(true),
     ...capabilities.logs(true),
+    // The runtime auto-renders order markers as ordinary \`arrow\` / \`label\` plot
+    // emissions, and \`allPhase5Plots()\` above declares both — so a starter
+    // adapter honours the \`orders\` channel with no rendering code at all. Set
+    // false only if you deliberately want order intents dropped (the runtime
+    // then pushes one \`unsupported-orders\` diagnostic per callsite).
+    ...capabilities.orders(true),
 });
 
 export const starterSymInfo: AdapterSymInfo = Object.freeze({

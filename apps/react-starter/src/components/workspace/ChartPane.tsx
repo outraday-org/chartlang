@@ -6,7 +6,9 @@
 // render loop, and surfaces alerts in a small footer feed (every alert) +
 // toasts (LIVE alerts only — see `onAlert` below; historical alerts replayed
 // from the `history` batch never toast, so loading a script doesn't spam a
-// toast for every past crossover).
+// toast for every past crossover). A second footer feed lists the structured
+// `orders` channel (every order, no toast) — the starter's one demonstration
+// of reading `RunnerEmissions.orders`.
 //
 // Adapter-agnostic by construction — it drives charts ONLY through the
 // `src/lib/chart/activeAdapter.ts` seam (`createActiveAdapter` +
@@ -20,7 +22,7 @@
 // goes through one `history` batch and renders — no random-walk simulator
 // (unlike apps/site's demo). Task 6 wires this into the editor + EOD data.
 
-import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit"
+import type { AlertEmission, OrderEmission } from "@invinite-org/chartlang-adapter-kit"
 import type { Bar, ScriptManifest } from "@invinite-org/chartlang-core"
 import { type ReactElement, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -32,6 +34,7 @@ import { createResamplingCandlePump } from "./secondaryStreams"
 
 const FALLBACK_INTERVAL = "1D"
 const MAX_FEED_ALERTS = 50
+const MAX_FEED_ORDERS = 50
 
 /**
  * The host-loadable compiled artifact: exactly the `{ moduleSource, manifest }`
@@ -51,11 +54,19 @@ export type CompiledArtifact = Readonly<{
  * status bar) observe every alert; the footer feed lists them all, while
  * toasts fire ONLY for live alerts (those on bars newer than the loaded
  * history) so a freshly-loaded script doesn't toast its whole past.
+ *
+ * `onOrder` is the sibling sink for the structured `orders` channel — the
+ * one thing a starter has to demonstrate about orders, since the entry/exit
+ * ARROWS need no app code at all (the runtime lowers them to ordinary
+ * `arrow` / `label` plots every adapter already draws). Deliberately no
+ * simulated equity curve: fill economics are the consumer's, not the
+ * language's.
  */
 export type ChartPaneProps = Readonly<{
   bars: ReadonlyArray<Bar>
   artifact: CompiledArtifact | null
   onAlert?: (alert: AlertEmission) => void
+  onOrder?: (order: OrderEmission) => void
 }>
 
 type Handle = ReturnType<typeof createActiveAdapter>
@@ -66,7 +77,10 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
   const handleRef = useRef<Handle | null>(null)
   const onAlertRef = useRef(props.onAlert)
   onAlertRef.current = props.onAlert
+  const onOrderRef = useRef(props.onOrder)
+  onOrderRef.current = props.onOrder
   const [feed, setFeed] = useState<ReadonlyArray<AlertEmission>>([])
+  const [orderFeed, setOrderFeed] = useState<ReadonlyArray<OrderEmission>>([])
 
   useEffect(() => {
     const container = containerRef.current
@@ -76,6 +90,7 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
     handleRef.current?.dispose()
     handleRef.current = null
     setFeed([])
+    setOrderFeed([])
 
     const controller = new AbortController()
     const pushSource = createPushCandleSource(bars)
@@ -113,6 +128,13 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
           })
         }
         setFeed((prev) => [alert, ...prev].slice(0, MAX_FEED_ALERTS))
+      },
+      // The whole orders demonstration: `emissions.orders` arrives here as
+      // typed intents in wire order. No prefix parsing, no marker drawing —
+      // the arrows already rode the plot pipeline.
+      onOrder: (order) => {
+        onOrderRef.current?.(order)
+        setOrderFeed((prev) => [order, ...prev].slice(0, MAX_FEED_ORDERS))
       },
     })
     handleRef.current = handle
@@ -171,6 +193,44 @@ export function ChartPane(props: ChartPaneProps): ReactElement {
           ref={containerRef}
         />
       </div>
+      {ready ? (
+        <div className="shrink-0 border-t border-border" data-testid="orders-feed">
+          <ScrollArea className="h-24">
+            {orderFeed.length > 0 ? (
+              <ul className="divide-y divide-border text-xs">
+                {orderFeed.map((order, i) => (
+                  <li
+                    className="flex items-center gap-2 px-3 py-1.5"
+                    key={`${order.dedupeKey}-${i}`}
+                  >
+                    <span
+                      data-testid="order-action"
+                      className={`font-mono font-semibold uppercase ${
+                        order.action === "buy"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : order.action === "sell"
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {order.action}
+                    </span>
+                    <span className="font-mono text-muted-foreground">bar {order.bar}</span>
+                    {order.qty !== null ? (
+                      <span className="font-mono text-foreground">×{order.qty}</span>
+                    ) : null}
+                    <span className="truncate text-foreground">{order.label}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">
+                No orders yet.
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      ) : null}
       {ready ? (
         <div className="shrink-0 border-t border-border" data-testid="alerts-feed">
           <ScrollArea className="h-28">

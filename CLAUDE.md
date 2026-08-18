@@ -19,6 +19,16 @@ the rules that span folders.
   The generated `skills/chartlang-coding/references/primitives.md` is
   re-emitted by `pnpm skills:generate`; the `skills:gate` will fail CI
   if you forget.
+- **Never run `biome check --write` repo-wide.** `check` additionally
+  applies **import organizing**, which no gate in this repo asks for:
+  `pnpm lint` is `biome lint .` and `pnpm format` is `biome format .`.
+  Run once it rewrote 177 files — 174 of them import-reorder-only diffs
+  in code the task never touched, each needing an individual revert by
+  exact path. Use `pnpm lint` + `pnpm format`. Second-order trap: any
+  reformat under `packages/runtime` or `packages/core` **restales the
+  QuickJS dispatcher bundle**, because `bundleDispatcher()` inlines
+  their built `dist` — re-run `pnpm --filter @invinite-org/chartlang-host-quickjs
+  build:dispatcher` if you touched either.
 - **`brand/` is the single source of truth for the brand palette AND
   the logo.** `brand/brand.css` holds the tokens; the logo ships as
   `brand/chartlang_logo.{svg,ico}` plus `chartlang_logo_{48,256,1024}.png`.

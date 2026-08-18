@@ -39,7 +39,7 @@ export type DiagnosticCodeEntry = Readonly<{
  * @since 0.1
  * @stable
  * @example
- *     DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].severity; // "error"
+ *     DIAGNOSTIC_CODE_ENTRIES["unsupported-strategy"].severity; // "warning"
  */
 export const DIAGNOSTIC_CODE_ENTRIES = {
     "unsupported-pine-version": {
@@ -56,10 +56,11 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
     },
     "unsupported-strategy": {
         code: "pine-converter/parse/unsupported-strategy",
-        severity: "error",
-        defaultMessage: "`strategy(...)` declarations are not supported.",
+        severity: "warning",
+        defaultMessage:
+            "`strategy(...)` was converted as an indicator with `order.*` signals; the backtester's own settings (capital, sizing, commission, slippage, fill model) are ignored.",
         defaultSuggestion:
-            "Strip the backtester and convert the signal logic as an `indicator(...)`.",
+            "Review the converted `order.*` calls, and configure position sizing and fill economics in whatever consumes the `orders` channel.",
     },
     "unsupported-library": {
         code: "pine-converter/parse/unsupported-library",
@@ -220,7 +221,7 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultMessage:
             "`strategy(...)` was stripped to a `defineIndicator`; backtester args were dropped.",
         defaultSuggestion:
-            "Re-create order logic as `alert(...)` emissions in the converted script.",
+            "No action needed — the order logic converts to `order.*` calls; only the backtester's own configuration was dropped.",
     },
     "computed-indicator-title": {
         code: "pine-converter/transform/computed-indicator-title",
@@ -587,9 +588,9 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/transform/strategy-signal-only",
         severity: "info",
         defaultMessage:
-            "A `strategy.*` order call was lowered to an `alert(...)`; order sizing/fills are not reproduced.",
+            "A `strategy.*` order call was lowered to an `order.*` market intent; the backtester's fill, sizing, and stop/limit semantics beyond `qty` are not reproduced.",
         defaultSuggestion:
-            "Wire the alert into your own execution layer if you need order semantics.",
+            "No action needed — read the structured `orders` emission channel and apply your own fill model to it.",
     },
     "dynamic-series-index": {
         code: "pine-converter/transform/dynamic-series-index",
@@ -960,6 +961,22 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Set `maxval` on the `input.int` loop bound so chartlang can size the history buffer precisely.",
     },
+    "strategy-direction-assumed": {
+        code: "pine-converter/transform/strategy-direction-assumed",
+        severity: "warning",
+        defaultMessage:
+            "A `strategy.entry`/`strategy.order` direction argument is not the literal `strategy.long` or `strategy.short`, so the side could not be resolved at conversion time; `order.buy` was assumed.",
+        defaultSuggestion:
+            "Pass `strategy.long` / `strategy.short` directly, or split the call into the two branches your condition selects between.",
+    },
+    "strategy-order-args-dropped": {
+        code: "pine-converter/transform/strategy-order-args-dropped",
+        severity: "warning",
+        defaultMessage:
+            "A `strategy.*` order call passed arguments the `order.*` market intent cannot honor (a resting `limit`/`stop`, a trailing stop, an OCA group, a partial `qty_percent`, a target entry id, …); they were dropped.",
+        defaultSuggestion:
+            "Model resting orders and protective stops in whatever consumes the `orders` channel — chartlang v1 emits market intents only.",
+    },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 
 /**
@@ -972,7 +989,7 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
  * @since 0.1
  * @stable
  * @example
- *     DIAGNOSTIC_CODES.get("pine-converter/parse/unsupported-strategy")?.severity; // "error"
+ *     DIAGNOSTIC_CODES.get("pine-converter/parse/unsupported-strategy")?.severity; // "warning"
  */
 export const DIAGNOSTIC_CODES: ReadonlyMap<string, DiagnosticCodeEntry> = new Map(
     Object.values(DIAGNOSTIC_CODE_ENTRIES).map((entry) => [entry.code, entry]),

@@ -1,6 +1,6 @@
 # Worked examples
 
-Four complete, compileable chartlang scripts, copied verbatim from the
+Complete, compileable chartlang scripts, copied verbatim from the
 `examples/scripts/` directory in the chartlang repo. Each example
 demonstrates one specific contract detail; read the introduction before
 the source, then read the source.
@@ -232,6 +232,70 @@ first bar, which selects the seed branch); `haOpenSeries.value = …` writes
 this bar's head so the next bar can read it back. Adapters that do not
 declare the `candle` capability drop the emission silently.
 
+## 6. Order signals (`order.*`)
+
+Demonstrates the structured trade-signal surface: `order.buy` / `order.close`
+market intents guarded on `order.position()`, with **no drawing code at all** —
+each accepted order additionally emits an `arrow` (and, because both calls pass
+a `label`, a `label`) plot through the pipeline every adapter already renders.
+
+The two things to take from it: `order.position()` reads the position as of the
+**previous** confirmed step (orders fold after `compute` returns, reproducing
+Pine's `strategy.position_size` lag), and the `ta.*` calls plus the position
+read are **hoisted out of the `if`s** — a stateful `ta.*` callsite evaluated
+only on some bars desyncs its own history.
+
+```ts
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, order, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Order EMA Cross",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot, order }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+
+        plot(fast, { color: "#26a69a", title: "EMA(12)" });
+        plot(slow, { color: "#ef5350", title: "EMA(26)" });
+
+        // Hoist both crossing tests and the position read OUT of the `if`s.
+        // A stateful `ta.*` callsite evaluated only on some bars desyncs its own
+        // history, and hoisting the position read leaves the one-fold lag as the
+        // single thing the branches depend on.
+        const up = ta.crossover(fast, slow).current;
+        const down = ta.crossunder(fast, slow).current;
+
+        // `order.position()` reads the position as of the PREVIOUS confirmed
+        // step — the runtime folds a bar's orders after `compute` returns, which
+        // reproduces Pine's `strategy.position_size` lag. So this is "flat or
+        // short going into this bar", and it is what keeps a run of consecutive
+        // crossovers from stacking a second entry on an open long.
+        const flatOrShort = order.position().size <= 0;
+
+        if (flatOrShort && up) {
+            order.buy({ label: "Long" });
+        }
+        if (!flatOrShort && down) {
+            order.close({ label: "Exit" });
+        }
+
+        // No drawing code anywhere: each accepted order additionally emits an
+        // `arrow` plot (and a `label` plot, since both calls pass one) through
+        // the plot pipeline every adapter already renders. `marker: false` opts
+        // out — see `order-silent-markers.chart.ts`.
+    },
+});
+```
+
+chartlang tracks only a **nominal** position — `avgPrice` is the signal bar's
+close, and there is no capital, slippage, commission, or P&L. Whatever consumes
+`RunnerEmissions.orders` owns the economics, typically filling at the next
+bar's open. Never carry a trade signal in an `alert(...)` message.
+
 ## Cross-links
 
 - `references/forbidden.md` — the constructs the compiler rejects.
@@ -240,4 +304,6 @@ declare the `candle` capability drop the emission silently.
 - `examples/scripts/` in the chartlang repo — additional scripts
   (`fib-retracement`, `session-high-alert`, `daily-rsi-divergence`,
   `mintick-snapped-entry`) for `draw.*`, `state.*`, `timeframe.*`, and
-  `syminfo.*` surfaces.
+  `syminfo.*` surfaces, plus `order-rsi-reversal` (signed-position
+  reversal with `qty`) and `order-silent-markers` (`marker: false` and a
+  hand-drawn glyph) for the rest of the `order.*` surface.

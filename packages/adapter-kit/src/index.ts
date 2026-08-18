@@ -69,6 +69,8 @@ export type {
     ExternalSeriesFeedMap,
     InputKind,
     LogEmission,
+    OrderAction,
+    OrderEmission,
     PlotEmission,
     PlotKind,
     PlotOverride,

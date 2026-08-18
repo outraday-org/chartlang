@@ -41,6 +41,18 @@ const validAlertCondition = {
     time: 1_700_000_000_000,
 };
 
+const validOrder = {
+    kind: "order" as const,
+    slotId: "ema-cross.ts:14:9#0",
+    action: "buy",
+    qty: null,
+    label: "Long",
+    bar: 120,
+    time: 1_700_000_000_000,
+    meta: {},
+    dedupeKey: "ema-cross.ts:14:9#0::120::deadbeef",
+};
+
 const validLog = {
     kind: "log" as const,
     level: "info",
@@ -1082,6 +1094,117 @@ describe("validateEmission — alert", () => {
 
     it("rejects an empty dedupeKey", () => {
         expect(validateEmission({ ...validAlert, dedupeKey: "" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("dedupeKey"),
+        });
+    });
+});
+
+describe("validateEmission — order", () => {
+    it("accepts a well-formed order emission", () => {
+        expect(validateEmission(validOrder)).toEqual({ ok: true });
+    });
+
+    it("accepts every order action", () => {
+        for (const action of ["buy", "sell", "close"] as const) {
+            expect(validateEmission({ ...validOrder, action })).toEqual({ ok: true });
+        }
+    });
+
+    it("rejects an empty slotId", () => {
+        expect(validateEmission({ ...validOrder, slotId: "" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("slotId"),
+        });
+    });
+
+    it("rejects an unknown action", () => {
+        expect(validateEmission({ ...validOrder, action: "short" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("action"),
+        });
+    });
+
+    it("rejects a non-string action", () => {
+        expect(validateEmission({ ...validOrder, action: 1 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("action"),
+        });
+    });
+
+    it("accepts a finite positive qty", () => {
+        expect(validateEmission({ ...validOrder, qty: 2.5 })).toEqual({ ok: true });
+    });
+
+    it("rejects qty: 0 — a present qty is an unsigned magnitude, not a flat flag", () => {
+        expect(validateEmission({ ...validOrder, qty: 0 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("qty"),
+        });
+    });
+
+    it("rejects a negative qty", () => {
+        expect(validateEmission({ ...validOrder, qty: -1 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("qty"),
+        });
+    });
+
+    it("rejects qty: NaN", () => {
+        expect(validateEmission({ ...validOrder, qty: Number.NaN })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("qty"),
+        });
+    });
+
+    it("rejects a non-numeric qty", () => {
+        expect(validateEmission({ ...validOrder, qty: "1" })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("qty"),
+        });
+    });
+
+    it("rejects a non-string label", () => {
+        expect(validateEmission({ ...validOrder, label: 42 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("label"),
+        });
+    });
+
+    it("accepts the empty-string label the runtime writes when none was given", () => {
+        expect(validateEmission({ ...validOrder, label: "" })).toEqual({ ok: true });
+    });
+
+    it("rejects a negative bar", () => {
+        expect(validateEmission({ ...validOrder, bar: -1 })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("bar"),
+        });
+    });
+
+    it("rejects a non-finite time", () => {
+        expect(validateEmission({ ...validOrder, time: Number.NaN })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("time"),
+        });
+    });
+
+    it("rejects a non-object meta", () => {
+        expect(validateEmission({ ...validOrder, meta: [] })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("meta"),
+        });
+    });
+
+    it("rejects bad meta contents (walker path)", () => {
+        expect(validateEmission({ ...validOrder, meta: { m: new Map() } })).toMatchObject({
+            ok: false,
+            message: expect.stringContaining("order.meta"),
+        });
+    });
+
+    it("rejects an empty dedupeKey", () => {
+        expect(validateEmission({ ...validOrder, dedupeKey: "" })).toMatchObject({
             ok: false,
             message: expect.stringContaining("dedupeKey"),
         });
@@ -5377,5 +5500,20 @@ describe("validateEmission — diagnostic", () => {
         for (const code of depCodes) {
             expect(validateEmission({ ...validDiagnostic, code })).toEqual({ ok: true });
         }
+    });
+
+    it("accepts tz-dst-unsupported — the code the union carried but the set omitted", () => {
+        // Regression pin for the drift the `DIAGNOSTIC_CODE_PRESENCE` map now
+        // makes impossible: a code in `DiagnosticCode` but absent from the
+        // accepted set type-checks at every call site and is then rejected here.
+        expect(validateEmission({ ...validDiagnostic, code: "tz-dst-unsupported" })).toEqual({
+            ok: true,
+        });
+    });
+
+    it("accepts unsupported-orders", () => {
+        expect(validateEmission({ ...validDiagnostic, code: "unsupported-orders" })).toEqual({
+            ok: true,
+        });
     });
 });

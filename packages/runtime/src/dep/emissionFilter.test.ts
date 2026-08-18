@@ -6,6 +6,7 @@ import type {
     AlertEmission,
     DrawingEmission,
     LogEmission,
+    OrderEmission,
     PlotEmission,
     RuntimeDiagnostic,
 } from "@invinite-org/chartlang-adapter-kit";
@@ -25,6 +26,7 @@ function freshEmissions(): MutableRunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,
@@ -58,6 +60,20 @@ function makeAlert(slotId: string): AlertEmission {
         meta: {},
         channels: ["toast"],
         dedupeKey: `${slotId}|0|x`,
+    };
+}
+
+function makeOrder(slotId: string): OrderEmission {
+    return {
+        kind: "order",
+        slotId,
+        action: "buy",
+        qty: null,
+        label: "L",
+        bar: 0,
+        time: 0,
+        meta: {},
+        dedupeKey: `${slotId}::0::deadbeef`,
     };
 }
 
@@ -176,6 +192,7 @@ describe("applyDepEmissionPolicy — DepRunner (private)", () => {
         runnerEmissions.drawings.push(makeDrawing());
         runnerEmissions.alerts.push(makeAlert("s"));
         runnerEmissions.alertConditions = [makeAlertCondition()];
+        runnerEmissions.orders.push(makeOrder("s"));
         runnerEmissions.logs.push(makeLog());
         const parent = freshEmissions();
         const store = makeStore("p", []);
@@ -190,6 +207,9 @@ describe("applyDepEmissionPolicy — DepRunner (private)", () => {
         expect(parent.drawings).toHaveLength(0);
         expect(parent.alerts).toHaveLength(0);
         expect(parent.alertConditions ?? []).toHaveLength(0);
+        // A private dep must not trade through its consumer.
+        expect(parent.orders).toHaveLength(0);
+        expect(runnerEmissions.orders).toHaveLength(0);
         expect(parent.logs).toHaveLength(0);
         expect(parent.diagnostics).toHaveLength(0);
     });
@@ -265,6 +285,32 @@ describe("applyDepEmissionPolicy — SiblingRunner (drawn)", () => {
         expect(parent.plots).toHaveLength(1);
         expect(parent.plots[0].slotId).toBe("export:slow/s");
         expect(parent.diagnostics).toHaveLength(0);
+    });
+
+    it("forwards orders with the export prefix and an untouched dedupeKey", () => {
+        const runnerEmissions = freshEmissions();
+        runnerEmissions.orders.push(makeOrder("s"));
+        runnerEmissions.orders.push(makeOrder("s2"));
+        const parent = freshEmissions();
+        const store = makeStore("slow", []);
+        const runner: SiblingRunnerLike = {
+            kind: "sibling",
+            exportName: "slow",
+            slotIdPrefix: "export:slow/",
+            declaredOutputs: [],
+            emissions: runnerEmissions,
+        };
+        applyDepEmissionPolicy(runner, parent, store);
+        // Orders follow the alert side of the policy: slot ids prefixed...
+        expect(parent.orders.map((order) => order.slotId)).toEqual([
+            "export:slow/s",
+            "export:slow/s2",
+        ]);
+        // ...and `dedupeKey` left as emitted, since it embeds the original
+        // unprefixed slot id and hosts key idempotency on it across remounts.
+        expect(parent.orders[0].dedupeKey).toBe("s::0::deadbeef");
+        expect(parent.diagnostics).toHaveLength(0);
+        expect(runnerEmissions.orders).toHaveLength(0);
     });
 
     it("forwards drawings without slot-id prefixing", () => {

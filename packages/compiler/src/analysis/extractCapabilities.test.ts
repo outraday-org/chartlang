@@ -93,6 +93,64 @@ void defineAlertCondition;
         expect(result).toEqual(["alertConditions"]);
     });
 
+    it("adds orders for order.buy / order.sell / order.close callsites", () => {
+        const result = run(`
+import { defineIndicator, order, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar }) {
+        if (ta.crossover(bar.close, ta.ema(bar.close, 20)).current) order.buy({ label: "L" });
+        if (order.position().size > 0 && ta.crossunder(bar.close, ta.ema(bar.close, 20)).current) {
+            order.close();
+        }
+    },
+});
+`);
+        expect(result).toEqual(["indicators", "orders"]);
+    });
+
+    it("does not add orders for an order.position()-only script", () => {
+        // `order.position` is a pure read — a script that only inspects its
+        // own position must not ask the adapter for a capability it never uses.
+        const result = run(`
+import { defineIndicator, order, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute() {
+        plot(order.position().size);
+    },
+});
+`);
+        expect(result).toEqual(["indicators"]);
+    });
+
+    it("adds orders for the destructured compute({ order }) binding", () => {
+        // The binding-element path in `resolveCoreSymbolName` — a distinct
+        // resolution branch from the core-import form above.
+        const result = run(`
+import { defineIndicator } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ order }) {
+        order.sell({ qty: 1 });
+    },
+});
+`);
+        expect(result).toEqual(["indicators", "orders"]);
+    });
+
+    it("does not add orders when a user-shadowed `order` is called", () => {
+        const result = run(`
+const order = { buy: (_: unknown): void => {} };
+order.buy({});
+`);
+        expect(result).toEqual(["indicators"]);
+    });
+
     it("scopes the walk to a single binding when `scope` is provided", () => {
         const source = `
 import { alert, defineIndicator, plot } from "@invinite-org/chartlang-core";

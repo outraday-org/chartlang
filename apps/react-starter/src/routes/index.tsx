@@ -15,7 +15,7 @@ import type { Bar } from "@invinite-org/chartlang-core"
 import { DEFAULT_EDITOR_FONT_SIZE } from "@invinite-org/chartlang-editor"
 import type { LspDiagnostic } from "@invinite-org/chartlang-language-service"
 import { createFileRoute } from "@tanstack/react-router"
-import { BellIcon } from "lucide-react"
+import { ArrowLeftRightIcon, BellIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -102,6 +102,7 @@ function Workspace(): ReactElement {
   const [currentScriptId, setCurrentScriptId] = useState<string | null>(null)
   const [currentName, setCurrentName] = useState("")
   const [alertCount, setAlertCount] = useState(0)
+  const [orderCount, setOrderCount] = useState(0)
   const [reloadKey, setReloadKey] = useState(0)
   const [editorKey, setEditorKey] = useState(0)
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null)
@@ -292,6 +293,11 @@ export default defineIndicator({
                 <BellIcon /> {alertCount}
               </Badge>
             ) : null}
+            {orderCount > 0 ? (
+              <Badge title="Orders emitted this run" variant="secondary">
+                <ArrowLeftRightIcon /> {orderCount}
+              </Badge>
+            ) : null}
             <FontSizeControls fontSize={editorFontSize} onChange={setEditorFontSize} />
           </div>
           <div className="min-h-0 flex-1">
@@ -309,7 +315,12 @@ export default defineIndicator({
       <ResizableHandle withHandle />
 
       <ResizablePanel defaultSize={36} minSize={25}>
-        <ChartPane artifact={artifact} bars={bars} onAlert={() => setAlertCount((n) => n + 1)} />
+        <ChartPane
+          artifact={artifact}
+          bars={bars}
+          onAlert={() => setAlertCount((n) => n + 1)}
+          onOrder={() => setOrderCount((n) => n + 1)}
+        />
       </ResizablePanel>
 
       {/* Unsaved-changes guard before loading another script. */}

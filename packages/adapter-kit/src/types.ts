@@ -8,11 +8,12 @@ import type {
     DrawingCounts as CoreDrawingCounts,
     DrawingKind as CoreDrawingKind,
     InputKind as CoreInputKind,
-    ExternalSeriesFeedMap,
+    OrderAction as CoreOrderAction,
     PlotKind as CorePlotKind,
     PlotOverride as CorePlotOverride,
     PlotSlotDescriptor as CorePlotSlotDescriptor,
     DrawingState,
+    ExternalSeriesFeedMap,
     IntervalDescriptor,
     JsonValue,
     LineStyle,
@@ -254,6 +255,7 @@ export type DrawingCounts = CoreDrawingCounts;
  *         alerts: new Set(["toast"]),
  *         alertConditions: false,
  *         logs: false,
+ *         orders: false,
  *         inputs: new Set(),
  *         intervals: [],
  *         multiTimeframe: false,
@@ -292,6 +294,28 @@ export type Capabilities = {
      *     void enabled;
      */
     readonly logs: boolean;
+    /**
+     * Whether the adapter consumes the `orders` emission channel
+     * ({@link RunnerEmissions.orders}). A boolean rather than a set of kinds
+     * because `apiVersion: 1` ships market intents only and has no subkinds to
+     * enumerate; a set-of-kinds shape can supersede this at `apiVersion: 2` if
+     * limit / stop orders ever land.
+     *
+     * `false` ⇒ the runtime drops the `order.*` call, emits **no** auto-drawn
+     * entry / exit markers, and pushes one `unsupported-orders` diagnostic per
+     * slot per mount. Declining is a supported posture — a headless
+     * server-side evaluator ignores this channel exactly as it already ignores
+     * drawings. Rendering is NOT required to declare `true`: order markers
+     * arrive as ordinary `arrow` / `label` plot emissions, so an adapter opts
+     * in just by being willing to read the array.
+     *
+     * @since 1.10
+     * @stable
+     * @example
+     *     const enabled: Capabilities["orders"] = false;
+     *     void enabled;
+     */
+    readonly orders: boolean;
     readonly inputs: ReadonlySet<InputKind>;
     /**
      * Timeframes this adapter can deliver candles for. Order is meaningful
@@ -737,6 +761,92 @@ export type AlertConditionEmission = {
 };
 
 /**
+ * The three market intents an `order.*` callsite can express. Re-exported
+ * from `@invinite-org/chartlang-core` — never redeclared — so the
+ * script-facing (`order.buy` / `order.sell` / `order.close`) and
+ * adapter-facing surfaces stay in lock-step. Pinned set: a resting-order
+ * action would force the language to define when it fills, and fill
+ * economics belong to the consumer.
+ *
+ * @since 1.10
+ * @stable
+ * @example
+ *     const a: OrderAction = "buy";
+ *     void a;
+ */
+export type OrderAction = CoreOrderAction;
+
+/**
+ * An `order.*` emission — the structured market intent a script expresses
+ * through `order.buy` / `order.sell` / `order.close`, gated by
+ * `Capabilities.orders`. This channel is the **source of truth** for a
+ * strategy signal; the entry / exit arrows the runtime auto-renders are
+ * ordinary `arrow` / `label` plot emissions and are a courtesy an adapter
+ * may skip.
+ *
+ * **Append-only.** Unlike plots and alerts (which collapse per
+ * `(slotId, bar)`, last-write-wins) the order queue preserves append order,
+ * matching `alertConditions` and `logs`. An order is an *event*, not a state,
+ * and the runtime's nominal position folds every accepted order — so a
+ * dropped duplicate would leave the emitted stream and the reported position
+ * disagreeing. Hosts that dispatch asynchronously use `dedupeKey` for
+ * idempotency instead, exactly as they do for `AlertEmission`.
+ *
+ * Every field is **required**: a brand-new type has no back-compat tail to
+ * protect, and the retrofit-optional `alertConditions?` is the
+ * counter-example — it seeded `?? []` fallbacks for a state that could not
+ * occur. *Future* fields follow the omitted-when-absent optional-tail rule
+ * {@link PlotEmission.visible} and its siblings document.
+ *
+ * `OrderOpts.marker` is deliberately **absent** here: it is render-side only,
+ * and the wire records the intent rather than how it was drawn.
+ *
+ * @since 1.10
+ * @stable
+ * @example
+ *     const e: OrderEmission = {
+ *         kind: "order",
+ *         slotId: "ema-cross.ts:14:9#0",
+ *         action: "buy",
+ *         qty: null,
+ *         label: "Long",
+ *         bar: 120,
+ *         time: 1_700_000_000_000,
+ *         meta: {},
+ *         dedupeKey: "ema-cross.ts:14:9#0::120::deadbeef",
+ *     };
+ *     void e;
+ */
+export type OrderEmission = {
+    readonly kind: "order";
+    /** Compiler-injected callsite id, stable across mounts. */
+    readonly slotId: string;
+    readonly action: OrderAction;
+    /**
+     * Unsigned order magnitude, or `null` when the author gave none — the
+     * action names the side, never the sign. When present it is finite and
+     * `> 0`. The runtime's nominal tracker reads an absent `qty` as one unit
+     * and ignores it entirely on `"close"` (it always flattens fully); a
+     * consumer that simulates partials may honour it.
+     */
+    readonly qty: number | null;
+    /** `""` when the author gave none. */
+    readonly label: string;
+    readonly bar: number;
+    readonly time: number;
+    readonly meta: Readonly<Record<string, JsonValue>>;
+    /**
+     * `${slotId}::${bar}::FNV1a(action + qty + label + meta)`, computed by
+     * the runtime. Adapters and hosts that dispatch through async channels
+     * MUST use it for idempotency (the `AlertEmission.dedupeKey` contract).
+     * A sibling-forwarded order keeps the ORIGINAL, unprefixed slot id in
+     * this key even though its `slotId` gains the `export:<name>/` prefix —
+     * rewriting it would break host idempotency across a remount.
+     */
+    readonly dedupeKey: string;
+};
+
+/**
  * Per-bar debug log produced by `runtime.log.info/warn/error(...)`.
  * Logs are capability-gated by `Capabilities.logs`; disabled logs are
  * silent no-ops because they are debugging output rather than signal.
@@ -850,6 +960,12 @@ export type DrawingEmission = {
  * runtime resolves UTC + fixed offsets only (byte-reproducible, no `Intl`), so
  * a DST zone falls back to UTC and warns once per distinct tz per mount.
  *
+ * `unsupported-orders` — an `order.buy` / `order.sell` / `order.close` callsite
+ * ran against an adapter declaring `orders: false`. The order is dropped, no
+ * auto-drawn markers are emitted, and the diagnostic fires **once per slot per
+ * mount**: one per order per bar would turn a 10k-bar backfill into a denial
+ * of service on the diagnostic channel rather than a warning.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -864,6 +980,7 @@ export type DiagnosticCode =
     | "unsupported-alert-channel"
     | "unsupported-pane"
     | "unsupported-interval"
+    | "unsupported-orders"
     | "multi-timeframe-not-supported"
     | "multi-symbol-not-supported"
     | "unknown-secondary-stream"
@@ -922,7 +1039,15 @@ export type RuntimeDiagnostic = {
 /**
  * Top-level drain payload the runtime hands `Adapter.onEmissions(...)`.
  * Phase 1 ships `plots` / `drawings` / `alerts` / `diagnostics`; Phase 5
- * additively adds `alertConditions` + `logs` (per PLAN §7.3).
+ * additively adds `alertConditions` + `logs` (per PLAN §7.3); this release
+ * additively adds `orders` (RFC 0002) — the third additive channel, not a new
+ * mechanism.
+ *
+ * The field order below IS the normative queue order (`docs/spec/semantics.md`
+ * "Emission Ordering"): `orders` sits after `alertConditions` and before
+ * `logs`, grouping signals with signals ahead of logs and diagnostics. The
+ * spec list, this type, and the conformance `BufferedRun` are read as one
+ * roster, so they move together.
  *
  * @since 0.1
  * @stable
@@ -932,6 +1057,7 @@ export type RuntimeDiagnostic = {
  *         drawings: [],
  *         alerts: [],
  *         alertConditions: [],
+ *         orders: [],
  *         logs: [],
  *         diagnostics: [],
  *         fromBar: 0,
@@ -943,6 +1069,7 @@ export type RunnerEmissions = {
     readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
     readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
+    readonly orders: ReadonlyArray<OrderEmission>;
     readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
     readonly fromBar: number;

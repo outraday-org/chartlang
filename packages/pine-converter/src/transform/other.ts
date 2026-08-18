@@ -2072,7 +2072,7 @@ function emitExpressionStatementCore(
         const plot = emitPlotFamily(expr, ctx, walk.diagnostics, walk.analysis.script.body);
         return plot === null ? [] : [plot];
     }
-    const signal = emitStrategySignal(expr, walk.diagnostics);
+    const signal = emitStrategySignal(expr, ctx, walk.diagnostics);
     if (signal !== null) {
         return [signal];
     }

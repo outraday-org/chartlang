@@ -84,12 +84,31 @@ const STR_FIXTURE: Phase4DocInput = {
     sourceUrl: "https://example.invalid/str.ts",
 };
 
+const ORDER_FIXTURE: ReadonlyArray<Phase4DocInput> = [
+    {
+        entry: {
+            title: "order.buy",
+            sourceRelPath: "packages/core/src/order/order.ts",
+            symbolPath: ["order", "buy"],
+            outRelPath: "docs/primitives/order/buy.md",
+            seeAlso: "`order.*` namespace",
+        },
+        description: "Emit a market buy intent.",
+        since: "1.12",
+        stability: "stable",
+        example: 'order.buy({ label: "Long" });',
+        signature: "buy(_opts?: OrderOpts): void",
+        sourceUrl: "https://example.invalid/order.ts",
+    },
+];
+
 describe("renderReference", () => {
     it("emits the auto-header as the first line", () => {
         const md = renderReference(
             [TA_FIXTURE],
             [DRAW_FIXTURE],
             [PLOT_FIXTURE],
+            ORDER_FIXTURE,
             MATH_FIXTURE,
             STR_FIXTURE,
         );
@@ -97,7 +116,7 @@ describe("renderReference", () => {
     });
 
     it("renders a ta.* block with signature, formula, warmup, since/stability", () => {
-        const md = renderReference([TA_FIXTURE], [], [], MATH_FIXTURE, STR_FIXTURE);
+        const md = renderReference([TA_FIXTURE], [], [], ORDER_FIXTURE, MATH_FIXTURE, STR_FIXTURE);
         expect(md).toContain("### ta.ema");
         expect(md).toContain(TA_FIXTURE.signature);
         expect(md).toContain("Exponential moving average.");
@@ -107,7 +126,14 @@ describe("renderReference", () => {
     });
 
     it("renders a draw.* block with signature, anchors, since/stability", () => {
-        const md = renderReference([], [DRAW_FIXTURE], [], MATH_FIXTURE, STR_FIXTURE);
+        const md = renderReference(
+            [],
+            [DRAW_FIXTURE],
+            [],
+            ORDER_FIXTURE,
+            MATH_FIXTURE,
+            STR_FIXTURE,
+        );
         expect(md).toContain("### draw.line");
         expect(md).toContain(DRAW_FIXTURE.signature);
         expect(md).toContain("**Anchors:** `a`, `b` — two `WorldPoint`s");
@@ -115,7 +141,14 @@ describe("renderReference", () => {
     });
 
     it("renders a plot-family block under a ## plot family section", () => {
-        const md = renderReference([], [], [PLOT_FIXTURE], MATH_FIXTURE, STR_FIXTURE);
+        const md = renderReference(
+            [],
+            [],
+            [PLOT_FIXTURE],
+            ORDER_FIXTURE,
+            MATH_FIXTURE,
+            STR_FIXTURE,
+        );
         expect(md).toContain("## plot family");
         expect(md).toContain("### bgcolor");
         expect(md).toContain(PLOT_FIXTURE.signature);
@@ -123,8 +156,28 @@ describe("renderReference", () => {
         expect(md).toContain("**Since:** 1.4 · stable");
     });
 
+    it("renders a per-member ## order.* section between plot family and math.*", () => {
+        const md = renderReference(
+            [],
+            [],
+            [PLOT_FIXTURE],
+            ORDER_FIXTURE,
+            MATH_FIXTURE,
+            STR_FIXTURE,
+        );
+        expect(md).toContain("## order.*");
+        // Per MEMBER (the ta.*/draw.* shape), not one consolidated block like
+        // math.*/str.* — `order` has four doc pages, one per member.
+        expect(md).toContain("### order.buy");
+        expect(md).toContain(ORDER_FIXTURE[0].signature);
+        expect(md).toContain("Emit a market buy intent.");
+        expect(md).toContain("**Since:** 1.12 · stable");
+        expect(md.indexOf("## plot family")).toBeLessThan(md.indexOf("## order.*"));
+        expect(md.indexOf("## order.*")).toBeLessThan(md.indexOf("## math.*"));
+    });
+
     it("renders consolidated ## math.* / ## str.* namespace blocks", () => {
-        const md = renderReference([], [], [], MATH_FIXTURE, STR_FIXTURE);
+        const md = renderReference([], [], [], ORDER_FIXTURE, MATH_FIXTURE, STR_FIXTURE);
         expect(md).toContain("## math.*");
         expect(md).toContain(MATH_FIXTURE.signature);
         expect(md).toContain(`**Example:** \`${MATH_FIXTURE.example}\``);

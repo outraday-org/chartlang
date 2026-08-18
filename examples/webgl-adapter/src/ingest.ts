@@ -6,6 +6,7 @@ import {
     type AlertEmission,
     type DrawingEmission,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type RunnerEmissions,
     validateEmission,
@@ -160,7 +161,7 @@ function applyValidated<T>(items: ReadonlyArray<T>, apply: (item: T) => void): v
  *     const state = createAdapterState();
  *     applyEmissions(state, {
  *         plots: [], drawings: [], alerts: [], alertConditions: [],
- *         logs: [], diagnostics: [],
+ *         orders: [], logs: [], diagnostics: [],
  *     });
  *     void state;
  */
@@ -169,12 +170,17 @@ export function applyEmissions(
     emissions: RunnerEmissions,
     onAlert?: (a: AlertEmission) => void,
     badgeFilter?: (a: AlertEmission) => boolean,
+    onOrder?: (o: OrderEmission) => void,
 ): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
     applyValidated(emissions.alerts, (alert) => applyAlert(state, alert, onAlert, badgeFilter));
     state.currentAlertConditions.length = 0;
     applyValidated(emissions.alertConditions, (condition) => applyAlertCondition(state, condition));
+    // Orders keep no adapter state — their picture already rode in on the plot
+    // channel above — so the only thing to do is hand the validated intents to
+    // the app-layer sink, in the queue position the wire declares them.
+    applyValidated(emissions.orders, (order) => onOrder?.(order));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
     for (const d of emissions.diagnostics) {
         if (d.severity === "warning" || d.severity === "error") {

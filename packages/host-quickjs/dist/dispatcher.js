@@ -836,9 +836,9 @@ function createSessionCalendar(days) {
   const byDayKey = /* @__PURE__ */ new Map();
   for (const day of days) {
     if (day.kind === "halfDay") {
-      const close = day.closeMinutes;
-      if (!Number.isInteger(close) || close < 0 || close > MAX_MINUTE_OF_DAY) {
-        throw new Error(`session calendar: half-day ${day.dayKey} needs an integer closeMinutes in [0, ${MAX_MINUTE_OF_DAY}], got ${String(close)}`);
+      const close2 = day.closeMinutes;
+      if (!Number.isInteger(close2) || close2 < 0 || close2 > MAX_MINUTE_OF_DAY) {
+        throw new Error(`session calendar: half-day ${day.dayKey} needs an integer closeMinutes in [0, ${MAX_MINUTE_OF_DAY}], got ${String(close2)}`);
       }
     }
     byDayKey.set(day.dayKey, day);
@@ -1081,17 +1081,17 @@ function fromGradient(t, stops) {
     return TRANSPARENT_BLACK;
   if (stops.length === 1 || Number.isNaN(t))
     return first.color;
-  const position = clampUnit2(t);
-  if (position <= first.at)
+  const position2 = clampUnit2(t);
+  if (position2 <= first.at)
     return first.color;
   const last = stops[stops.length - 1];
-  if (position >= last.at)
+  if (position2 >= last.at)
     return last.color;
   let previous = first;
   let next = last;
   for (let i = 1; i < stops.length; i += 1) {
     const candidate = stops[i];
-    if (position <= candidate.at) {
+    if (position2 <= candidate.at) {
       next = candidate;
       break;
     }
@@ -1101,7 +1101,7 @@ function fromGradient(t, stops) {
   const right = parseColor(next.color);
   if (left === null || right === null)
     return previous.color;
-  const ratio = (position - previous.at) / (next.at - previous.at);
+  const ratio = (position2 - previous.at) / (next.at - previous.at);
   const alpha = left.a + (right.a - left.a) * ratio;
   return emitRgb(clampByte2(left.r + (right.r - left.r) * ratio), clampByte2(left.g + (right.g - left.g) * ratio), clampByte2(left.b + (right.b - left.b) * ratio), clampUnit2(alpha));
 }
@@ -1267,7 +1267,7 @@ var array = Object.freeze({
   percentile: (a, p) => a.percentile(p),
   indexOf: (a, v) => a.indexOf(v),
   includes: (a, v) => a.includes(v),
-  sort: (a, order) => a.sort(order)
+  sort: (a, order2) => a.sort(order2)
 });
 
 // ../core/dist/statefulPrimitives.js
@@ -1386,6 +1386,16 @@ var STATEFUL_PRIMITIVE_ENTRIES = [
   { name: "plotcandle", slot: true },
   { name: "plotbar", slot: true },
   { name: "alert", slot: true },
+  // order.* market intents. Slot-injected so each callsite owns a stable id
+  // for its emissions, its once-per-slot capability diagnostic, and its
+  // synthetic auto-marker slots. `order.position` is a pure read of the
+  // nominal position — it allocates nothing, so it is `slot: false` (and
+  // therefore legal inside a bounded loop) while still riding the in-loop
+  // diagnostic set.
+  { name: "order.buy", slot: true },
+  { name: "order.sell", slot: true },
+  { name: "order.close", slot: true },
+  { name: "order.position", slot: false },
   // Phase 3 — draw.* namespace. One entry per kind in DRAWING_KINDS
   // order. Names are camelCase (`draw.<kindCamelCase>`); the wire
   // format keeps the kebab-case `DrawingKind`.
@@ -1792,11 +1802,11 @@ function recomputeDerivedBuffers(ohlcv, snapshot6) {
     const high = valueAt(buffers.high, i);
     const low = valueAt(buffers.low, i);
     const open = valueAt(buffers.open, i);
-    const close = valueAt(buffers.close, i);
+    const close2 = valueAt(buffers.close, i);
     derived.hl2[i] = Number.isNaN(high) || Number.isNaN(low) ? null : (high + low) / 2;
-    derived.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close) / 3;
-    derived.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (open + high + low + close) / 4;
-    derived.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close) ? null : (high + low + close + close) / 4;
+    derived.hlc3[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close2) ? null : (high + low + close2) / 3;
+    derived.ohlc4[i] = Number.isNaN(open) || Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close2) ? null : (open + high + low + close2) / 4;
+    derived.hlcc4[i] = Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(close2) ? null : (high + low + close2 + close2) / 4;
   }
   ohlcv.hl2.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hl2 });
   ohlcv.hlc3.restoreFromSnapshotBuffer({ headIndex, filled, values: derived.hlc3 });
@@ -1856,18 +1866,18 @@ function createStreamState(args) {
     seriesViews,
     taSlots: /* @__PURE__ */ new Map(),
     serialiseSnapshot() {
-      const close = ohlcv.close.serialiseSnapshotBuffer();
+      const close2 = ohlcv.close.serialiseSnapshotBuffer();
       const buffers = rawBuffers(ohlcv);
       return Object.freeze({
         interval: bar.interval,
-        headIndex: close.headIndex,
-        filled: close.filled,
+        headIndex: close2.headIndex,
+        filled: close2.filled,
         buffers: Object.freeze({
           time: buffers.time.serialiseSnapshotBuffer().values,
           open: buffers.open.serialiseSnapshotBuffer().values,
           high: buffers.high.serialiseSnapshotBuffer().values,
           low: buffers.low.serialiseSnapshotBuffer().values,
-          close: close.values,
+          close: close2.values,
           volume: buffers.volume.serialiseSnapshotBuffer().values
         })
       });
@@ -2154,14 +2164,14 @@ function reduceIncludes(ring, value) {
   }
   return false;
 }
-function reduceSort(ring, order) {
+function reduceSort(ring, order2) {
   const n = ring.length;
   const out = [];
   for (let i = 0; i < n; i += 1) {
     out.push(ring.at(i));
   }
   out.sort((a, b) => a - b);
-  if (order === "desc")
+  if (order2 === "desc")
     out.reverse();
   return out;
 }
@@ -2242,8 +2252,8 @@ function buildArrayHandle(slot) {
     includes(value) {
       return reduceIncludes(slot.tentativeRing, value);
     },
-    sort(order) {
-      return reduceSort(slot.tentativeRing, order);
+    sort(order2) {
+      return reduceSort(slot.tentativeRing, order2);
     }
   };
 }
@@ -2736,6 +2746,11 @@ function restoreSeriesSlots(ctx, slots, capacity) {
 }
 
 // ../runtime/dist/runtimeContext.js
+var FLAT_ORDER_POSITION = Object.freeze({
+  size: 0,
+  avgPrice: null,
+  entryBar: null
+});
 var ACTIVE_RUNTIME_CONTEXT = {
   current: null
 };
@@ -3088,21 +3103,21 @@ function barFromStream(stream, age) {
   const open = stream.ohlcv.open.at(age);
   const high = stream.ohlcv.high.at(age);
   const low = stream.ohlcv.low.at(age);
-  const close = stream.ohlcv.close.at(age);
+  const close2 = stream.ohlcv.close.at(age);
   const barTime = stream.ohlcv.time.at(age);
   return {
     time: barTime,
     open,
     high,
     low,
-    close,
+    close: close2,
     volume: stream.ohlcv.volume.at(age),
     symbol: stream.bar.symbol,
     interval: stream.bar.interval,
     hl2: (high + low) / 2,
-    hlc3: (high + low + close) / 3,
-    ohlc4: (open + high + low + close) / 4,
-    hlcc4: (high + low + close + close) / 4,
+    hlc3: (high + low + close2) / 3,
+    ohlc4: (open + high + low + close2) / 4,
+    hlcc4: (high + low + close2 + close2) / 4,
     // Anchored at this materialised bar's own `age`: a negative offset
     // reads `time.at(age - offset)` (further back in this stream's
     // history) so a snapshot bar's offsets stay relative to itself.
@@ -3351,6 +3366,7 @@ function buildExprContext(parent, slotId, foldStream) {
       drawings: [],
       alerts: [],
       alertConditions: [],
+      orders: [],
       logs: [],
       diagnostics: [],
       fromBar: 0,
@@ -3376,6 +3392,9 @@ function buildExprContext(parent, slotId, foldStream) {
     diagnosedRequestKeys: /* @__PURE__ */ new Set(),
     diagnosedTzKeys: /* @__PURE__ */ new Set(),
     sessionCalendar: parent.sessionCalendar,
+    diagnosedOrderSlots: /* @__PURE__ */ new Set(),
+    pendingOrders: [],
+    orderPosition: FLAT_ORDER_POSITION,
     logBudget: 0,
     logBudgetExceededDiagnosed: false,
     resolvedInputs: parent.resolvedInputs,
@@ -3850,44 +3869,53 @@ var VALID_ALERT_CHANNELS = /* @__PURE__ */ new Set([
   "sms",
   "push"
 ]);
+var ORDER_ACTION_PRESENCE = {
+  buy: true,
+  sell: true,
+  close: true
+};
+var VALID_ORDER_ACTIONS = new Set(Object.keys(ORDER_ACTION_PRESENCE));
 var VALID_DIAGNOSTIC_SEVERITIES = /* @__PURE__ */ new Set(["info", "warning", "error"]);
 var VALID_DRAWING_KINDS = new Set(DRAWING_KINDS);
 var VALID_DRAWING_OPS = /* @__PURE__ */ new Set(["create", "update", "remove"]);
-var VALID_DIAGNOSTIC_CODES = /* @__PURE__ */ new Set([
-  "unsupported-plot-kind",
-  "unsupported-drawing-kind",
-  "unsupported-alert-channel",
-  "unsupported-pane",
-  "unsupported-interval",
-  "multi-timeframe-not-supported",
-  "multi-symbol-not-supported",
-  "unknown-secondary-stream",
-  "lookback-exceeded",
-  "drawing-budget-exceeded",
-  "dropped-by-policy",
-  "input-coercion-failed",
-  "alert-conditions-not-supported",
-  "unknown-alert-condition",
-  "alert-rate-limited",
-  "runtime-cpu-budget-exceeded",
-  "runtime-memory-budget-exceeded",
-  "runtime-log-budget-exceeded",
-  "malformed-log-meta",
-  "runtime-error-thrown",
-  "session-info-missing",
-  "fixed-range-inverted",
-  "state-snapshot-restored",
-  "state-snapshot-future-dated",
-  "state-snapshot-malformed",
-  "state-snapshot-save-failed",
-  "malformed-emission",
-  "dep-error",
-  "dep-cycle",
-  "dep-unknown-output",
-  "dep-invalid-input-override",
-  "dep-dynamic",
-  "dep-output-not-titled"
-]);
+var DIAGNOSTIC_CODE_PRESENCE = {
+  "unsupported-plot-kind": true,
+  "unsupported-drawing-kind": true,
+  "unsupported-alert-channel": true,
+  "unsupported-pane": true,
+  "unsupported-interval": true,
+  "unsupported-orders": true,
+  "multi-timeframe-not-supported": true,
+  "multi-symbol-not-supported": true,
+  "unknown-secondary-stream": true,
+  "lookback-exceeded": true,
+  "drawing-budget-exceeded": true,
+  "dropped-by-policy": true,
+  "input-coercion-failed": true,
+  "alert-conditions-not-supported": true,
+  "unknown-alert-condition": true,
+  "alert-rate-limited": true,
+  "runtime-cpu-budget-exceeded": true,
+  "runtime-memory-budget-exceeded": true,
+  "runtime-log-budget-exceeded": true,
+  "malformed-log-meta": true,
+  "runtime-error-thrown": true,
+  "session-info-missing": true,
+  "tz-dst-unsupported": true,
+  "fixed-range-inverted": true,
+  "state-snapshot-restored": true,
+  "state-snapshot-future-dated": true,
+  "state-snapshot-malformed": true,
+  "state-snapshot-save-failed": true,
+  "malformed-emission": true,
+  "dep-error": true,
+  "dep-cycle": true,
+  "dep-unknown-output": true,
+  "dep-invalid-input-override": true,
+  "dep-dynamic": true,
+  "dep-output-not-titled": true
+};
+var VALID_DIAGNOSTIC_CODES = new Set(Object.keys(DIAGNOSTIC_CODE_PRESENCE));
 function bad(message2, code = "malformed-emission") {
   return { ok: false, code, message: message2 };
 }
@@ -4004,9 +4032,9 @@ function validateLabelStyle(style) {
   if (text2.length > MAX_LABEL_LENGTH) {
     return bad(`style.text: must be at most ${MAX_LABEL_LENGTH} characters`);
   }
-  const position = style.position;
-  if (typeof position !== "string" || !VALID_LABEL_POSITIONS.has(position)) {
-    return bad(`style.position: '${String(position)}' is not a valid label position`);
+  const position2 = style.position;
+  if (typeof position2 !== "string" || !VALID_LABEL_POSITIONS.has(position2)) {
+    return bad(`style.position: '${String(position2)}' is not a valid label position`);
   }
   return { ok: true };
 }
@@ -4316,6 +4344,34 @@ function validateAlertConditionEmission(e) {
   }
   if (!isFiniteNumber(e.time)) {
     return bad("alert-condition.time: must be a finite number");
+  }
+  return { ok: true };
+}
+function validateOrderEmission(e) {
+  if (!isNonEmptyString(e.slotId))
+    return bad("order.slotId: must be a non-empty string");
+  const action = e.action;
+  if (typeof action !== "string" || !VALID_ORDER_ACTIONS.has(action)) {
+    return bad(`order.action: '${String(action)}' is not a valid order action`);
+  }
+  const qty = e.qty;
+  if (qty !== null && (!isFiniteNumber(qty) || qty <= 0)) {
+    return bad("order.qty: must be a finite number greater than 0, or null");
+  }
+  if (typeof e.label !== "string")
+    return bad("order.label: must be a string");
+  if (!isNonNegativeInteger(e.bar)) {
+    return bad("order.bar: must be a non-negative integer");
+  }
+  if (!isFiniteNumber(e.time))
+    return bad("order.time: must be a finite number");
+  if (!isPlainObject(e.meta))
+    return bad("order.meta: must be a plain object");
+  const metaResult = walkMeta(e.meta, "order.meta");
+  if (!metaResult.ok)
+    return metaResult;
+  if (!isNonEmptyString(e.dedupeKey)) {
+    return bad("order.dedupeKey: must be a non-empty string");
   }
   return { ok: true };
 }
@@ -5075,9 +5131,9 @@ function validateTableCell(cell, path2) {
   return { ok: true };
 }
 function validateTableState(state2) {
-  const position = state2.position;
-  if (typeof position !== "string" || !VALID_TABLE_POSITIONS.has(position)) {
-    return bad(`drawing.state.position: '${String(position)}' is not a valid table position`);
+  const position2 = state2.position;
+  if (typeof position2 !== "string" || !VALID_TABLE_POSITIONS.has(position2)) {
+    return bad(`drawing.state.position: '${String(position2)}' is not a valid table position`);
   }
   const cells = state2.cells;
   if (!Array.isArray(cells) || cells.length === 0) {
@@ -5321,6 +5377,8 @@ function validateEmission(e) {
       return validateAlertEmission(e);
     case "alert-condition":
       return validateAlertConditionEmission(e);
+    case "order":
+      return validateOrderEmission(e);
     case "log":
       return validateLogEmission(e);
     case "drawing":
@@ -5451,6 +5509,22 @@ function pushAlertCondition(queue, e) {
   queue.alertConditions = target;
   target.push(e);
 }
+function pushOrder(queue, e) {
+  const result = validateEmission(e);
+  if (!result.ok) {
+    pushDiagnostic(queue, {
+      kind: "diagnostic",
+      severity: "warning",
+      code: "malformed-emission",
+      message: result.message,
+      slotId: e.slotId,
+      bar: e.bar
+    });
+    return false;
+  }
+  queue.orders.push(e);
+  return true;
+}
 function pushLog(queue, e) {
   const result = validateEmission(e);
   if (!result.ok) {
@@ -5550,6 +5624,20 @@ function isRuntimeErrorHalt(err) {
   return typeof err === "object" && err !== null && "sentinel" in err && err.sentinel === RUNTIME_ERROR_SENTINEL && "message" in err && typeof err.message === "string";
 }
 
+// ../runtime/dist/emit/snapshotMeta.js
+function snapshotUnknown(value) {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((item) => snapshotUnknown(item)));
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.freeze(Object.fromEntries(Object.entries(value).map(([key, item]) => [key, snapshotUnknown(item)])));
+  }
+  return value;
+}
+function snapshotMeta(meta) {
+  return snapshotUnknown(meta);
+}
+
 // ../runtime/dist/emit/logEmission.js
 var MAX_LOGS_PER_STEP = 1e3;
 function isPlainObject2(v) {
@@ -5581,22 +5669,6 @@ function isJsonValue(v) {
       return false;
   }
   return true;
-}
-function snapshotJsonValue(value) {
-  if (Array.isArray(value)) {
-    return Object.freeze(value.map((item) => snapshotJsonValue(item)));
-  }
-  if (isPlainObject2(value)) {
-    const entries = Object.entries(value).map(([key, item]) => [
-      key,
-      snapshotJsonValue(item)
-    ]);
-    return Object.freeze(Object.fromEntries(entries));
-  }
-  return value;
-}
-function snapshotMeta(meta) {
-  return snapshotJsonValue(meta);
 }
 function diagnoseLogBudget(ctx) {
   if (ctx.logBudgetExceededDiagnosed)
@@ -5670,14 +5742,14 @@ function initSlot(capacity) {
     prevClosedCumAdl: 0
   };
 }
-function mfvAt(close, high, low, volume) {
-  if (!Number.isFinite(close) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
+function mfvAt(close2, high, low, volume) {
+  if (!Number.isFinite(close2) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
     return 0;
   }
   const range = high - low;
   if (range === 0)
     return 0;
-  const clv = (close - low - (high - close)) / range;
+  const clv = (close2 - low - (high - close2)) / range;
   return clv * volume;
 }
 function adl(slotId, _opts) {
@@ -5688,11 +5760,11 @@ function adl(slotId, _opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const high = +bar.high;
   const low = +bar.low;
   const volume = +bar.volume;
-  const mfv = mfvAt(close, high, low, volume);
+  const mfv = mfvAt(close2, high, low, volume);
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(slot.prevClosedCumAdl + mfv);
     return slot.series;
@@ -5826,9 +5898,9 @@ function rawDirectionalMovement(high, low, prevHigh, prevLow) {
   const mDm = downMove > upMove && downMove > 0 ? downMove : 0;
   return { pDm, mDm };
 }
-function advanceDirectionalClose(dirState, high, low, close) {
+function advanceDirectionalClose(dirState, high, low, close2) {
   const { length } = dirState;
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
   }
   dirState.barCount += 1;
@@ -5838,7 +5910,7 @@ function advanceDirectionalClose(dirState, high, low, close) {
     dirState.prevPrevClose = dirState.prevClose;
     dirState.prevHigh = high;
     dirState.prevLow = low;
-    dirState.prevClose = close;
+    dirState.prevClose = close2;
     dirState.seedTr += high - low;
     return { plusDi: Number.NaN, minusDi: Number.NaN };
   }
@@ -5849,7 +5921,7 @@ function advanceDirectionalClose(dirState, high, low, close) {
   dirState.prevPrevClose = dirState.prevClose;
   dirState.prevHigh = high;
   dirState.prevLow = low;
-  dirState.prevClose = close;
+  dirState.prevClose = close2;
   if (dirState.barCount <= length) {
     dirState.seedPlusDm += pDm;
     dirState.seedMinusDm += mDm;
@@ -5886,11 +5958,11 @@ function advanceDirectionalClose(dirState, high, low, close) {
   dirState.minusDi = minusDi;
   return { plusDi, minusDi };
 }
-function tickDirectional(dirState, high, low, close) {
+function tickDirectional(dirState, high, low, close2) {
   if (dirState.barCount < dirState.length + 1) {
     return { plusDi: Number.NaN, minusDi: Number.NaN };
   }
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { plusDi: dirState.plusDi, minusDi: dirState.minusDi };
   }
   const tr = trueRange(high, low, dirState.prevPrevClose);
@@ -5964,11 +6036,11 @@ function dxFromDi(plusDi, minusDi) {
     return 0;
   return 100 * Math.abs(plusDi - minusDi) / sum2;
 }
-function closeValue(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeValue(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.isFinite(slot.adx) ? slot.adx : Number.NaN;
   }
-  const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
+  const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close2);
   if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
     slot.prevClosedAdx = slot.adx;
     slot.prevClosedDxSeed = slot.dxSeed;
@@ -5991,8 +6063,8 @@ function closeValue(slot, high, low, close) {
   slot.adx = wilderStep(slot.adx, dx, slot.smoothingLength);
   return slot.adx;
 }
-function tickValue(slot, high, low, close) {
-  const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
+function tickValue(slot, high, low, close2) {
+  const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close2);
   if (!Number.isFinite(plusDi) || !Number.isFinite(minusDi)) {
     return (
       /* c8 ignore next */
@@ -6019,11 +6091,11 @@ function adx(slotId, length, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue(slot, high, low, close));
+    slot.outBuffer.replaceHead(tickValue(slot, high, low, close2));
   } else {
-    slot.outBuffer.append(closeValue(slot, high, low, close));
+    slot.outBuffer.append(closeValue(slot, high, low, close2));
   }
   return viewForOffset(slot, opts?.offset ?? 0);
 }
@@ -6532,18 +6604,6 @@ var OUTSIDE_CTX_MESSAGE = "alert called outside an active script step";
 function computeDedupeKey(slotId, bar, message2, meta) {
   return `${slotId}::${bar}::${hashStringStable(message2 + JSON.stringify(meta))}`;
 }
-function snapshotUnknown(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => snapshotUnknown(item));
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, snapshotUnknown(item)]));
-  }
-  return value;
-}
-function snapshotMeta2(meta) {
-  return snapshotUnknown(meta);
-}
 function alertImpl(ctx, slotId, message2, opts) {
   if (ctx.capabilities.alerts.size === 0) {
     pushDiagnostic(ctx.emissions, {
@@ -6558,7 +6618,7 @@ function alertImpl(ctx, slotId, message2, opts) {
   }
   const channels = Array.from(ctx.capabilities.alerts);
   const bar = ctx.barIndex();
-  const meta = snapshotMeta2(opts.meta ?? {});
+  const meta = snapshotMeta(opts.meta ?? {});
   const emission = {
     kind: "alert",
     slotId,
@@ -8260,13 +8320,150 @@ function hline2(arg1, arg2, arg3) {
   hlineImpl(ctx, arg1, arg2, arg3 ?? {});
 }
 
+// ../runtime/dist/emit/order.js
+var outsideCtxMessage = (member) => `order.${member} called outside an active script step`;
+function computeDedupeKey2(slotId, bar, action, qty, label, meta) {
+  return `${slotId}::${bar}::${hashStringStable(action + String(qty) + label + JSON.stringify(meta))}`;
+}
+function orderImpl(ctx, slotId, action, opts) {
+  if (ctx.capabilities.orders !== true) {
+    if (!ctx.diagnosedOrderSlots.has(slotId)) {
+      ctx.diagnosedOrderSlots.add(slotId);
+      pushDiagnostic(ctx.emissions, {
+        kind: "diagnostic",
+        severity: "warning",
+        code: "unsupported-orders",
+        message: "Adapter does not support order emissions.",
+        slotId,
+        bar: ctx.barIndex()
+      });
+    }
+    return;
+  }
+  const bar = ctx.barIndex();
+  const qty = opts.qty ?? null;
+  const label = opts.label ?? "";
+  const meta = snapshotMeta(opts.meta ?? {});
+  const emission = {
+    kind: "order",
+    slotId,
+    action,
+    qty,
+    label,
+    bar,
+    time: ctx.stream.bar.time,
+    meta,
+    dedupeKey: computeDedupeKey2(slotId, bar, action, qty, label, meta)
+  };
+  if (!pushOrder(ctx.emissions, emission))
+    return;
+  ctx.pendingOrders.push({ emission, marker: opts.marker !== false });
+}
+function emit3(member, arg1, arg2) {
+  if (typeof arg1 !== "string") {
+    throw new Error(outsideCtxMessage(member));
+  }
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null)
+    throw new Error(outsideCtxMessage(member));
+  orderImpl(ctx, arg1, member, arg2 ?? {});
+}
+function buy(arg1, arg2) {
+  emit3("buy", arg1, arg2);
+}
+function sell(arg1, arg2) {
+  emit3("sell", arg1, arg2);
+}
+function close(arg1, arg2) {
+  emit3("close", arg1, arg2);
+}
+function position() {
+  const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+  if (ctx === null)
+    throw new Error(outsideCtxMessage("position"));
+  return ctx.orderPosition;
+}
+var ORDER_NAMESPACE = Object.freeze({ buy, sell, close, position });
+
+// ../runtime/dist/emit/orderPosition.js
+var MARKER_BUY_COLOR = "#26a69a";
+var MARKER_SELL_COLOR = "#ef5350";
+var MARKER_ARROW_SIZE = 12;
+var MARKER_TITLE = "Order";
+var ORDER_MARKER_SLOT_SUFFIX = "#marker";
+var ORDER_LABEL_SLOT_SUFFIX = "#label";
+function freezePosition(size, avgPrice, entryBar) {
+  return Object.freeze({ size, avgPrice, entryBar });
+}
+function applyOrderToPosition(prev, emission, bar, price) {
+  if (emission.action === "close")
+    return FLAT_ORDER_POSITION;
+  const qty = emission.qty ?? 1;
+  const size = prev.size + (emission.action === "buy" ? qty : -qty);
+  if (size === 0)
+    return FLAT_ORDER_POSITION;
+  if (prev.size === 0 || Math.sign(prev.size) !== Math.sign(size)) {
+    return freezePosition(size, finiteOrNull(price), bar);
+  }
+  const prevUnits = Math.abs(prev.size);
+  const addedUnits = Math.abs(size) - prevUnits;
+  if (addedUnits <= 0 || prev.avgPrice === null) {
+    return freezePosition(size, prev.avgPrice, prev.entryBar);
+  }
+  const weighted = (prev.avgPrice * prevUnits + price * addedUnits) / Math.abs(size);
+  return freezePosition(size, finiteOrNull(weighted), prev.entryBar);
+}
+function emitOrderMarkers(ctx, emission) {
+  const isBuy = emission.action === "buy";
+  const color2 = isBuy ? MARKER_BUY_COLOR : MARKER_SELL_COLOR;
+  const value = resolveValue(Number(isBuy ? ctx.stream.bar.low : ctx.stream.bar.high));
+  if (ctx.capabilities.plots.has("arrow")) {
+    emitPlot(ctx, `${emission.slotId}${ORDER_MARKER_SLOT_SUFFIX}`, { kind: "arrow", direction: isBuy ? "up" : "down", size: MARKER_ARROW_SIZE }, {
+      title: MARKER_TITLE,
+      value,
+      color: color2,
+      paneOpt: "overlay",
+      visible: void 0,
+      xShift: 0,
+      z: 0,
+      colorValue: void 0
+    });
+  }
+  if (emission.label !== "" && ctx.capabilities.plots.has("label")) {
+    emitPlot(ctx, `${emission.slotId}${ORDER_LABEL_SLOT_SUFFIX}`, { kind: "label", text: emission.label, position: isBuy ? "below" : "above" }, {
+      title: MARKER_TITLE,
+      value,
+      color: color2,
+      paneOpt: "overlay",
+      visible: void 0,
+      xShift: 0,
+      z: 0,
+      colorValue: void 0
+    });
+  }
+}
+function foldConfirmedOrders(ctx) {
+  const pending = ctx.pendingOrders;
+  if (pending.length === 0)
+    return;
+  const bar = ctx.barIndex();
+  const price = Number(ctx.stream.bar.close);
+  let position2 = ctx.orderPosition;
+  for (const record of pending) {
+    position2 = applyOrderToPosition(position2, record.emission, bar, price);
+    if (record.marker)
+      emitOrderMarkers(ctx, record.emission);
+  }
+  ctx.orderPosition = position2;
+}
+
 // ../runtime/dist/emit/plotCandle.js
 var CANDLE_OUTSIDE_CTX_MESSAGE = "plotcandle called outside an active script step";
 var BAR_OUTSIDE_CTX_MESSAGE = "plotbar called outside an active script step";
 var DEFAULT_CANDLE_BULL = "#26a69a";
 var DEFAULT_CANDLE_BEAR = "#ef5350";
-function plotcandleImpl(ctx, slotId, open, high, low, close, opts) {
-  const resolvedClose = resolveValue(close);
+function plotcandleImpl(ctx, slotId, open, high, low, close2, opts) {
+  const resolvedClose = resolveValue(close2);
   const style = {
     kind: "candle",
     open: resolveValue(open),
@@ -8290,9 +8487,9 @@ function plotcandleImpl(ctx, slotId, open, high, low, close, opts) {
     colorValue: void 0
   });
 }
-function plotbarImpl(ctx, slotId, open, high, low, close, opts) {
+function plotbarImpl(ctx, slotId, open, high, low, close2, opts) {
   const resolvedOpen = resolveValue(open);
-  const resolvedClose = resolveValue(close);
+  const resolvedClose = resolveValue(close2);
   const up = resolvedClose === null || resolvedOpen === null || resolvedClose >= resolvedOpen;
   const color2 = up ? opts.upColor ?? opts.color ?? DEFAULT_CANDLE_BULL : opts.downColor ?? opts.color ?? DEFAULT_CANDLE_BEAR;
   const style = {
@@ -8901,15 +9098,15 @@ function trueRange2(high, low, prevClose) {
     return high - low;
   return Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
 }
-function closeValue4(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeValue4(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     if (Number.isFinite(slot.atr))
       return slot.atr;
     return Number.NaN;
   }
   const tr = trueRange2(high, low, slot.prevClose);
   slot.prevPrevClose = slot.prevClose;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   slot.trCount += 1;
   if (slot.trCount < slot.length) {
     slot.seedTrSum += tr;
@@ -8925,8 +9122,8 @@ function closeValue4(slot, high, low, close) {
   slot.atr = wilderStep(slot.atr, tr, slot.length);
   return slot.atr;
 }
-function tickValue4(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function tickValue4(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.isFinite(slot.atr) ? slot.atr : Number.NaN;
   }
   if (slot.trCount < slot.length)
@@ -8947,11 +9144,11 @@ function atr(slotId, length, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue4(slot, high, low, close));
+    slot.outBuffer.replaceHead(tickValue4(slot, high, low, close2));
   } else {
-    slot.outBuffer.append(closeValue4(slot, high, low, close));
+    slot.outBuffer.append(closeValue4(slot, high, low, close2));
   }
   return viewForOffset4(slot, opts?.offset ?? 0);
 }
@@ -9289,14 +9486,14 @@ function initSlot17(capacity) {
   const outBuffer = new Float64RingBuffer(capacity);
   return { outBuffer, series: makeSeriesView(outBuffer) };
 }
-function bopAt(open, high, low, close) {
-  if (!Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function bopAt(open, high, low, close2) {
+  if (!Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
   const range = high - low;
   if (range === 0)
     return 0;
-  return (close - open) / range;
+  return (close2 - open) / range;
 }
 function bop(slotId, _opts) {
   const ctx = getCtx19();
@@ -9309,8 +9506,8 @@ function bop(slotId, _opts) {
   const open = +bar.open;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
-  const value = bopAt(open, high, low, close);
+  const close2 = +bar.close;
+  const value = bopAt(open, high, low, close2);
   if (ctx.isTick) {
     slot.outBuffer.replaceHead(value);
   } else {
@@ -9981,8 +10178,8 @@ function chopValue(slot, upper, lower) {
     return 100;
   return raw;
 }
-function closeValue11(slot, high, low, close, upper, lower) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeValue11(slot, high, low, close2, upper, lower) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
   const tr = trueRange3(high, low, slot.prevClose);
@@ -9995,12 +10192,12 @@ function closeValue11(slot, high, low, close, upper, lower) {
   slot.sumTr += tr;
   slot.prevClosedHeadTr = tr;
   slot.prevPrevClose = slot.prevClose;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   slot.barCount += 1;
   return chopValue(slot, upper, lower);
 }
-function tickValue11(slot, high, low, close, upper, lower) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function tickValue11(slot, high, low, close2, upper, lower) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
   if (slot.barCount === 0)
@@ -10030,11 +10227,11 @@ function chop(slotId, length, _opts) {
   const lower = lowerSeries.current;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue11(slot, high, low, close, upper, lower));
+    slot.outBuffer.replaceHead(tickValue11(slot, high, low, close2, upper, lower));
   } else {
-    slot.outBuffer.append(closeValue11(slot, high, low, close, upper, lower));
+    slot.outBuffer.append(closeValue11(slot, high, low, close2, upper, lower));
   }
   return slot.series;
 }
@@ -10059,20 +10256,20 @@ function initSlot27(length, capacity) {
     sumVol: 0
   };
 }
-function mfvAt2(close, high, low, volume) {
-  if (!Number.isFinite(close) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
+function mfvAt2(close2, high, low, volume) {
+  if (!Number.isFinite(close2) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(volume)) {
     return 0;
   }
   const range = high - low;
   if (range === 0)
     return 0;
-  const clv = (close - low - (high - close)) / range;
+  const clv = (close2 - low - (high - close2)) / range;
   return clv * volume;
 }
 function safeVol(volume) {
   return Number.isFinite(volume) ? volume : 0;
 }
-function emit3(sumMfv, sumVol, ready) {
+function emit4(sumMfv, sumVol, ready) {
   if (!ready || sumVol === 0)
     return Number.NaN;
   return sumMfv / sumVol;
@@ -10085,11 +10282,11 @@ function cmf(slotId, length, _opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const high = +bar.high;
   const low = +bar.low;
   const volume = +bar.volume;
-  const mfv = mfvAt2(close, high, low, volume);
+  const mfv = mfvAt2(close2, high, low, volume);
   const vol2 = safeVol(volume);
   if (ctx.isTick) {
     if (slot.mfvWindow.length < slot.length) {
@@ -10100,7 +10297,7 @@ function cmf(slotId, length, _opts) {
     const headVol = slot.volWindow.at(0);
     const hypMfv = slot.sumMfv - headMfv + mfv;
     const hypVol = slot.sumVol - headVol + vol2;
-    slot.outBuffer.replaceHead(emit3(hypMfv, hypVol, true));
+    slot.outBuffer.replaceHead(emit4(hypMfv, hypVol, true));
     return slot.series;
   }
   if (slot.mfvWindow.length === slot.length) {
@@ -10111,7 +10308,7 @@ function cmf(slotId, length, _opts) {
   slot.volWindow.append(vol2);
   slot.sumMfv += mfv;
   slot.sumVol += vol2;
-  slot.outBuffer.append(emit3(slot.sumMfv, slot.sumVol, slot.mfvWindow.length === slot.length));
+  slot.outBuffer.append(emit4(slot.sumMfv, slot.sumVol, slot.mfvWindow.length === slot.length));
   return slot.series;
 }
 
@@ -10854,13 +11051,13 @@ function dmi(slotId, length, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close);
+    const { plusDi, minusDi } = tickDirectional(slot.dirState, high, low, close2);
     slot.plusDiBuffer.replaceHead(plusDi);
     slot.minusDiBuffer.replaceHead(minusDi);
   } else {
-    const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close);
+    const { plusDi, minusDi } = advanceDirectionalClose(slot.dirState, high, low, close2);
     slot.plusDiBuffer.append(plusDi);
     slot.minusDiBuffer.append(minusDi);
   }
@@ -11227,7 +11424,7 @@ function rawEomAt(high, low, volume, prevMid) {
   const midpointMove = (high + low) / 2 - prevMid;
   return midpointMove / boxRatio;
 }
-function emit4(slot, ready) {
+function emit5(slot, ready) {
   if (!ready || slot.nanCount > 0)
     return Number.NaN;
   return slot.sumRawEom / slot.length;
@@ -11279,7 +11476,7 @@ function eom(slotId, length, opts) {
     slot.nanCount += 1;
   slot.prevMid = midpoint2;
   const ready = slot.rawEomWindow.length === slot.length;
-  slot.outBuffer.append(emit4(slot, ready));
+  slot.outBuffer.append(emit5(slot, ready));
   return viewForOffset13(slot, offset);
 }
 
@@ -12012,8 +12209,8 @@ function keltner(slotId, opts) {
     slot = initSlot51(length, multiplier, maType, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const close = ctx.stream.bar.close;
-  const middleSeries = dispatchMa2(slot.maType, `${slotId}/${slot.maType}`, close, slot.length);
+  const close2 = ctx.stream.bar.close;
+  const middleSeries = dispatchMa2(slot.maType, `${slotId}/${slot.maType}`, close2, slot.length);
   const atrSeries = atr(`${slotId}/atr`, slot.length);
   if (slot.outputs === null) {
     slot.outputs = Object.freeze({
@@ -12071,11 +12268,11 @@ function initSlot52(capacity) {
     barCount: 0
   };
 }
-function computeVf(high, low, close, volume, baseHlc, baseTrend, baseCm, baseDm) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function computeVf(high, low, close2, volume, baseHlc, baseTrend, baseCm, baseDm) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { vf: 0, hlc: baseHlc, trend: baseTrend, cm: baseCm, dm: baseDm };
   }
-  const hlc = high + low + close;
+  const hlc = high + low + close2;
   const dm = high - low;
   let trend;
   if (!Number.isFinite(baseHlc)) {
@@ -12110,18 +12307,18 @@ function klinger(slotId, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   let vf;
   if (ctx.isTick) {
-    const step2 = computeVf(high, low, close, volume, slot.prevClosedHlc, slot.prevClosedTrend, slot.prevClosedCm, slot.prevClosedDm);
+    const step2 = computeVf(high, low, close2, volume, slot.prevClosedHlc, slot.prevClosedTrend, slot.prevClosedCm, slot.prevClosedDm);
     vf = step2.vf;
   } else {
     slot.prevClosedHlc = slot.prevHlc;
     slot.prevClosedTrend = slot.prevTrend;
     slot.prevClosedCm = slot.prevCm;
     slot.prevClosedDm = slot.prevDm;
-    const step2 = computeVf(high, low, close, volume, slot.prevHlc, slot.prevTrend, slot.prevCm, slot.prevDm);
+    const step2 = computeVf(high, low, close2, volume, slot.prevHlc, slot.prevTrend, slot.prevCm, slot.prevDm);
     vf = step2.vf;
     slot.prevHlc = step2.hlc;
     slot.prevTrend = step2.trend;
@@ -12788,9 +12985,9 @@ function mfi(slotId, length, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
-  const tp = (high + low + close) / 3;
+  const tp = (high + low + close2) / 3;
   const { posMf, negMf } = bucketMf(tp, slot.prevTp, volume);
   const hasComparison = Number.isFinite(slot.prevTp);
   if (ctx.isTick) {
@@ -12880,18 +13077,18 @@ function signOfDelta(delta) {
     return -1;
   return 0;
 }
-function fold2(inCum, inPrevClose, close, volume) {
-  if (!Number.isFinite(close)) {
+function fold2(inCum, inPrevClose, close2, volume) {
+  if (!Number.isFinite(close2)) {
     return { cum: inCum, prevClose: inPrevClose };
   }
   if (!Number.isFinite(inPrevClose)) {
-    return { cum: inCum, prevClose: close };
+    return { cum: inCum, prevClose: close2 };
   }
   if (!Number.isFinite(volume)) {
-    return { cum: inCum, prevClose: close };
+    return { cum: inCum, prevClose: close2 };
   }
-  const direction = signOfDelta(close - inPrevClose);
-  return { cum: inCum + direction * volume, prevClose: close };
+  const direction = signOfDelta(close2 - inPrevClose);
+  return { cum: inCum + direction * volume, prevClose: close2 };
 }
 function netVolume(slotId, opts) {
   const ctx = getCtx66();
@@ -12902,16 +13099,16 @@ function netVolume(slotId, opts) {
   }
   const offset = opts?.offset ?? 0;
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   if (ctx.isTick) {
-    const next2 = fold2(slot.prevClosedCumNetVol, slot.prevClosedPrevClose, close, volume);
+    const next2 = fold2(slot.prevClosedCumNetVol, slot.prevClosedPrevClose, close2, volume);
     slot.outBuffer.replaceHead(next2.cum);
     return viewForOffset17(slot, offset);
   }
   slot.prevClosedCumNetVol = slot.cumNetVol;
   slot.prevClosedPrevClose = slot.prevClose;
-  const next = fold2(slot.cumNetVol, slot.prevClose, close, volume);
+  const next = fold2(slot.cumNetVol, slot.prevClose, close2, volume);
   slot.cumNetVol = next.cum;
   slot.prevClose = next.prevClose;
   slot.outBuffer.append(slot.cumNetVol);
@@ -12954,21 +13151,21 @@ function viewForOffset18(slot, offset) {
 function safeVol3(volume) {
   return Number.isFinite(volume) ? volume : 0;
 }
-function fold3(inValue, inPrevClose, inPrevVolume, close, volume) {
-  if (!Number.isFinite(close)) {
+function fold3(inValue, inPrevClose, inPrevVolume, close2, volume) {
+  if (!Number.isFinite(close2)) {
     return { value: inValue, prevClose: inPrevClose, prevVolume: inPrevVolume };
   }
   const v = safeVol3(volume);
   if (!Number.isFinite(inPrevClose)) {
-    return { value: inValue, prevClose: close, prevVolume: v };
+    return { value: inValue, prevClose: close2, prevVolume: v };
   }
   const pv = safeVol3(inPrevVolume);
   const shouldUpdate = v < pv;
   if (!shouldUpdate || inPrevClose === 0) {
-    return { value: inValue, prevClose: close, prevVolume: v };
+    return { value: inValue, prevClose: close2, prevVolume: v };
   }
-  const next = inValue * (1 + (close - inPrevClose) / inPrevClose);
-  return { value: next, prevClose: close, prevVolume: v };
+  const next = inValue * (1 + (close2 - inPrevClose) / inPrevClose);
+  return { value: next, prevClose: close2, prevVolume: v };
 }
 function nvi(slotId, opts) {
   const ctx = getCtx67();
@@ -12979,17 +13176,17 @@ function nvi(slotId, opts) {
   }
   const offset = opts?.offset ?? 0;
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   if (ctx.isTick) {
-    const next2 = fold3(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
+    const next2 = fold3(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close2, volume);
     slot.outBuffer.replaceHead(next2.value);
     return viewForOffset18(slot, offset);
   }
   slot.prevClosedValue = slot.value;
   slot.prevClosedPrevClose = slot.prevClose;
   slot.prevClosedPrevVolume = slot.prevVolume;
-  const next = fold3(slot.value, slot.prevClose, slot.prevVolume, close, volume);
+  const next = fold3(slot.value, slot.prevClose, slot.prevVolume, close2, volume);
   slot.value = next.value;
   slot.prevClose = next.prevClose;
   slot.prevVolume = next.prevVolume;
@@ -13030,18 +13227,18 @@ function signOfDelta2(delta) {
     return -1;
   return 0;
 }
-function fold4(inCumObv, inPrevClose, close, volume) {
-  if (!Number.isFinite(close)) {
+function fold4(inCumObv, inPrevClose, close2, volume) {
+  if (!Number.isFinite(close2)) {
     return { cumObv: inCumObv, prevClose: inPrevClose };
   }
   if (!Number.isFinite(inPrevClose)) {
-    return { cumObv: inCumObv, prevClose: close };
+    return { cumObv: inCumObv, prevClose: close2 };
   }
   if (!Number.isFinite(volume)) {
-    return { cumObv: inCumObv, prevClose: close };
+    return { cumObv: inCumObv, prevClose: close2 };
   }
-  const direction = signOfDelta2(close - inPrevClose);
-  return { cumObv: inCumObv + direction * volume, prevClose: close };
+  const direction = signOfDelta2(close2 - inPrevClose);
+  return { cumObv: inCumObv + direction * volume, prevClose: close2 };
 }
 function obv(slotId, _opts) {
   const ctx = getCtx68();
@@ -13051,16 +13248,16 @@ function obv(slotId, _opts) {
     ctx.stream.taSlots.set(slotId, slot);
   }
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   if (ctx.isTick) {
-    const next2 = fold4(slot.prevClosedCumObv, slot.prevClosedPrevClose, close, volume);
+    const next2 = fold4(slot.prevClosedCumObv, slot.prevClosedPrevClose, close2, volume);
     slot.outBuffer.replaceHead(next2.cumObv);
     return slot.series;
   }
   slot.prevClosedCumObv = slot.cumObv;
   slot.prevClosedPrevClose = slot.prevClose;
-  const next = fold4(slot.cumObv, slot.prevClose, close, volume);
+  const next = fold4(slot.cumObv, slot.prevClose, close2, volume);
   slot.cumObv = next.cumObv;
   slot.prevClose = next.prevClose;
   slot.outBuffer.append(slot.cumObv);
@@ -13341,7 +13538,7 @@ function emitLevels(slot, levels, isTick) {
     slot.s3Buffer.append(levels.s3);
   }
 }
-function closeStep3(slot, time2, high, low, close) {
+function closeStep3(slot, time2, high, low, close2) {
   const dayKey = Math.floor(time2 / MS_PER_DAY2);
   snapshot(slot);
   if (slot.barCount === 0) {
@@ -13349,7 +13546,7 @@ function closeStep3(slot, time2, high, low, close) {
     slot.currentDayKey = dayKey;
     slot.currentDayHigh = high;
     slot.currentDayLow = low;
-    slot.currentDayClose = close;
+    slot.currentDayClose = close2;
     return makeNaNLevels();
   }
   if (dayKey !== slot.currentDayKey) {
@@ -13359,12 +13556,12 @@ function closeStep3(slot, time2, high, low, close) {
     slot.currentDayKey = dayKey;
     slot.currentDayHigh = high;
     slot.currentDayLow = low;
-    slot.currentDayClose = close;
+    slot.currentDayClose = close2;
   } else {
     slot.currentDayHigh = safeMax(slot.currentDayHigh, high);
     slot.currentDayLow = safeMin(slot.currentDayLow, low);
-    if (Number.isFinite(close))
-      slot.currentDayClose = close;
+    if (Number.isFinite(close2))
+      slot.currentDayClose = close2;
   }
   slot.barCount += 1;
   return computeLevels(slot);
@@ -13394,12 +13591,12 @@ function pivotsStandard(slotId, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    const levels = tickStep2(slot, bar.time, high, low, close);
+    const levels = tickStep2(slot, bar.time, high, low, close2);
     emitLevels(slot, levels, true);
   } else {
-    const levels = closeStep3(slot, bar.time, high, low, close);
+    const levels = closeStep3(slot, bar.time, high, low, close2);
     emitLevels(slot, levels, false);
   }
   return slot.outputs;
@@ -13697,8 +13894,8 @@ function recurrenceStep(prevTrend, prevEp, prevAf, prevSar, prevHigh, prevLow, p
   }
   return { trend: TREND_DOWN, ep, af, sar: candidateSar };
 }
-function closeStep4(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeStep4(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { sar: Number.NaN, direction: Number.NaN };
   }
   snapshot2(slot);
@@ -13712,11 +13909,11 @@ function closeStep4(slot, high, low, close) {
     slot.prevLow = low;
     slot.priorHigh = high;
     slot.priorLow = low;
-    slot.prevClose = close;
+    slot.prevClose = close2;
     return { sar: low, direction: TREND_UP };
   }
   if (slot.prevClosedBarCount === 1) {
-    const direction = close >= slot.prevClose ? TREND_UP : TREND_DOWN;
+    const direction = close2 >= slot.prevClose ? TREND_UP : TREND_DOWN;
     slot.trend = direction;
     if (direction === TREND_UP) {
       slot.ep = high;
@@ -13735,7 +13932,7 @@ function closeStep4(slot, high, low, close) {
     slot.priorLow = slot.prevLow;
     slot.prevHigh = high;
     slot.prevLow = low;
-    slot.prevClose = close;
+    slot.prevClose = close2;
     return { sar: step3.sar, direction: step3.trend };
   }
   const step2 = recurrenceStep(slot.trend, slot.ep, slot.af, slot.sar, slot.prevHigh, slot.prevLow, slot.priorHigh, slot.priorLow, high, low, slot.accStart, slot.accStep, slot.accMax);
@@ -13747,11 +13944,11 @@ function closeStep4(slot, high, low, close) {
   slot.priorLow = slot.prevLow;
   slot.prevHigh = high;
   slot.prevLow = low;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   return { sar: step2.sar, direction: step2.trend };
 }
-function tickStep3(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function tickStep3(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { sar: Number.NaN, direction: Number.NaN };
   }
   const seedBarCount = slot.prevClosedBarCount;
@@ -13759,7 +13956,7 @@ function tickStep3(slot, high, low, close) {
     return { sar: low, direction: TREND_UP };
   }
   if (seedBarCount === 1) {
-    const direction = close >= slot.prevClosedPrevClose ? TREND_UP : TREND_DOWN;
+    const direction = close2 >= slot.prevClosedPrevClose ? TREND_UP : TREND_DOWN;
     let ep;
     let sar;
     if (direction === TREND_UP) {
@@ -13788,13 +13985,13 @@ function psar(slotId, opts) {
   }
   const high = +ctx.stream.bar.high;
   const low = +ctx.stream.bar.low;
-  const close = +ctx.stream.bar.close;
+  const close2 = +ctx.stream.bar.close;
   if (ctx.isTick) {
-    const { sar, direction } = tickStep3(slot, high, low, close);
+    const { sar, direction } = tickStep3(slot, high, low, close2);
     slot.sarBuffer.replaceHead(sar);
     slot.directionBuffer.replaceHead(direction);
   } else {
-    const { sar, direction } = closeStep4(slot, high, low, close);
+    const { sar, direction } = closeStep4(slot, high, low, close2);
     slot.sarBuffer.append(sar);
     slot.directionBuffer.append(direction);
   }
@@ -13837,21 +14034,21 @@ function viewForOffset19(slot, offset) {
 function safeVol4(volume) {
   return Number.isFinite(volume) ? volume : 0;
 }
-function fold5(inValue, inPrevClose, inPrevVolume, close, volume) {
-  if (!Number.isFinite(close)) {
+function fold5(inValue, inPrevClose, inPrevVolume, close2, volume) {
+  if (!Number.isFinite(close2)) {
     return { value: inValue, prevClose: inPrevClose, prevVolume: inPrevVolume };
   }
   const v = safeVol4(volume);
   if (!Number.isFinite(inPrevClose)) {
-    return { value: inValue, prevClose: close, prevVolume: v };
+    return { value: inValue, prevClose: close2, prevVolume: v };
   }
   const pv = safeVol4(inPrevVolume);
   const shouldUpdate = v > pv;
   if (!shouldUpdate || inPrevClose === 0) {
-    return { value: inValue, prevClose: close, prevVolume: v };
+    return { value: inValue, prevClose: close2, prevVolume: v };
   }
-  const next = inValue * (1 + (close - inPrevClose) / inPrevClose);
-  return { value: next, prevClose: close, prevVolume: v };
+  const next = inValue * (1 + (close2 - inPrevClose) / inPrevClose);
+  return { value: next, prevClose: close2, prevVolume: v };
 }
 function pvi(slotId, opts) {
   const ctx = getCtx74();
@@ -13862,17 +14059,17 @@ function pvi(slotId, opts) {
   }
   const offset = opts?.offset ?? 0;
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   if (ctx.isTick) {
-    const next2 = fold5(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close, volume);
+    const next2 = fold5(slot.prevClosedValue, slot.prevClosedPrevClose, slot.prevClosedPrevVolume, close2, volume);
     slot.outBuffer.replaceHead(next2.value);
     return viewForOffset19(slot, offset);
   }
   slot.prevClosedValue = slot.value;
   slot.prevClosedPrevClose = slot.prevClose;
   slot.prevClosedPrevVolume = slot.prevVolume;
-  const next = fold5(slot.value, slot.prevClose, slot.prevVolume, close, volume);
+  const next = fold5(slot.value, slot.prevClose, slot.prevVolume, close2, volume);
   slot.value = next.value;
   slot.prevClose = next.prevClose;
   slot.prevVolume = next.prevVolume;
@@ -13985,25 +14182,25 @@ function viewForOffset20(slot, offset) {
   }
   return view;
 }
-function contribution(prevClose, close, volume) {
+function contribution(prevClose, close2, volume) {
   if (prevClose === 0)
     return Number.NaN;
   const v = Number.isFinite(volume) ? volume : 0;
-  return v * (close - prevClose) / prevClose;
+  return v * (close2 - prevClose) / prevClose;
 }
-function fold6(inCum, inPrevClose, close, volume) {
-  if (!Number.isFinite(close)) {
+function fold6(inCum, inPrevClose, close2, volume) {
+  if (!Number.isFinite(close2)) {
     return { cum: inCum, prevClose: inPrevClose, emit: inCum };
   }
   if (!Number.isFinite(inPrevClose)) {
-    return { cum: inCum, prevClose: close, emit: inCum };
+    return { cum: inCum, prevClose: close2, emit: inCum };
   }
-  const c = contribution(inPrevClose, close, volume);
+  const c = contribution(inPrevClose, close2, volume);
   if (Number.isNaN(c)) {
-    return { cum: inCum, prevClose: close, emit: Number.NaN };
+    return { cum: inCum, prevClose: close2, emit: Number.NaN };
   }
   const next = inCum + c;
-  return { cum: next, prevClose: close, emit: next };
+  return { cum: next, prevClose: close2, emit: next };
 }
 function pvt(slotId, opts) {
   const ctx = getCtx76();
@@ -14014,16 +14211,16 @@ function pvt(slotId, opts) {
   }
   const offset = opts?.offset ?? 0;
   const bar = ctx.stream.bar;
-  const close = +bar.close;
+  const close2 = +bar.close;
   const volume = +bar.volume;
   if (ctx.isTick) {
-    const next2 = fold6(slot.prevClosedCumPvt, slot.prevClosedPrevClose, close, volume);
+    const next2 = fold6(slot.prevClosedCumPvt, slot.prevClosedPrevClose, close2, volume);
     slot.outBuffer.replaceHead(next2.emit);
     return viewForOffset20(slot, offset);
   }
   slot.prevClosedCumPvt = slot.cumPvt;
   slot.prevClosedPrevClose = slot.prevClose;
-  const next = fold6(slot.cumPvt, slot.prevClose, close, volume);
+  const next = fold6(slot.cumPvt, slot.prevClose, close2, volume);
   slot.cumPvt = next.cum;
   slot.prevClose = next.prevClose;
   slot.outBuffer.append(next.emit);
@@ -14183,8 +14380,8 @@ function rvgi(slotId, opts) {
   const open = +bar.open;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
-  const co = Number.isFinite(close) && Number.isFinite(open) ? close - open : Number.NaN;
+  const close2 = +bar.close;
+  const co = Number.isFinite(close2) && Number.isFinite(open) ? close2 - open : Number.NaN;
   const hl = Number.isFinite(high) && Number.isFinite(low) ? high - low : Number.NaN;
   if (ctx.isTick) {
     slot.coWindow.replaceHead(co);
@@ -14712,22 +14909,22 @@ function snapshot3(slot) {
   slot.prevClosedPrevClose = slot.prevClose;
   slot.prevClosedWarmBarCount = slot.warmBarCount;
 }
-function recurrenceStep2(mid, atrValue, close, multiplier, prevFinalUpper, prevFinalLower, prevDirection, prevClose) {
+function recurrenceStep2(mid, atrValue, close2, multiplier, prevFinalUpper, prevFinalLower, prevDirection, prevClose) {
   const basicUpper = mid + multiplier * atrValue;
   const basicLower = mid - multiplier * atrValue;
   const finalUpper = basicUpper < prevFinalUpper || prevClose > prevFinalUpper ? basicUpper : prevFinalUpper;
   const finalLower = basicLower > prevFinalLower || prevClose < prevFinalLower ? basicLower : prevFinalLower;
   let direction = prevDirection;
-  if (close > prevFinalUpper) {
+  if (close2 > prevFinalUpper) {
     direction = TREND_UP2;
-  } else if (close < prevFinalLower) {
+  } else if (close2 < prevFinalLower) {
     direction = TREND_DOWN2;
   }
   const line2 = direction === TREND_UP2 ? finalLower : finalUpper;
   return { finalUpper, finalLower, direction, line: line2 };
 }
-function closeStep5(slot, mid, atrValue, close) {
-  if (!Number.isFinite(mid) || !Number.isFinite(atrValue) || !Number.isFinite(close)) {
+function closeStep5(slot, mid, atrValue, close2) {
+  if (!Number.isFinite(mid) || !Number.isFinite(atrValue) || !Number.isFinite(close2)) {
     return { line: Number.NaN, direction: Number.NaN };
   }
   snapshot3(slot);
@@ -14738,25 +14935,25 @@ function closeStep5(slot, mid, atrValue, close) {
     slot.prevFinalUpper = basicUpper;
     slot.prevFinalLower = basicLower;
     slot.prevDirection = TREND_UP2;
-    slot.prevClose = close;
+    slot.prevClose = close2;
     return { line: basicLower, direction: TREND_UP2 };
   }
-  const step2 = recurrenceStep2(mid, atrValue, close, slot.multiplier, slot.prevFinalUpper, slot.prevFinalLower, slot.prevDirection, slot.prevClose);
+  const step2 = recurrenceStep2(mid, atrValue, close2, slot.multiplier, slot.prevFinalUpper, slot.prevFinalLower, slot.prevDirection, slot.prevClose);
   slot.prevFinalUpper = step2.finalUpper;
   slot.prevFinalLower = step2.finalLower;
   slot.prevDirection = step2.direction;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   return { line: step2.line, direction: step2.direction };
 }
-function tickStep4(slot, mid, atrValue, close) {
-  if (!Number.isFinite(mid) || !Number.isFinite(atrValue) || !Number.isFinite(close)) {
+function tickStep4(slot, mid, atrValue, close2) {
+  if (!Number.isFinite(mid) || !Number.isFinite(atrValue) || !Number.isFinite(close2)) {
     return { line: Number.NaN, direction: Number.NaN };
   }
   if (slot.prevClosedWarmBarCount === 0) {
     const basicLower = mid - slot.multiplier * atrValue;
     return { line: basicLower, direction: TREND_UP2 };
   }
-  const step2 = recurrenceStep2(mid, atrValue, close, slot.multiplier, slot.prevClosedFinalUpper, slot.prevClosedFinalLower, slot.prevClosedDirection, slot.prevClosedPrevClose);
+  const step2 = recurrenceStep2(mid, atrValue, close2, slot.multiplier, slot.prevClosedFinalUpper, slot.prevClosedFinalLower, slot.prevClosedDirection, slot.prevClosedPrevClose);
   return { line: step2.line, direction: step2.direction };
 }
 function supertrend(slotId, opts) {
@@ -14771,13 +14968,13 @@ function supertrend(slotId, opts) {
   const atrSeries = atr(`${slotId}/atr`, slot.length);
   const mid = +ctx.stream.bar.hl2;
   const atrValue = atrSeries.current;
-  const close = +ctx.stream.bar.close;
+  const close2 = +ctx.stream.bar.close;
   if (ctx.isTick) {
-    const { line: line2, direction } = tickStep4(slot, mid, atrValue, close);
+    const { line: line2, direction } = tickStep4(slot, mid, atrValue, close2);
     slot.lineBuffer.replaceHead(line2);
     slot.directionBuffer.replaceHead(direction);
   } else {
-    const { line: line2, direction } = closeStep5(slot, mid, atrValue, close);
+    const { line: line2, direction } = closeStep5(slot, mid, atrValue, close2);
     slot.lineBuffer.append(line2);
     slot.directionBuffer.append(direction);
   }
@@ -15187,12 +15384,12 @@ function initSlot80(shortLength, mediumLength, longLength, capacity) {
     headTrLong: 0
   };
 }
-function computeBpTr(high, low, close, prevClose) {
+function computeBpTr(high, low, close2, prevClose) {
   if (!Number.isFinite(prevClose))
     return [0, 0];
   const trueLow = Math.min(low, prevClose);
   const trueHigh = Math.max(high, prevClose);
-  return [close - trueLow, trueHigh - trueLow];
+  return [close2 - trueLow, trueHigh - trueLow];
 }
 function pushToWindow(ring, sum2, incoming, capacity) {
   let outgoing = 0;
@@ -15210,13 +15407,13 @@ function uoFromSums(sumBpShort, sumTrShort, sumBpMedium, sumTrMedium, sumBpLong,
   const avgLong = sumBpLong / sumTrLong;
   return 100 * (4 * avgShort + 2 * avgMedium + avgLong) / 7;
 }
-function closeValue26(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeValue26(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     if (slot.barCount < slot.longLength)
       return Number.NaN;
     return uoFromSums(slot.sumBpShort, slot.sumTrShort, slot.sumBpMedium, slot.sumTrMedium, slot.sumBpLong, slot.sumTrLong);
   }
-  const [bp, tr] = computeBpTr(high, low, close, slot.prevClose);
+  const [bp, tr] = computeBpTr(high, low, close2, slot.prevClose);
   const short = pushToWindow(slot.bpShort, slot.sumBpShort, bp, slot.shortLength);
   slot.sumBpShort = short.newSum;
   const medium = pushToWindow(slot.bpMedium, slot.sumBpMedium, bp, slot.mediumLength);
@@ -15230,7 +15427,7 @@ function closeValue26(slot, high, low, close) {
   const trLong = pushToWindow(slot.trLong, slot.sumTrLong, tr, slot.longLength);
   slot.sumTrLong = trLong.newSum;
   slot.prevPrevClose = slot.prevClose;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   slot.barCount += 1;
   slot.headBpShort = bp;
   slot.headBpMedium = bp;
@@ -15242,13 +15439,13 @@ function closeValue26(slot, high, low, close) {
     return Number.NaN;
   return uoFromSums(slot.sumBpShort, slot.sumTrShort, slot.sumBpMedium, slot.sumTrMedium, slot.sumBpLong, slot.sumTrLong);
 }
-function tickValue26(slot, high, low, close) {
+function tickValue26(slot, high, low, close2) {
   if (slot.barCount < slot.longLength)
     return Number.NaN;
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return uoFromSums(slot.sumBpShort, slot.sumTrShort, slot.sumBpMedium, slot.sumTrMedium, slot.sumBpLong, slot.sumTrLong);
   }
-  const [tickBp, tickTr] = computeBpTr(high, low, close, slot.prevPrevClose);
+  const [tickBp, tickTr] = computeBpTr(high, low, close2, slot.prevPrevClose);
   return uoFromSums(slot.sumBpShort - slot.headBpShort + tickBp, slot.sumTrShort - slot.headTrShort + tickTr, slot.sumBpMedium - slot.headBpMedium + tickBp, slot.sumTrMedium - slot.headTrMedium + tickTr, slot.sumBpLong - slot.headBpLong + tickBp, slot.sumTrLong - slot.headTrLong + tickTr);
 }
 function ultimateOsc(slotId, opts) {
@@ -15264,11 +15461,11 @@ function ultimateOsc(slotId, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue26(slot, high, low, close));
+    slot.outBuffer.replaceHead(tickValue26(slot, high, low, close2));
   } else {
-    slot.outBuffer.append(closeValue26(slot, high, low, close));
+    slot.outBuffer.append(closeValue26(slot, high, low, close2));
   }
   return slot.series;
 }
@@ -15654,8 +15851,8 @@ function divide(num, den) {
     return Number.NaN;
   return num / den;
 }
-function closeStep8(slot, high, low, close) {
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+function closeStep8(slot, high, low, close2) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { plus: Number.NaN, minus: Number.NaN };
   }
   slot.barCount += 1;
@@ -15670,7 +15867,7 @@ function closeStep8(slot, high, low, close) {
   slot.prevPrevClose = slot.prevClose;
   slot.prevHigh = high;
   slot.prevLow = low;
-  slot.prevClose = close;
+  slot.prevClose = close2;
   if (slot.vmPlusWindow.length >= slot.length) {
     slot.evictedPlus = slot.vmPlusWindow.at(slot.length - 1);
     slot.evictedMinus = slot.vmMinusWindow.at(slot.length - 1);
@@ -15697,10 +15894,10 @@ function closeStep8(slot, high, low, close) {
     minus: divide(slot.runningMinus, slot.runningTr)
   };
 }
-function tickStep7(slot, high, low, close) {
+function tickStep7(slot, high, low, close2) {
   if (slot.barCount <= slot.length)
     return { plus: Number.NaN, minus: Number.NaN };
-  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close)) {
+  if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return { plus: Number.NaN, minus: Number.NaN };
   }
   const tr = trueRange4(high, low, slot.prevPrevClose);
@@ -15724,13 +15921,13 @@ function vortex(slotId, length, opts) {
   const bar = ctx.stream.bar;
   const high = +bar.high;
   const low = +bar.low;
-  const close = +bar.close;
+  const close2 = +bar.close;
   if (ctx.isTick) {
-    const { plus, minus } = tickStep7(slot, high, low, close);
+    const { plus, minus } = tickStep7(slot, high, low, close2);
     slot.plusBuffer.replaceHead(plus);
     slot.minusBuffer.replaceHead(minus);
   } else {
-    const { plus, minus } = closeStep8(slot, high, low, close);
+    const { plus, minus } = closeStep8(slot, high, low, close2);
     slot.plusBuffer.append(plus);
     slot.minusBuffer.append(minus);
   }
@@ -15996,14 +16193,14 @@ function getCtx100() {
   }
   return ctx;
 }
-function williamsRValue(hh, ll, close) {
-  if (!Number.isFinite(hh) || !Number.isFinite(ll) || !Number.isFinite(close)) {
+function williamsRValue(hh, ll, close2) {
+  if (!Number.isFinite(hh) || !Number.isFinite(ll) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
   const denom = hh - ll;
   if (denom === 0)
     return Number.NaN;
-  return -100 * (hh - close) / denom;
+  return -100 * (hh - close2) / denom;
 }
 function williamsR(slotId, length, _opts) {
   const ctx = getCtx100();
@@ -16072,19 +16269,19 @@ function snapshot5(slot) {
   slot.prevClosedPeakSinceLastPivot = slot.peakSinceLastPivot;
   slot.prevClosedPeakIndex = slot.peakIndex;
 }
-function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevLastPivotPrice, prevLastPivotIndex, prevPeakSinceLastPivot, prevPeakIndex) {
-  const pctChangeVsPivot = (close - prevLastPivotPrice) / prevLastPivotPrice * 100;
+function recurrenceStep4(close2, barIndex, deviation, depth, prevDirection, prevLastPivotPrice, prevLastPivotIndex, prevPeakSinceLastPivot, prevPeakIndex) {
+  const pctChangeVsPivot = (close2 - prevLastPivotPrice) / prevLastPivotPrice * 100;
   const barsSincePivot = barIndex - prevLastPivotIndex;
   if (prevDirection === TREND_UNKNOWN2) {
     if (Math.abs(pctChangeVsPivot) >= deviation && barsSincePivot >= depth && prevLastPivotPrice !== 0) {
       const newDirection = pctChangeVsPivot > 0 ? TREND_UP4 : TREND_DOWN4;
       return {
-        value: close,
+        value: close2,
         direction: newDirection,
         nextDirection: newDirection,
-        nextLastPivotPrice: close,
+        nextLastPivotPrice: close2,
         nextLastPivotIndex: barIndex,
-        nextPeakSinceLastPivot: close,
+        nextPeakSinceLastPivot: close2,
         nextPeakIndex: barIndex
       };
     }
@@ -16099,18 +16296,18 @@ function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevL
     };
   }
   if (prevDirection === TREND_UP4) {
-    if (close > prevPeakSinceLastPivot) {
+    if (close2 > prevPeakSinceLastPivot) {
       return {
         value: prevLastPivotPrice,
         direction: TREND_UP4,
         nextDirection: TREND_UP4,
         nextLastPivotPrice: prevLastPivotPrice,
         nextLastPivotIndex: prevLastPivotIndex,
-        nextPeakSinceLastPivot: close,
+        nextPeakSinceLastPivot: close2,
         nextPeakIndex: barIndex
       };
     }
-    const pctDropFromPeak = (prevPeakSinceLastPivot - close) / prevPeakSinceLastPivot * 100;
+    const pctDropFromPeak = (prevPeakSinceLastPivot - close2) / prevPeakSinceLastPivot * 100;
     const barsSincePeak = barIndex - prevPeakIndex;
     if (pctDropFromPeak >= deviation && barsSincePeak >= depth) {
       return {
@@ -16119,7 +16316,7 @@ function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevL
         nextDirection: TREND_DOWN4,
         nextLastPivotPrice: prevPeakSinceLastPivot,
         nextLastPivotIndex: prevPeakIndex,
-        nextPeakSinceLastPivot: close,
+        nextPeakSinceLastPivot: close2,
         nextPeakIndex: barIndex
       };
     }
@@ -16133,18 +16330,18 @@ function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevL
       nextPeakIndex: prevPeakIndex
     };
   }
-  if (close < prevPeakSinceLastPivot) {
+  if (close2 < prevPeakSinceLastPivot) {
     return {
       value: prevLastPivotPrice,
       direction: TREND_DOWN4,
       nextDirection: TREND_DOWN4,
       nextLastPivotPrice: prevLastPivotPrice,
       nextLastPivotIndex: prevLastPivotIndex,
-      nextPeakSinceLastPivot: close,
+      nextPeakSinceLastPivot: close2,
       nextPeakIndex: barIndex
     };
   }
-  const pctRiseFromTrough = prevPeakSinceLastPivot !== 0 ? (close - prevPeakSinceLastPivot) / prevPeakSinceLastPivot * 100 : 0;
+  const pctRiseFromTrough = prevPeakSinceLastPivot !== 0 ? (close2 - prevPeakSinceLastPivot) / prevPeakSinceLastPivot * 100 : 0;
   const barsSinceTrough = barIndex - prevPeakIndex;
   if (pctRiseFromTrough >= deviation && barsSinceTrough >= depth) {
     return {
@@ -16153,7 +16350,7 @@ function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevL
       nextDirection: TREND_UP4,
       nextLastPivotPrice: prevPeakSinceLastPivot,
       nextLastPivotIndex: prevPeakIndex,
-      nextPeakSinceLastPivot: close,
+      nextPeakSinceLastPivot: close2,
       nextPeakIndex: barIndex
     };
   }
@@ -16167,21 +16364,21 @@ function recurrenceStep4(close, barIndex, deviation, depth, prevDirection, prevL
     nextPeakIndex: prevPeakIndex
   };
 }
-function closeStep9(slot, close, barIndex) {
-  if (!Number.isFinite(close)) {
+function closeStep9(slot, close2, barIndex) {
+  if (!Number.isFinite(close2)) {
     return { value: Number.NaN, direction: Number.NaN };
   }
   snapshot5(slot);
   if (slot.barCount === 0) {
     slot.barCount = 1;
-    slot.lastPivotPrice = close;
+    slot.lastPivotPrice = close2;
     slot.lastPivotIndex = 0;
-    slot.peakSinceLastPivot = close;
+    slot.peakSinceLastPivot = close2;
     slot.peakIndex = 0;
     slot.direction = TREND_UNKNOWN2;
     return { value: Number.NaN, direction: Number.NaN };
   }
-  const step2 = recurrenceStep4(close, barIndex, slot.deviation, slot.depth, slot.direction, slot.lastPivotPrice, slot.lastPivotIndex, slot.peakSinceLastPivot, slot.peakIndex);
+  const step2 = recurrenceStep4(close2, barIndex, slot.deviation, slot.depth, slot.direction, slot.lastPivotPrice, slot.lastPivotIndex, slot.peakSinceLastPivot, slot.peakIndex);
   slot.barCount += 1;
   slot.direction = step2.nextDirection;
   slot.lastPivotPrice = step2.nextLastPivotPrice;
@@ -16190,14 +16387,14 @@ function closeStep9(slot, close, barIndex) {
   slot.peakIndex = step2.nextPeakIndex;
   return { value: step2.value, direction: step2.direction };
 }
-function tickStep8(slot, close, barIndex) {
-  if (!Number.isFinite(close)) {
+function tickStep8(slot, close2, barIndex) {
+  if (!Number.isFinite(close2)) {
     return { value: Number.NaN, direction: Number.NaN };
   }
   if (slot.prevClosedBarCount === 0) {
     return { value: Number.NaN, direction: Number.NaN };
   }
-  const step2 = recurrenceStep4(close, barIndex, slot.deviation, slot.depth, slot.prevClosedDirection, slot.prevClosedLastPivotPrice, slot.prevClosedLastPivotIndex, slot.prevClosedPeakSinceLastPivot, slot.prevClosedPeakIndex);
+  const step2 = recurrenceStep4(close2, barIndex, slot.deviation, slot.depth, slot.prevClosedDirection, slot.prevClosedLastPivotPrice, slot.prevClosedLastPivotIndex, slot.prevClosedPeakSinceLastPivot, slot.prevClosedPeakIndex);
   return { value: step2.value, direction: step2.direction };
 }
 function zigZag(slotId, opts) {
@@ -16209,15 +16406,15 @@ function zigZag(slotId, opts) {
     slot = initSlot89(ctx.stream.ohlcv.close.capacity, deviation, depth);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const close = +ctx.stream.bar.close;
+  const close2 = +ctx.stream.bar.close;
   if (ctx.isTick) {
     const barIndexForStep = slot.prevClosedBarCount;
-    const { value, direction } = tickStep8(slot, close, barIndexForStep);
+    const { value, direction } = tickStep8(slot, close2, barIndexForStep);
     slot.valueBuffer.replaceHead(value);
     slot.directionBuffer.replaceHead(direction);
   } else {
     const barIndexForStep = slot.barCount;
-    const { value, direction } = closeStep9(slot, close, barIndexForStep);
+    const { value, direction } = closeStep9(slot, close2, barIndexForStep);
     slot.valueBuffer.append(value);
     slot.directionBuffer.append(direction);
   }
@@ -16750,6 +16947,7 @@ function buildComputeContext(state2) {
     plotbar: plotbar2,
     alert: alert2,
     draw: DRAW_NAMESPACE,
+    order: ORDER_NAMESPACE,
     state: buildStateNamespace(),
     barstate: state2.runtimeContext.views.barstate,
     syminfo: state2.runtimeContext.views.syminfo,
@@ -16773,10 +16971,12 @@ function resetBarEmissions(state2) {
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
   state2.emissions.alertConditions = [];
+  state2.emissions.orders = [];
   state2.emissions.logs = [];
   state2.emissions.diagnostics = [];
   state2.emissions.fromBar = state2.barIndex;
   state2.emissions.toBar = state2.barIndex;
+  state2.runtimeContext.pendingOrders = [];
   state2.runtimeContext.requestSecurityAlignments.clear();
   state2.runtimeContext.requestSecurityAscendingBars.clear();
   state2.runtimeContext.requestSecurityExprSeries?.clear();
@@ -16818,6 +17018,8 @@ async function runComputeBody(args) {
       state2.emissions.drawings = [];
       state2.emissions.alerts = [];
       state2.emissions.alertConditions = [];
+      state2.emissions.orders = [];
+      state2.runtimeContext.pendingOrders = [];
       state2.emissions.logs = [];
       pushDiagnostic(state2.emissions, {
         kind: "diagnostic",
@@ -16834,6 +17036,9 @@ async function runComputeBody(args) {
       state2.runtimeContext.isTick = false;
     ACTIVE_RUNTIME_CONTEXT.current = null;
   }
+  if (!isTick && !state2.depErroredThisBar) {
+    foldConfirmedOrders(state2.runtimeContext);
+  }
   return outcome;
 }
 
@@ -16849,6 +17054,7 @@ function resetEmissions(emissions) {
   emissions.drawings = [];
   emissions.alerts = [];
   emissions.alertConditions = [];
+  emissions.orders = [];
   emissions.logs = [];
   emissions.diagnostics = [];
 }
@@ -16892,6 +17098,12 @@ function applyDepEmissionPolicy(runner, parentEmissions, depOutputStore) {
         slotId: prefixSlotId(alert3.slotId, runner.slotIdPrefix)
       });
     }
+    for (const order2 of runner.emissions.orders) {
+      parentEmissions.orders.push({
+        ...order2,
+        slotId: prefixSlotId(order2.slotId, runner.slotIdPrefix)
+      });
+    }
     const siblingConditions = runner.emissions.alertConditions ?? [];
     if (siblingConditions.length > 0) {
       const target = parentEmissions.alertConditions ?? [];
@@ -16925,6 +17137,7 @@ function freshEmissions(barIndex) {
     drawings: [],
     alerts: [],
     alertConditions: [],
+    orders: [],
     logs: [],
     diagnostics: [],
     fromBar: barIndex,
@@ -16998,6 +17211,9 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       sessionCalendar: args.sessionCalendar,
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),
+      diagnosedOrderSlots: /* @__PURE__ */ new Set(),
+      pendingOrders: [],
+      orderPosition: FLAT_ORDER_POSITION,
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),
@@ -17160,6 +17376,11 @@ function drain(state2) {
     drawings: state2.emissions.drawings,
     alerts: state2.emissions.alerts,
     alertConditions: state2.emissions.alertConditions ?? [],
+    // `orders` is required on the mutable twin and initialised `[]` at every
+    // queue-construction site, so it is handed over BY REFERENCE with no
+    // `?? []` — an absent orders queue is not a reachable state. Nothing
+    // pushes here yet; the emission plumbing task fills it.
+    orders: state2.emissions.orders,
     logs: state2.emissions.logs,
     diagnostics: state2.emissions.diagnostics,
     fromBar: state2.emissions.fromBar,
@@ -17169,6 +17390,7 @@ function drain(state2) {
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
   state2.emissions.alertConditions = [];
+  state2.emissions.orders = [];
   state2.emissions.logs = [];
   state2.emissions.diagnostics = [];
   return out;
@@ -17197,7 +17419,9 @@ function dispose(state2) {
   state2.emissions.plots = [];
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
+  state2.emissions.orders = [];
   state2.emissions.diagnostics = [];
+  state2.runtimeContext.pendingOrders = [];
   state2.runtimeContext.drawingSlots.clear();
   state2.runtimeContext.drawingSubIdCounters.clear();
   state2.runtimeContext.stateSlots.clear();
@@ -17224,6 +17448,7 @@ function dispose(state2) {
   state2.runtimeContext.requestLowerTfViews.clear();
   state2.runtimeContext.diagnosedRequestKeys.clear();
   state2.runtimeContext.diagnosedTzKeys.clear();
+  state2.runtimeContext.diagnosedOrderSlots.clear();
   state2.runtimeContext.diagnosedInputKeys.clear();
   const counters = state2.runtimeContext.drawingBucketCounters;
   counters.lines = 0;
@@ -17239,6 +17464,8 @@ function clearVisualEmissions(state2) {
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
   state2.emissions.alertConditions = [];
+  state2.emissions.orders = [];
+  state2.runtimeContext.pendingOrders = [];
   state2.emissions.logs = [];
 }
 async function onBarClose(state2, rawBar, eventKind = "close") {
@@ -17267,6 +17494,8 @@ function clearVisualEmissions2(state2) {
   state2.emissions.drawings = [];
   state2.emissions.alerts = [];
   state2.emissions.alertConditions = [];
+  state2.emissions.orders = [];
+  state2.runtimeContext.pendingOrders = [];
   state2.emissions.logs = [];
 }
 async function onBarTick(state2, rawBar) {
@@ -17301,6 +17530,7 @@ async function onHistory(state2, bars) {
   const drawings = state2.emissions.drawings;
   const alerts = state2.emissions.alerts;
   const alertConditions = state2.emissions.alertConditions ?? [];
+  const orders = state2.emissions.orders;
   const logs = state2.emissions.logs;
   const diagnostics = state2.emissions.diagnostics;
   for (const bar of bars) {
@@ -17309,6 +17539,7 @@ async function onHistory(state2, bars) {
     drawings.push(...state2.emissions.drawings);
     alerts.push(...state2.emissions.alerts);
     alertConditions.push(...state2.emissions.alertConditions ?? []);
+    orders.push(...state2.emissions.orders);
     logs.push(...state2.emissions.logs);
     diagnostics.push(...state2.emissions.diagnostics);
   }
@@ -17316,6 +17547,7 @@ async function onHistory(state2, bars) {
   state2.emissions.drawings = drawings;
   state2.emissions.alerts = alerts;
   state2.emissions.alertConditions = alertConditions;
+  state2.emissions.orders = orders;
   state2.emissions.logs = logs;
   state2.emissions.diagnostics = diagnostics;
   state2.emissions.fromBar = fromBar;
@@ -17377,8 +17609,21 @@ function isStreamSnapshot(value) {
 function isSlotsRecord(value) {
   return isRecord2(value) && Object.values(value).every((entry) => isJsonValue2(entry));
 }
+function isOrderPosition(value) {
+  if (!isRecord2(value))
+    return false;
+  if (!isSnapshotNumber(value.size))
+    return false;
+  if (value.avgPrice !== null && !isSnapshotNumber(value.avgPrice))
+    return false;
+  return value.entryBar === null || isBarIndex(value.entryBar);
+}
 function isRunnerSnapshot(value) {
-  return isRecord2(value) && isSlotsRecord(value.slots);
+  if (!isRecord2(value))
+    return false;
+  if (!isSlotsRecord(value.slots))
+    return false;
+  return value.orderPosition === void 0 || isOrderPosition(value.orderPosition);
 }
 function isRunnerSnapshotMap(value) {
   return isRecord2(value) && Object.values(value).every((entry) => isRunnerSnapshot(entry));
@@ -17628,6 +17873,13 @@ function primarySectionSlots(state2) {
     ...serialiseTaSlots(state2.mainStream)
   });
 }
+function orderPositionSection(ctx) {
+  const position2 = ctx.orderPosition;
+  if (position2.size === 0 && position2.avgPrice === null && position2.entryBar === null) {
+    return {};
+  }
+  return { orderPosition: position2 };
+}
 function runnerSection(ctx) {
   return Object.freeze({
     slots: Object.freeze({
@@ -17636,7 +17888,8 @@ function runnerSection(ctx) {
       ...serialiseObjectSeriesSlots(ctx),
       ...serialiseArraySlots(ctx),
       ...serialiseMapSlots(ctx)
-    })
+    }),
+    ...orderPositionSection(ctx)
   });
 }
 function captureSiblings(state2) {
@@ -17667,7 +17920,10 @@ function captureStateSnapshot(state2, savedAt) {
     streams,
     savedAt,
     snapshotVersion: 2,
-    primary: { slots: primarySectionSlots(state2) },
+    primary: {
+      slots: primarySectionSlots(state2),
+      ...orderPositionSection(state2.runtimeContext)
+    },
     ...siblings === void 0 ? {} : { siblings },
     ...dependencies === void 0 ? {} : { dependencies }
   };
@@ -17717,6 +17973,7 @@ function restoreSiblingSections(state2, siblings) {
       continue;
     }
     restoreRunnerSlots(sibling.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
+    sibling.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
   }
 }
 function restoreDependencySections(state2, dependencies) {
@@ -17728,6 +17985,7 @@ function restoreDependencySections(state2, dependencies) {
       continue;
     }
     restoreRunnerSlots(dep.state.runtimeContext, section.slots, state2.mainStream.ohlcv.close.capacity);
+    dep.state.runtimeContext.orderPosition = section.orderPosition ?? FLAT_ORDER_POSITION;
   }
 }
 function restoreStateSnapshot(state2, snapshot6) {
@@ -17745,6 +18003,7 @@ function restoreStateSnapshot(state2, snapshot6) {
   const primarySlots = primarySlotsOf(snapshot6);
   restoreTaSlots(state2.mainStream, primarySlots);
   restoreRunnerSlots(state2.runtimeContext, primarySlots, state2.mainStream.ohlcv.close.capacity);
+  state2.runtimeContext.orderPosition = primaryOrderPositionOf(snapshot6);
   if (snapshot6.siblings !== void 0) {
     restoreSiblingSections(state2, snapshot6.siblings);
   }
@@ -17760,6 +18019,10 @@ function primarySlotsOf(snapshot6) {
   if (view.slots === void 0)
     return EMPTY_SLOTS;
   return view.slots;
+}
+function primaryOrderPositionOf(snapshot6) {
+  const view = snapshot6;
+  return view.primary?.orderPosition ?? FLAT_ORDER_POSITION;
 }
 async function saveStateSnapshot(state2, savedAt) {
   const store = state2.runtimeContext.persistentStateStore;
@@ -17931,6 +18194,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
     drawings: [],
     alerts: [],
     alertConditions: [],
+    orders: [],
     logs: [],
     diagnostics: [],
     fromBar: 0,
@@ -17981,6 +18245,9 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
       sessionCalendar,
       alertConditions,
       diagnosedAlertConditionKeys: /* @__PURE__ */ new Set(),
+      diagnosedOrderSlots: /* @__PURE__ */ new Set(),
+      pendingOrders: [],
+      orderPosition: FLAT_ORDER_POSITION,
       logBudget: 0,
       logBudgetExceededDiagnosed: false,
       resolvedInputs: Object.freeze({}),

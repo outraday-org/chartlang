@@ -83,9 +83,11 @@ export const adapter: Adapter = defineAdapter({
         alerts: new Set(),
         alertConditions: false,
         logs: false,
+        orders: false,
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,
+        multiSymbol: false,
         subPanes: 0,
         symInfoFields: new Set(),
         maxDrawingsPerScript: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
@@ -140,11 +142,23 @@ function handle(emissions: RunnerEmissions): void {
     for (const alert of emissions.alerts) {
         void alert; // dispatch per alert.channels, idempotent on alert.dedupeKey
     }
+    for (const order of emissions.orders) {
+        void order; // switch on order.action, idempotent on order.dedupeKey
+    }
     // also: emissions.alertConditions, emissions.logs, emissions.diagnostics
     void emissions.fromBar;
     void emissions.toBar;
 }
 ```
+
+An adapter **may ignore `emissions.orders` entirely** — the entry/exit
+markers arrive as ordinary `arrow` / `label` plot emissions, so an adapter
+that renders plots already draws them with no order-specific code.
+Consuming the array is an app-layer concern: the bundled example adapters
+each expose an optional `onOrder` factory option that forwards the
+validated emissions to the embedding app, and the site demo's order panel
+is what reads it. An adapter that wants nothing to do with the channel
+declares `orders: false` and never receives it.
 
 The batch is atomic for the covered `[fromBar, toBar]` range. Inside
 one batch:
@@ -156,6 +170,9 @@ one batch:
 - Drawings dedupe by `(handleId, bar)` with last-write-wins. Each
   drawing carries an `op: "create" | "update" | "remove"`; `create` and
   `update` carry the full state (not a patch).
+- Orders are **append-only**: they are deliberately not deduped per
+  `(slotId, bar)`, because an order is an event rather than an idempotent
+  visual. Use `order.dedupeKey` for async-delivery idempotency.
 - Alert conditions and logs preserve append order and are not
   queue-deduped.
 - Diagnostics carry capability mismatches and other non-rendered

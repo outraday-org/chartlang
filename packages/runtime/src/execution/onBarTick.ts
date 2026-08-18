@@ -14,6 +14,10 @@ function clearVisualEmissions(state: RunnerState): void {
     state.emissions.drawings = [];
     state.emissions.alerts = [];
     state.emissions.alertConditions = [];
+    // Same dep-error ruling as `onBarClose` — the bar's order intents are
+    // discarded with the visuals, `pendingOrders` included.
+    state.emissions.orders = [];
+    state.runtimeContext.pendingOrders = [];
     state.emissions.logs = [];
 }
 

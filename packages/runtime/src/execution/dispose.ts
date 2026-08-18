@@ -13,8 +13,10 @@ import { flushStateSlots } from "../state/index.js";
  * - Runtime `state.*` slots are flushed into `StateStore`, then the
  *   runner-local slot map is cleared. The backing `StateStore` remains
  *   host-owned so warm restart can restore the snapshot.
- * - The four emission arrays are reset to empty (`drain()` after
- *   `dispose` returns empty arrays).
+ * - The plot / drawing / alert / order / diagnostic queues are reset to empty
+ *   (`drain()` after `dispose` returns empty arrays), along with
+ *   `pendingOrders` and the `unsupported-orders` dedup set. `alertConditions`
+ *   and `logs` are a pre-existing gap here, not a deliberate exemption.
  *
  * `state.barIndex` is NOT reset — `dispose` is one-shot. Re-use after
  * `dispose` is not supported and not tested.
@@ -46,7 +48,9 @@ export function dispose(state: RunnerState): void {
     state.emissions.plots = [];
     state.emissions.drawings = [];
     state.emissions.alerts = [];
+    state.emissions.orders = [];
     state.emissions.diagnostics = [];
+    state.runtimeContext.pendingOrders = [];
     state.runtimeContext.drawingSlots.clear();
     state.runtimeContext.drawingSubIdCounters.clear();
     state.runtimeContext.stateSlots.clear();
@@ -76,6 +80,7 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.requestLowerTfViews.clear();
     state.runtimeContext.diagnosedRequestKeys.clear();
     state.runtimeContext.diagnosedTzKeys.clear();
+    state.runtimeContext.diagnosedOrderSlots.clear();
     state.runtimeContext.diagnosedInputKeys.clear();
     const counters = state.runtimeContext.drawingBucketCounters;
     counters.lines = 0;

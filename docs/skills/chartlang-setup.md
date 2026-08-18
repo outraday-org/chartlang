@@ -36,9 +36,12 @@ guarantee, and the **three integration paths**:
 - **Embed in your chart** — compile a script, host the bundle, render through an
   adapter (the full embed path).
 - **Write a chart adapter** — author a new chart-vendor adapter against the
-  [adapter contract](../adapters/contract) and conformance harness.
+  [adapter contract](../adapters/contract) and conformance harness, including
+  the [`orders` capability](../adapters/capabilities) and the optional
+  `onOrder` sink that hands structured trade intents to the embedding app.
 - **Run server-side alerts** — fire alerts headless on a server with the
-  [QuickJS host](../hosts/quickjs).
+  [QuickJS host](../hosts/quickjs), declining `orders` the way it already
+  declines drawings.
 
 ## What's inside
 

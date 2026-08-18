@@ -170,6 +170,20 @@ const RISING_FALLING_STATEFUL_ADDITIONS: ReadonlyArray<Readonly<{ name: string; 
         { name: "ta.falling", slot: true },
     ] as const);
 
+// `order.*` — the market-intent namespace (RFC 0002). The three emitters are
+// `slot: true` because each callsite owns a stable id for its emissions, its
+// once-per-slot capability diagnostic, and its synthetic auto-marker slots;
+// `order.position` is a pure read that allocates nothing, so it is `slot: false`
+// and extends BOTH the `STATEFUL_PRIMITIVES.size` sum AND the `slot: false`
+// expected set. `order.*` is NOT in `PHASE_5_DEFERRED` — nothing there changes.
+const ORDER_NAMESPACE_ADDITIONS: ReadonlyArray<Readonly<{ name: string; slot: boolean }>> =
+    Object.freeze([
+        { name: "order.buy", slot: true },
+        { name: "order.sell", slot: true },
+        { name: "order.close", slot: true },
+        { name: "order.position", slot: false },
+    ] as const);
+
 const PHASE_2_TA_CARDINALITY = PHASE_1_INDICATORS.length + PHASE_2_INDICATORS.length;
 const PHASE_4_STATEFUL_CARDINALITY = 163;
 
@@ -205,7 +219,7 @@ describe("Phase 2 surface", () => {
         );
     });
 
-    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus explicit Phase-5/6 and highest/lowest-bars entries", () => {
+    it("STATEFUL_PRIMITIVES keeps the Phase-4 baseline plus every explicitly enumerated addition batch", () => {
         expect(STATEFUL_PRIMITIVES.size).toBe(
             PHASE_4_STATEFUL_CARDINALITY +
                 PHASE_5_STATEFUL_ADDITIONS.length +
@@ -221,7 +235,8 @@ describe("Phase 2 surface", () => {
                 CROSS_CUM_STATEFUL_ADDITIONS.length +
                 RISING_FALLING_STATEFUL_ADDITIONS.length +
                 CALENDAR_SESSION_STATEFUL_ADDITIONS.length +
-                TIME_NOW_STATEFUL_ADDITIONS.length,
+                TIME_NOW_STATEFUL_ADDITIONS.length +
+                ORDER_NAMESPACE_ADDITIONS.length,
         );
         for (const expected of [
             ...PHASE_5_STATEFUL_ADDITIONS,
@@ -238,12 +253,13 @@ describe("Phase 2 surface", () => {
             ...RISING_FALLING_STATEFUL_ADDITIONS,
             ...CALENDAR_SESSION_STATEFUL_ADDITIONS,
             ...TIME_NOW_STATEFUL_ADDITIONS,
+            ...ORDER_NAMESPACE_ADDITIONS,
         ]) {
             expect(STATEFUL_PRIMITIVES).toContainEqual(expected);
         }
     });
 
-    it("slot:false entries are ta.nz, the Phase-5 diagnostics primitives, and the calendar/session accessors", () => {
+    it("slot:false entries are ta.nz, the Phase-5 diagnostics primitives, the calendar/session accessors, and order.position", () => {
         const stateless = [...STATEFUL_PRIMITIVES]
             .filter((e) => e.slot === false)
             .map((e) => e.name)
@@ -256,6 +272,7 @@ describe("Phase 2 surface", () => {
                 "ta.nz",
                 ...CALENDAR_SESSION_STATEFUL_ADDITIONS.map((e) => e.name),
                 ...TIME_NOW_STATEFUL_ADDITIONS.map((e) => e.name),
+                ...ORDER_NAMESPACE_ADDITIONS.filter((e) => !e.slot).map((e) => e.name),
             ].sort(),
         );
     });

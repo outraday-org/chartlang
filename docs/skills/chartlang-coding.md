@@ -18,8 +18,12 @@ product rather than writing scripts, you want
   `@invinite-org/chartlang-core`, and `compute({ bar, ta, plot, ... })`
   destructures the per-bar context. Both must hold together.
 - The **four script kinds**: `defineIndicator`, `defineDrawing`, `defineAlert`,
-  and `defineAlertCondition`.
+  and `defineAlertCondition` — there is no strategy kind.
 - **Inputs**, series and indexing, and indicator composition.
+- **Order emissions** — `order.buy` / `order.sell` / `order.close` and the
+  nominal position `order.position()` reads, including its one-fold lag and the
+  fact that fill economics belong to the consumer (see
+  [Orders](../language/orders)).
 - The **forbidden constructs** the compiler rejects, with idiomatic
   replacements (see also [Forbidden constructs](../language/forbidden-constructs)).
 - The full **`ta.*` / `draw.*` primitive surface** (see also

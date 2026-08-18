@@ -82,6 +82,29 @@ describe("emit → compile round-trip", () => {
         expect(compiled.manifest.name).toBe("Smoke");
     });
 
+    it("a converted strategy compiles and asks for the `orders` capability", async () => {
+        const result = convert(
+            [
+                "//@version=6",
+                'strategy("Orders", overlay = true)',
+                "fast = ta.ema(close, 12)",
+                "slow = ta.ema(close, 26)",
+                "if ta.crossover(fast, slow)",
+                '    strategy.entry("Long", strategy.long)',
+                "if ta.crossunder(fast, slow)",
+                '    strategy.close("Long")',
+                "plot(fast)",
+            ].join("\n"),
+        );
+        // The `strategy(...)` head is a warning now, so the conversion is clean.
+        expect(result.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+        const compiled = await compile(result.output ?? "", {
+            apiVersion: 1,
+            sourcePath: "orders.chart.ts",
+        });
+        expect(compiled.manifest.capabilities).toContain("orders");
+    });
+
     it("rejects (throws CompileError) for intentionally-broken emitted source", async () => {
         const broken = scaffold({
             name: "Broken",

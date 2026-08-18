@@ -11,6 +11,7 @@ import type {
     InputDescriptor,
     SourceField,
 } from "./input/inputDescriptor.js";
+import type { OrderNamespace } from "./order/order.js";
 import type { PlotKind } from "./plot/plot.js";
 import type { RequestNamespace } from "./request/index.js";
 import type { RuntimeNamespace } from "./runtime/index.js";
@@ -461,11 +462,17 @@ export type ResolveComputeInputs<I extends InputSchema> = string extends keyof I
  * `@invinite-org/chartlang-adapter-kit` (Task 4); only the id strings appear
  * here.
  *
+ * The first four arms are exactly the compiler's per-kind seeds, so a script of
+ * that kind always declares one of them. `"orders"` is the odd one out: **no
+ * script kind seeds it** — it is derived purely from `order.buy` / `order.sell` /
+ * `order.close` callsites (`order.position()` is a read and asks for nothing),
+ * the way `"alerts"` is additionally derived from `alert(...)`.
+ *
  * @since 0.1
  * @example
  *     const caps: ReadonlyArray<CapabilityId> = ["indicators", "alerts"];
  */
-export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
+export type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions" | "orders";
 
 /**
  * Per-script drawing-emission budget. Excess `draw.*` calls drop with
@@ -968,6 +975,13 @@ export type ComputeContext<TInputs = Readonly<Record<string, unknown>>> = {
      * `@invinite-org/chartlang-runtime/emit/draw`. @since 0.3
      */
     readonly draw: DrawNamespace;
+    /**
+     * Market-order namespace. `buy` / `sell` / `close` queue intents on the
+     * `orders` emission channel (gated by the adapter's `orders` capability);
+     * `position()` reads the nominal position as of the previous confirmed step.
+     * @since 1.12
+     */
+    readonly order: OrderNamespace;
 };
 
 /**

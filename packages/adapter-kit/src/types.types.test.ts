@@ -5,6 +5,7 @@ import type {
     AlertSeverity,
     Bar,
     DrawingKind as CoreDrawingKind,
+    OrderAction as CoreOrderAction,
     DrawingState,
     InputDescriptor,
 } from "@invinite-org/chartlang-core";
@@ -29,6 +30,8 @@ import type {
     ExternalSeriesFeed,
     ExternalSeriesFeedMap,
     LogEmission,
+    OrderAction,
+    OrderEmission,
     PlotEmission,
     PlotKind,
     PlotStyle,
@@ -136,10 +139,61 @@ describe("type assertions", () => {
         expectTypeOf<RunnerEmissions["alertConditions"]>().toEqualTypeOf<
             ReadonlyArray<AlertConditionEmission>
         >();
+        expectTypeOf<RunnerEmissions["orders"]>().toEqualTypeOf<ReadonlyArray<OrderEmission>>();
         expectTypeOf<RunnerEmissions["logs"]>().toEqualTypeOf<ReadonlyArray<LogEmission>>();
         expectTypeOf<RunnerEmissions["diagnostics"]>().toEqualTypeOf<
             ReadonlyArray<RuntimeDiagnostic>
         >();
+    });
+
+    it("RunnerEmissions.orders is required — not a retrofit-optional channel", () => {
+        // The retrofit-optional `alertConditions?` on the runtime's mutable twin
+        // seeded `?? []` fallbacks for a state that could not occur; `orders`
+        // does not repeat it. Proven by omitting it from this literal.
+        // @ts-expect-error orders is required
+        const missing: RunnerEmissions = {
+            plots: [],
+            drawings: [],
+            alerts: [],
+            alertConditions: [],
+            logs: [],
+            diagnostics: [],
+            fromBar: 0,
+            toBar: 0,
+        };
+        void missing;
+    });
+
+    it("Capabilities.orders is a required boolean", () => {
+        expectTypeOf<Capabilities["orders"]>().toEqualTypeOf<boolean>();
+    });
+
+    it("OrderAction is core's three market intents, re-exported not redeclared", () => {
+        expectTypeOf<OrderAction>().toEqualTypeOf<CoreOrderAction>();
+        expectTypeOf<OrderAction>().toEqualTypeOf<"buy" | "sell" | "close">();
+    });
+
+    it("OrderEmission carries all nine fields as required", () => {
+        const e: OrderEmission = {
+            kind: "order",
+            slotId: "ema-cross.ts:14:9#0",
+            action: "buy",
+            qty: null,
+            label: "Long",
+            bar: 120,
+            time: 1_700_000_000_000,
+            meta: { reason: "cross" },
+            dedupeKey: "ema-cross.ts:14:9#0::120::deadbeef",
+        };
+        expectTypeOf<OrderEmission["kind"]>().toEqualTypeOf<"order">();
+        expectTypeOf<OrderEmission["action"]>().toEqualTypeOf<OrderAction>();
+        expectTypeOf<OrderEmission["qty"]>().toEqualTypeOf<number | null>();
+        expectTypeOf<OrderEmission["label"]>().toEqualTypeOf<string>();
+        expectTypeOf<OrderEmission["dedupeKey"]>().toEqualTypeOf<string>();
+        // `OrderOpts.marker` is render-side only and deliberately absent from
+        // the wire — the emission records the intent, not how it was drawn.
+        expect(Object.hasOwn(e, "marker")).toBe(false);
+        expect(Object.keys(e)).toHaveLength(9);
     });
 
     it("DiagnosticCode contains every Phase-1 + Phase-7 code", () => {
@@ -149,6 +203,7 @@ describe("type assertions", () => {
             | "unsupported-alert-channel"
             | "unsupported-pane"
             | "unsupported-interval"
+            | "unsupported-orders"
             | "multi-timeframe-not-supported"
             | "multi-symbol-not-supported"
             | "unknown-secondary-stream"
@@ -165,6 +220,7 @@ describe("type assertions", () => {
             | "malformed-log-meta"
             | "runtime-error-thrown"
             | "session-info-missing"
+            | "tz-dst-unsupported"
             | "fixed-range-inverted"
             | "state-snapshot-restored"
             | "state-snapshot-future-dated"
@@ -258,6 +314,7 @@ describe("type assertions", () => {
             alerts: new Set(),
             alertConditions: false,
             logs: false,
+            orders: false,
             inputs: new Set(),
             intervals: [],
             multiTimeframe: false,

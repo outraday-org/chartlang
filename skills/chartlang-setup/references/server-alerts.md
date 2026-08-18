@@ -70,6 +70,17 @@ for await (const bar of liveBars) {
 host.dispose();
 ```
 
+**A headless evaluator may decline `orders`.** A server that only needs
+alerts declares `orders: false` in its capability bag and ignores
+`emissions.orders` entirely — exactly as it already ignores `drawings`.
+The runtime then drops each `order.*` call, skips its auto-markers, and
+emits `unsupported-orders` once per slot per mount, so the diagnostic
+channel stays quiet across a long backfill instead of carrying one
+warning per order per bar. Declare `orders: true` only when something
+downstream actually consumes `RunnerEmissions.orders` — and remember the
+runtime tracks a *nominal* position only, so fills, slippage, commission
+and equity remain yours to compute.
+
 `createQuickJsHost` returns a frozen `ScriptHost`: `load` evaluates the
 dispatcher and the module once, `push` forwards a candle event across the
 JSON membrane, `drain` returns the queued `RunnerEmissions` (plots and

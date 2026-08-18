@@ -34,6 +34,7 @@ import drawFibonacciFragment from "./catalogue/draw-fibonacci";
 import drawGannFragment from "./catalogue/draw-gann";
 import drawElliottFragment from "./catalogue/draw-elliott";
 import drawPatternsFragment from "./catalogue/draw-patterns";
+import ordersFragment from "./catalogue/orders";
 import inputsFragment from "./catalogue/inputs";
 import statePlotAlertFragment from "./catalogue/state-plot-alert";
 import defineBarContextFragment from "./catalogue/define-bar-context";
@@ -67,6 +68,7 @@ export type ExampleCategory =
     | "draw-gann"
     | "draw-elliott"
     | "draw-patterns"
+    | "orders"
     | "math"
     | "str"
     | "inputs"
@@ -97,6 +99,7 @@ export const CATEGORY_LABELS: Readonly<Record<ExampleCategory, string>> = {
     "draw-gann": "Draw · Gann",
     "draw-elliott": "Draw · Elliott Waves",
     "draw-patterns": "Draw · Patterns",
+    orders: "Orders & Backtesting",
     math: "Math",
     str: "Strings",
     inputs: "Inputs",
@@ -129,6 +132,7 @@ export const CATEGORY_ORDER: ReadonlyArray<ExampleCategory> = [
     "draw-gann",
     "draw-elliott",
     "draw-patterns",
+    "orders",
     "math",
     "str",
     "inputs",
@@ -207,6 +211,7 @@ export const EXAMPLE_CATALOGUE: ReadonlyArray<ExampleMeta> = [
     ...drawGannFragment,
     ...drawElliottFragment,
     ...drawPatternsFragment,
+    ...ordersFragment,
     ...inputsFragment,
     ...statePlotAlertFragment,
     ...defineBarContextFragment,

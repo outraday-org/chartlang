@@ -127,6 +127,7 @@ class FakeContext implements QuickJsContextLike {
                             drawings: [],
                             alerts: [],
                             alertConditions: [],
+                            orders: [],
                             logs: [],
                             diagnostics: [],
                             fromBar: 0,
@@ -653,6 +654,21 @@ describe("createQuickJsHost", () => {
                     },
                     { kind: "alert-condition", conditionId: 1, bar: 0 },
                 ],
+                orders: [
+                    {
+                        kind: "order",
+                        slotId: "good-order",
+                        action: "buy",
+                        qty: null,
+                        label: "Long",
+                        bar: 0,
+                        time: 1,
+                        meta: {},
+                        dedupeKey: "good-order::0::abc",
+                    },
+                    // `qty` must be null or a finite magnitude > 0.
+                    { kind: "order", slotId: "bad-order", action: "buy", qty: 0, bar: 0 },
+                ],
                 logs: [
                     {
                         kind: "log",
@@ -687,13 +703,20 @@ describe("createQuickJsHost", () => {
         expect(emissions.plots).toEqual([]);
         expect(emissions.alerts).toHaveLength(1);
         expect(emissions.alertConditions).toHaveLength(1);
+        expect(emissions.orders).toHaveLength(1);
+        expect(emissions.orders[0].slotId).toBe("good-order");
         expect(emissions.logs).toHaveLength(1);
         expect(emissions.diagnostics.map((d) => d.code)).toEqual([
             "malformed-emission",
             "malformed-emission",
             "malformed-emission",
             "malformed-emission",
+            "malformed-emission",
         ]);
+        // An order's diagnostic is attributable — it carries the dropped
+        // callsite's slot id, like a plot's or an alert's and unlike an
+        // alert-condition's or a log's.
+        expect(emissions.diagnostics.filter((d) => d.slotId === "bad-order")).toHaveLength(1);
         host.dispose();
     });
 
@@ -750,6 +773,7 @@ describe("createQuickJsHost", () => {
             drawings: [],
             alerts: [],
             alertConditions: [],
+            orders: [],
             logs: [],
             diagnostics: [],
             fromBar: 0,
@@ -941,6 +965,166 @@ describe("createQuickJsHost job-queue pumping", () => {
             QuickJsStepAbortedError,
         );
         expect(hostErrors.join("\n")).toMatch(/stopped before the reply settled/);
+        host.dispose();
+    });
+
+    it("frees the transient error context a stopped queue owns, never the live one", async () => {
+        // A failed `executePendingJobs()` owns the QuickJS error handle. When
+        // the originating context is already gone the failure is surfaced
+        // through a TRANSIENT context that the result does not own — freeing
+        // only the result leaks it, and freeing the LIVE context instead would
+        // pull the runtime out from under every later call.
+        const context = new FakeContext();
+        let transientDisposed = 0;
+        let resultDisposed = 0;
+        const transientContext = {
+            dispose: () => {
+                transientDisposed += 1;
+            },
+        };
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => ({
+                    error: { message: "interrupted", context: transientContext },
+                    dispose: () => {
+                        resultDisposed += 1;
+                    },
+                }),
+                hasPendingJob: () => true,
+                newContext: () => context,
+            }),
+        });
+        const host = createQuickJsHost({ capabilities: makeCapabilities(), quickJsLike });
+
+        await expect(host.load(compiled(plotSource()))).rejects.toBeInstanceOf(
+            QuickJsStepAbortedError,
+        );
+
+        expect(resultDisposed).toBe(1);
+        expect(transientDisposed).toBe(1);
+        // The live context is still the host's, untouched by the failure path.
+        expect(context.calls).not.toContain("dispose");
+        host.dispose();
+    });
+
+    it("gives up rather than pumping a self-refilling queue forever", async () => {
+        // Only reachable when a guest job keeps enqueuing successors and the
+        // budget interrupt never fires — an unbounded loop here would be the
+        // same wedged thread the pump exists to prevent.
+        const context = new FakeContext();
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => 1,
+                hasPendingJob: () => true,
+                newContext: () => context,
+            }),
+        });
+        const hostErrors: string[] = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike,
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+
+        await expect(host.load(compiled(plotSource()))).rejects.toBeInstanceOf(
+            QuickJsStepAbortedError,
+        );
+        expect(hostErrors.join("\n")).toMatch(/did not drain/);
+        host.dispose();
+    });
+});
+
+describe("createQuickJsHost poisoned-host refusals", () => {
+    /** Poisons a host the only way it can be poisoned: an aborted call. */
+    async function poisonedHost(
+        hostErrors: string[],
+    ): Promise<ReturnType<typeof createQuickJsHost>> {
+        const context = new FakeContext();
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => ({ error: { message: "interrupted" } }),
+                hasPendingJob: () => true,
+                newContext: () => context,
+            }),
+        });
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike,
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+        await expect(host.load(compiled(plotSource()))).rejects.toBeInstanceOf(
+            QuickJsStepAbortedError,
+        );
+        hostErrors.length = 0;
+        return host;
+    }
+
+    it("refuses setPlotOverrides after an aborted step", async () => {
+        const hostErrors: string[] = [];
+        const host = await poisonedHost(hostErrors);
+
+        host.setPlotOverrides({ "p:1:1#0": { color: "#0f0" } });
+
+        expect(hostErrors).toEqual(["setPlotOverrides after an aborted step"]);
+        host.dispose();
+    });
+
+    it("refuses setExternalSeries after an aborted step", async () => {
+        const hostErrors: string[] = [];
+        const host = await poisonedHost(hostErrors);
+
+        host.setExternalSeries({ feed: { values: [1, 2] } });
+
+        expect(hostErrors).toEqual(["setExternalSeries after an aborted step"]);
+        host.dispose();
+    });
+
+    it("rethrows an ordinary load failure without poisoning the host", async () => {
+        // The interrupt never fired, so this is the module's own error, not a
+        // truncated computation: `load` rethrows it verbatim and the host stays
+        // usable for a caller that fixes the script and loads again.
+        class ThrowingLoadContext extends FakeContext {
+            override getProp(handle: QuickJsHandleLike, key: string): QuickJsHandleLike {
+                if (key === "__chartlang_load") {
+                    return new FakeHandle(async () => {
+                        throw new Error("module top level threw");
+                    });
+                }
+                return super.getProp(handle, key);
+            }
+        }
+        const context = new ThrowingLoadContext();
+        const hostErrors: string[] = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike: () => ({
+                newRuntime: () => ({
+                    setMemoryLimit: () => undefined,
+                    setInterruptHandler: () => undefined,
+                    executePendingJobs: () => undefined,
+                    newContext: () => context,
+                }),
+            }),
+            onHostError: (message) => {
+                hostErrors.push(message);
+            },
+        });
+
+        await expect(host.load(compiled(plotSource()))).rejects.toThrow("module top level threw");
+
+        expect(hostErrors).toEqual([]);
+        // Not poisoned — `drain()` would throw `QuickJsStepAbortedError` if it were.
+        await expect(host.drain()).resolves.toMatchObject({ plots: [] });
         host.dispose();
     });
 });

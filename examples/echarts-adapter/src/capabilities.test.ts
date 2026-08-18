@@ -37,6 +37,7 @@ describe("ECHARTS_CAPABILITIES", () => {
         expect(ECHARTS_CAPABILITIES.maxDrawingsPerScript.lines).toBe(200);
         expect(ECHARTS_CAPABILITIES.alertConditions).toBe(true);
         expect(ECHARTS_CAPABILITIES.logs).toBe(true);
+        expect(ECHARTS_CAPABILITIES.orders).toBe(true);
         expect(ECHARTS_CAPABILITIES.maxLookback).toBe(1000);
         expect(ECHARTS_CAPABILITIES.maxTickHz).toBe(30);
     });

@@ -460,3 +460,57 @@ plot hashes, alert counts, and diagnostic codes.
   not a `ComputeContext` field, so `compute({ bar, draw })` never lists it.
   Re-pin via the runner's "expected vs actual" message exactly like every other
   `drawing-hash`.
+
+## `order.*` scenario invariants
+
+- **All three order scenarios FORCE `plots` via `capabilitiesOverride`
+  (`ORDER_MARKER_PLOTS` in `scenarios/orderFixtures.ts`), not just `orders`.**
+  The auto-rendered markers are ordinary `arrow` / `label` plot emissions and
+  `emitOrderMarkers` pre-gates on both kinds **silently** (RFC 0002 §5), so a bag
+  missing either one yields a marker `plot-hash` of `[]` with no diagnostic to
+  explain it. All six conformance adapters declare both, but
+  `runConformanceSuite.test.ts`'s own `TEST_CAPABILITIES` declares
+  `line + horizontal-line` only — an inheriting scenario would hash `[]` there
+  and its `marker: false` sibling would pass for the wrong reason. Same lever as
+  `plot-kind-candle`, used to force a kind PRESENT.
+- **`orders` is pinned per scenario (`true` / `false`), never inherited.** The six
+  example bags shipped `orders: false` from the adapter-kit task and were flipped
+  to `true` by the examples task; pinning it is why these scenarios were
+  byte-stable across that flip and why the gated scenario still proves the
+  `orders: false` path now that no bundled adapter declines.
+- **`order-at-bar` compares ONLY the bars its `expected` list names.** Unlike
+  `alert-condition-fired-at-bar` (whole channel, JSON-compared), the EMA-cross
+  strategy emits 152 orders over the golden bars, so a whole-list pin is
+  unmaintainable — the assertion is a spot check by construction and an order on
+  an unnamed bar is invisible to it. `label` is compared **always**:
+  `OrderEmission.label` is a required wire field that is `""` when the author gave
+  none, so an omitted `expected.label` asserts that empty-string default rather
+  than skipping the field.
+- **`order-ema-cross`'s two marker hashes differ because the ANCHOR differs.** A
+  buy's arrow sits at `bar.low`, a sell/close's at `bar.high`, and `plot-hash`
+  covers `{ bar, value }` — so the pair `7e061e47…` / `2020a4c4…` *is* the
+  up/down anchor contract. Conversely each order slot's `#marker` and `#label`
+  hashes are byte-identical **by construction** (same bars, same anchor value;
+  the text rides `style`, outside the tuple) — that is expected, not a
+  copy-paste bug, so only the `#marker` slot is pinned.
+- **`order-position-reads` pins ONE hash TWICE, and the second one is the
+  `marker: false` proof.** The script plots `order.position().size`, so the
+  slot-scoped `plot-hash` pins the one-fold read lag, the reversal through zero,
+  and the flatten (`[0, 2, 2, −1, −1, 0]`); the SAME constant asserted with no
+  `slotId` covers every plot the run emitted, which can only match if no marker
+  or label plot was drawn. If a future run splits the two, the marker opt-out
+  regressed — fix the runtime, do NOT re-pin them apart.
+- **`orders-gated`'s `candleLimit: 200` is load-bearing.** The first order attempt
+  is bar **162** (EMA(26) warmup + the first crossing), and `unsupported-orders`
+  fires once per slot per mount — a shorter slice would assert the diagnostic's
+  presence over a stream that never tried to trade.
+- **`phase2Coverage.test.ts` tracks the registry addition via
+  `ORDER_NAMESPACE_ADDITIONS` (three `slot: true` emitters + `order.position`
+  `slot: false`).** The `slot: false` expected set derives its entry from
+  `ORDER_NAMESPACE_ADDITIONS.filter((e) => !e.slot)` rather than re-typing
+  `order.position`, so one edit keeps both the cardinality sum and the exact set
+  right.
+- **`scenarios.test.ts` carries a hand-written valid-assertion-kind set.** It is a
+  fifth registration site beyond the four-edit scenario ritual: a new
+  `ScenarioAssertion` kind used by a bundled scenario must be added there or
+  "every assertion declares a valid kind" fails.

@@ -76,6 +76,11 @@ export const LWC_CAPABILITIES: Capabilities = Object.freeze({
     }),
     ...capabilities.alertConditions(true),
     ...capabilities.logs(true),
+    // No rendering code is needed to honour the `orders` channel: the runtime's
+    // auto-markers arrive as ordinary `arrow` / `label` plot emissions, and this
+    // bag declares both kinds. An app-layer sink reads the structured feed
+    // through the factory's optional `onOrder` option.
+    ...capabilities.orders(true),
 });
 
 /**

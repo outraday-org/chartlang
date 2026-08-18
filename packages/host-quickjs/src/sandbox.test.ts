@@ -86,6 +86,7 @@ const NO_EMISSIONS: RunnerEmissions = {
     drawings: [],
     alerts: [],
     alertConditions: [],
+    orders: [],
     logs: [],
     diagnostics: [],
     fromBar: 0,

@@ -19,7 +19,7 @@ import type { DepOutputStore } from "./DepOutputStore.js";
  *         localId: "fastTrend",
  *         slotIdPrefix: "dep:fastTrend/",
  *         declaredOutputs: ["line"],
- *         emissions: { plots: [], drawings: [], alerts: [], alertConditions: [], logs: [], diagnostics: [], fromBar: 0, toBar: 0 },
+ *         emissions: { plots: [], drawings: [], alerts: [], alertConditions: [], orders: [], logs: [], diagnostics: [], fromBar: 0, toBar: 0 },
  *     };
  *     void v;
  */
@@ -44,7 +44,7 @@ export type DepRunnerLike = Readonly<{
  *         exportName: "slowTrend",
  *         slotIdPrefix: "export:slowTrend/",
  *         declaredOutputs: ["line"],
- *         emissions: { plots: [], drawings: [], alerts: [], alertConditions: [], logs: [], diagnostics: [], fromBar: 0, toBar: 0 },
+ *         emissions: { plots: [], drawings: [], alerts: [], alertConditions: [], orders: [], logs: [], diagnostics: [], fromBar: 0, toBar: 0 },
  *     };
  *     void v;
  */
@@ -69,6 +69,7 @@ function resetEmissions(emissions: MutableRunnerEmissions): void {
     emissions.drawings = [];
     emissions.alerts = [];
     emissions.alertConditions = [];
+    emissions.orders = [];
     emissions.logs = [];
     emissions.diagnostics = [];
 }
@@ -79,8 +80,9 @@ function producerIdOf(runner: DepRunnerLike | SiblingRunnerLike): string {
 
 /**
  * Apply the dep / sibling emission policy. Captures titled plots into
- * the shared {@link DepOutputStore}, drops private-dep visuals, prefixes
- * sibling emissions with `export:<exportName>/`, and namespaces every
+ * the shared {@link DepOutputStore}, drops every private-dep emission
+ * except diagnostics (visuals AND orders), prefixes sibling plots /
+ * alerts / orders with `export:<exportName>/`, and namespaces every
  * diagnostic with the runner's slot-id prefix. Always resets the
  * runner's queue at the end so the next bar starts clean.
  *
@@ -142,6 +144,19 @@ export function applyDepEmissionPolicy(
             parentEmissions.alerts.push({
                 ...alert,
                 slotId: prefixSlotId(alert.slotId, runner.slotIdPrefix),
+            });
+        }
+        // Orders follow the ALERT side of this policy, not the drawing side: the
+        // slot id is prefixed so the parent can attribute the callsite, while
+        // `dedupeKey` is left exactly as emitted — it embeds the ORIGINAL,
+        // unprefixed slot id, and rewriting it would break host idempotency
+        // across a remount. A PRIVATE dep needs no arm here at all: nothing
+        // forwards, and `resetEmissions` below is the drop (a data dependency
+        // must not trade through its consumer; only diagnostics escape).
+        for (const order of runner.emissions.orders) {
+            parentEmissions.orders.push({
+                ...order,
+                slotId: prefixSlotId(order.slotId, runner.slotIdPrefix),
             });
         }
         const siblingConditions = runner.emissions.alertConditions ?? [];

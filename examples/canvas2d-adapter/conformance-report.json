@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.4.1",
-    "passed": 262,
+    "passed": 265,
     "failed": 0,
     "scenarios": [
         {
@@ -679,6 +679,24 @@
         {
             "id": "multi-symbol-ratio",
             "title": "Multi-symbol request.security ratio",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "order-ema-cross",
+            "title": "order.* EMA cross entries and exits",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "order-position-reads",
+            "title": "order.position() lag, reversal and marker: false",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "orders-gated",
+            "title": "order.* declined by an orders: false adapter",
             "status": "pass",
             "failures": []
         },

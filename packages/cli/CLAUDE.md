@@ -15,6 +15,13 @@
   lightweight-charts / uplot) — a full, conformance-green adapter the user
   can build + run immediately. The help text states the distinction; keep
   it in both places (`help.ts` + each command's JSDoc).
+- **`starterCapabilities` in `adapterTemplate/templates.ts` is a SEVENTH
+  `Capabilities` bag that no compiler and no gate can see.** It lives inside a
+  template literal, so a new REQUIRED key on `Capabilities` breaks the six
+  example bags loudly and rots here silently — every adapter scaffolded after
+  the release then fails to compile against the widened type. Add the key here
+  in the same task that widens `Capabilities`, and decide its value together
+  with the example bags.
 - **The public index re-exports the generated bundles.** `src/index.ts`
   re-exports `BUNDLED_ADAPTERS` + `ADAPTER_REGISTRY` (+ the
   `GeneratedAdapter*` types) from `src/generated/adapters/index.js` so

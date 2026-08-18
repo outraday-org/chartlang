@@ -22,6 +22,15 @@ published to npm**.
   seam + create-chartlang installer + apps/site demo, and run through the
   shared conformance suite. Only `canvas2d-adapter` is in the 100%
   coverage gate; the other five have tests but no coverage gate.
+- **All six declare `orders: true` and expose an optional `onOrder` factory
+  option, and neither costs them any rendering code.** Order markers arrive as
+  ordinary `arrow` / `label` plot emissions all six already paint (and
+  `emitOrderMarkers` pre-gates on those two kinds SILENTLY, so a bag that
+  dropped either would render nothing with no diagnostic). `onOrder` is the
+  app-layer door to the structured channel, forwarded from inside each
+  adapter's validated ingest so a malformed order never reaches a consumer —
+  it is konva's ONLY per-emission app sink, since alert badges are still
+  deferred there and it has no `onAlert`.
 - `examples/scripts/` — author-style example `.chart.ts` files,
   compiled end-to-end by `packages/cli/src/e2e.test.ts` and driven
   through the runtime by `packages/conformance/src/scenarios/` and
@@ -112,6 +121,13 @@ published to npm**.
   hard error. Never hand-edit `scripts.ts` / `catalogue.json` — re-run
   `pnpm examples:generate`. (`examples/catalogue.json` is Biome-ignored;
   `examples:gate` is its formatting authority.)
+- **The `orders` category credits ONLY `order.*` ids.** Its three scripts
+  (`order-ema-cross`, `order-rsi-reversal`, `order-silent-markers`) also call
+  `ta.ema` / `ta.crossover` / `ta.crossunder` / `draw.arrowMarkUp`, and credit
+  none of them: each already has a single-primitive default that owns the
+  coverage, and a second credit would let that default be deleted undetected.
+  The four `docs/primitives/order/*.md` pages split one credit per script,
+  except `order-ema-cross` which owns both `order.buy` and `order.position`.
 - **Language idioms are a SEPARATE, orthogonal coverage axis.** The
   `language` category (`CATEGORY_LABELS` "Core · Language Idioms") holds
   single-concept examples of language *idioms* — the "how you express X"
@@ -142,21 +158,20 @@ published to npm**.
   primitive id set from the `docs/primitives/**` page tree (no hardcoded list)
   and asserts `target ⊆ covered` exactly: it fails if any id is not credited by
   some `EXAMPLE_CATALOGUE` entry's `primitives` (MISSING) or if a credit has no
-  page (UNKNOWN). The catalogue covers **every** primitive (200 pages, 200
-  covered), so `examples/coverage-allowlist.json` was drained to empty and
+  page (UNKNOWN). The catalogue covers **every** primitive page, so
+  `examples/coverage-allowlist.json` was drained to empty and
   **deleted** by Task 22 — any future uncovered primitive page is now a hard CI
   failure, with no allowlist to soften it. (Historically the allowlist was
   seeded full and shrunk per population task; that scaffolding is gone.)
   `state.map` is intentionally absent (no `docs/primitives/state/map.md` yet) —
   it is neither a target nor covered until the `tasks/state-map` doc page
   lands; `volume-by-level` credits `state.array` until then.
-- **Final coverage counts.** The catalogue ships **229 entries** (227 +
-  the `crossover-signal` / `crossunder-signal` defaults Task 22 added to close
-  `ta.crossover` / `ta.crossunder`), covering all **200** primitive pages, plus
-  **15** language idioms keyed to `examples/idiom-manifest.json` (the orthogonal
-  `examples:idioms` gate). These numbers are not hardcoded anywhere that
-  matters — the gates derive them — but are recorded here as the at-a-glance
-  shape.
+- **Do not restate the counts here.** Entry / page / idiom totals move with
+  every population task, and the three that used to sit in this file were all
+  stale within two tasks. The gates print the live numbers and derive them from
+  source (`examples:coverage` from the `docs/primitives/**` tree,
+  `examples:idioms` from `idiom-manifest.json`, `examples:sync` from the
+  mirrored pairs) — run one instead of trusting a written total.
 
 ## Convention notes
 

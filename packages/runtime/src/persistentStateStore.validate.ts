@@ -49,8 +49,22 @@ function isSlotsRecord(value: unknown): boolean {
     return isRecord(value) && Object.values(value).every((entry) => isJsonValue(entry));
 }
 
+// A per-runner nominal `order.*` position: finite signed `size`, an average of
+// nominal prices that is finite or an explicit `null`, and the bar the position
+// opened (or `null` when flat).
+function isOrderPosition(value: unknown): boolean {
+    if (!isRecord(value)) return false;
+    if (!isSnapshotNumber(value.size)) return false;
+    if (value.avgPrice !== null && !isSnapshotNumber(value.avgPrice)) return false;
+    return value.entryBar === null || isBarIndex(value.entryBar);
+}
+
 function isRunnerSnapshot(value: unknown): boolean {
-    return isRecord(value) && isSlotsRecord(value.slots);
+    if (!isRecord(value)) return false;
+    if (!isSlotsRecord(value.slots)) return false;
+    // Optional-additive, like the `siblings?` / `dependencies?` sections: absent
+    // means the flat position, so a pre-orders payload validates unchanged.
+    return value.orderPosition === undefined || isOrderPosition(value.orderPosition);
 }
 
 function isRunnerSnapshotMap(value: unknown): boolean {
@@ -74,9 +88,12 @@ function isRunnerSnapshotMap(value: unknown): boolean {
  * - **Structured shape** (0.7+): `primary.slots` is required.
  *   `siblings[exportName].slots` and `dependencies[localId].slots`
  *   are optional; each section is independently restored into its
- *   matching runner.
+ *   matching runner. Each section's `orderPosition` is optional too and
+ *   **absence means the flat position** — the additive field that let the
+ *   `orders` channel ride without a version bump.
  *
- * @since 0.5 — widened in 0.7 to accept structured per-runner sections.
+ * @since 0.5 — widened in 0.7 to accept structured per-runner sections,
+ *   `orderPosition` accepted in 1.11.
  * @internal
  * @stable
  * @example

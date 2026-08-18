@@ -798,6 +798,55 @@ export default defineDrawing({
         expect(result.manifest.capabilities).toEqual(["drawings"]);
     });
 
+    it("compiles an order.* script to capabilities ['indicators', 'orders'] with slot ids injected", async () => {
+        // The end-to-end guard on the ambient shim: `transformAndAnalyse`
+        // does NOT type-check, so only a full `compile()` proves the shim
+        // declares `order`, `OrderOpts` and `ComputeContext.order`. Also
+        // pins that `order.*` needs no new script kind — `manifest.kind`
+        // stays `indicator`.
+        const ORDER_SCRIPT = `
+import { defineIndicator, order, ta } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, order }) {
+        if (ta.crossover(bar.close, ta.ema(bar.close, 20)).current) order.buy({ label: "L" });
+        if (order.position().size > 0 && ta.crossunder(bar.close, ta.ema(bar.close, 20)).current) {
+            order.close();
+        }
+    },
+});
+void order;
+void ta;
+`;
+        const result = await compile(ORDER_SCRIPT, {
+            apiVersion: 1,
+            sourcePath: "orders.chart.ts",
+        });
+        expect(result.manifest.kind).toBe("indicator");
+        expect(result.manifest.capabilities).toEqual(["indicators", "orders"]);
+        expect(result.moduleSource).toMatch(/buy\("orders\.chart\.ts:8:\d+#0"/);
+    });
+
+    it("omits orders for a script that only reads order.position()", async () => {
+        const POSITION_ONLY = `
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "T",
+    apiVersion: 1,
+    compute({ order }) {
+        plot(order.position().size);
+    },
+});
+`;
+        const result = await compile(POSITION_ONLY, {
+            apiVersion: 1,
+            sourcePath: "position-only.chart.ts",
+        });
+        expect(result.manifest.capabilities).toEqual(["indicators"]);
+    });
+
     it("emits a multi-export bundle with an indented manifest array tail", async () => {
         const result = await compile(MULTI_EXPORT_COMPOSITION, {
             apiVersion: 1,

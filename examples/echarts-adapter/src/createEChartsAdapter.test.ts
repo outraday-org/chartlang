@@ -54,6 +54,7 @@ function emptyEmissions(): RunnerEmissions {
         drawings: [],
         alerts: [],
         alertConditions: [],
+        orders: [],
         logs: [],
         diagnostics: [],
         fromBar: 0,

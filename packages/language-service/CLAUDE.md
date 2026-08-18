@@ -34,6 +34,11 @@ intelligence surface (`compileToDiagnostics`, `getHoverDoc`, `getCompletions`,
   Never hand-edit it. `HoverRegistryEntry` carries no docs URL — a hover
   payload is title + summary + optional param table + examples, nothing more,
   so no consumer may promise a "docs link" it cannot get from here.
+  **The key-count pin in `hoverRegistry.generated.test.ts` counts exported TYPES
+  too.** Adding a namespace of N members moves it by N + 1 **plus one per
+  exported type alias** — `order.*` moved it by 9 (namespace + 4 members + the
+  four `Order*` types), not the 5 a members-only count predicts. Regenerate and
+  count the diff; never reason the delta out from the member list.
 
 - **The Node compiler load is conditional.** `compileToDiagnostics` uses an
   injected `compileToDiagnostics` when supplied, else dynamically imports

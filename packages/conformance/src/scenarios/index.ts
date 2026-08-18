@@ -116,6 +116,9 @@ import { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpr
 import { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
 import { MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO } from "./multiSymbolNotSupported.scenario.js";
 import { MULTI_SYMBOL_RATIO_SCENARIO } from "./multiSymbolRatio.scenario.js";
+import { ORDER_EMA_CROSS_SCENARIO } from "./orderEmaCross.scenario.js";
+import { ORDER_POSITION_READS_SCENARIO } from "./orderPositionReads.scenario.js";
+import { ORDERS_GATED_SCENARIO } from "./ordersGated.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
@@ -381,6 +384,9 @@ export { MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO } from "./mtfSecurityExpr
 export { MTF_UNSUPPORTED_INTERVAL_SCENARIO } from "./mtfUnsupportedInterval.scenario.js";
 export { MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO } from "./multiSymbolNotSupported.scenario.js";
 export { MULTI_SYMBOL_RATIO_SCENARIO } from "./multiSymbolRatio.scenario.js";
+export { ORDER_EMA_CROSS_SCENARIO } from "./orderEmaCross.scenario.js";
+export { ORDERS_GATED_SCENARIO } from "./ordersGated.scenario.js";
+export { ORDER_POSITION_READS_SCENARIO } from "./orderPositionReads.scenario.js";
 export { PLOT_KIND_ARROW_SCENARIO } from "./plotKindArrow.scenario.js";
 export { PLOT_KIND_ARROW_GATED_SCENARIO } from "./plotKindArrowGated.scenario.js";
 export { PLOT_KIND_BAR_COLOR_SCENARIO } from "./plotKindBarColor.scenario.js";
@@ -904,4 +910,14 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO,
+    // RFC 0002 — the `order.*` namespace. The happy path pins the append-only
+    // `orders` channel plus the auto-rendered arrow anchors; the gated sibling
+    // pins the `orders: false` decline (diagnostic present, zero orders, empty
+    // marker slot); the position scenario pins the one-fold read lag, a
+    // reversal through zero, and the per-call `marker: false` opt-out. All three
+    // force `orders` + the marker plot kinds via `capabilitiesOverride`, so they
+    // are byte-stable on every adapter regardless of its own bag.
+    ORDER_EMA_CROSS_SCENARIO,
+    ORDERS_GATED_SCENARIO,
+    ORDER_POSITION_READS_SCENARIO,
 ]);

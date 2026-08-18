@@ -769,7 +769,14 @@ describe("transformOther — passthrough and skips", () => {
 
     it("lowers a strategy signal inside an if branch", () => {
         const out = stmts('if close > open\n    strategy.entry("Long", strategy.long)');
-        expect(out.join(" ")).toContain('alert("Long entry", { severity: "info" })');
+        expect(out.join(" ")).toContain('order.buy({ label: "Long" })');
+    });
+
+    it("qualifies a strategy signal's qty through the input context", () => {
+        const src = 'n = input.int(2)\nstrategy.entry("Long", strategy.long, n)\nplot(close)';
+        expect(stmts(src).join(" ")).toContain(
+            'order.buy({ label: "Long", qty: (inputs.n as number) })',
+        );
     });
 
     it("lowers alert(message, freq) inside an if, dropping the frequency", () => {

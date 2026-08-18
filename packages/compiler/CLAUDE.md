@@ -270,6 +270,22 @@
   `ta.ema(bar.close, …)` keep working. `extractMaxLookback` already
   recognises `bar.<ohlcv>[N]` textually (via `OHLCV_FIELDS`), so a direct
   `bar.close[N]` sizes the ring buffer with no analyser change.
+  - **The shim's `CapabilityId` union is the ONLY hand-maintained mirror of
+    core's.** `extractCapabilities.ts` imports the real union from core, so a
+    new capability id is one shim edit, not two. The four-arm literals in
+    `manifest.ts`, `api.ts`, the shim's own `ScriptManifest` and
+    `analysis/structuralChecks.ts` are the script **kind** union
+    (`"indicator" | "drawing" | "alert" | "alertCondition"`) — a different set,
+    and unaffected by a capability addition.
+  - **`order` is a shim-lockstep surface like `draw`.** The shim declares
+    `OrderAction` / `OrderOpts` / `OrderPosition` / `OrderNamespace` +
+    `const order` + `ComputeContext.order`; core DERIVES its `OrderNamespace`
+    from the frozen object (for the hover generator) while the shim declares
+    the shape, so the two are structurally equal rather than textually
+    identical. `order` has no overloaded member, so the `Readonly<{ … }>` form
+    is safe here — see the `RequestNamespace` interface rule above before
+    adding one that does. Only a `compile()`-based test typechecks the shim;
+    `transformAndAnalyse` does not.
   - **The render-order `z` option lives on a shim `ZOrdered` mixin.** Core's
     `z?: number` (the `plot-draw-z-order` feature) reaches the shim two ways:
     `PlotOpts` carries `z?` directly, and `ZOrdered = Readonly<{ z?: number }>`

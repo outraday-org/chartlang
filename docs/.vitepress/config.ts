@@ -172,6 +172,7 @@ export default defineConfig({
                         { text: "Strings", link: "/language/strings" },
                         { text: "Multi-timeframe", link: "/language/multi-timeframe" },
                         { text: "Alerts", link: "/language/alerts" },
+                        { text: "Orders", link: "/language/orders" },
                         { text: "Version pinning", link: "/language/version-pinning" },
                         { text: "Forbidden constructs", link: "/language/forbidden-constructs" },
                     ],
@@ -215,6 +216,15 @@ export default defineConfig({
                 {
                     text: "Alert",
                     items: [{ text: "alert", link: "/primitives/alert/alert" }],
+                },
+                {
+                    text: "Order",
+                    items: [
+                        { text: "order.buy", link: "/primitives/order/buy" },
+                        { text: "order.sell", link: "/primitives/order/sell" },
+                        { text: "order.close", link: "/primitives/order/close" },
+                        { text: "order.position", link: "/primitives/order/position" },
+                    ],
                 },
                 {
                     text: "Request",

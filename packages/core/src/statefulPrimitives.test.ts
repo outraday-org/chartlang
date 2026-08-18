@@ -113,6 +113,9 @@ const EXPECTED_SLOT_TRUE = [
     "plotcandle",
     "plotbar",
     "alert",
+    "order.buy",
+    "order.sell",
+    "order.close",
     "draw.line",
     "draw.horizontalLine",
     "draw.horizontalRay",
@@ -229,6 +232,7 @@ const EXPECTED_SLOT_FALSE = [
     "defineAlertCondition.signal",
     "runtime.log",
     "runtime.error",
+    "order.position",
 ] as const;
 
 const EXPECTED_ALL_NAMES = [...EXPECTED_SLOT_TRUE, ...EXPECTED_SLOT_FALSE];
@@ -307,6 +311,10 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
     "draw.verticalLine",
     "draw.xabcdPattern",
     "hline",
+    "order.buy",
+    "order.close",
+    "order.position",
+    "order.sell",
     "plot",
     "plotbar",
     "plotcandle",
@@ -442,11 +450,11 @@ const FROZEN_API_V1_NAMES: ReadonlyArray<string> = [
 ];
 
 describe("STATEFUL_PRIMITIVES", () => {
-    it("contains exactly 200 entries after the ta.rising/ta.falling addition", () => {
-        expect(STATEFUL_PRIMITIVES.size).toBe(200);
+    it("contains exactly 204 entries after the order.* addition", () => {
+        expect(STATEFUL_PRIMITIVES.size).toBe(204);
     });
 
-    it("locks the apiVersion-1 registry to the exact 200-entry name set", () => {
+    it("locks the apiVersion-1 registry to the exact 204-entry name set", () => {
         const names = [...STATEFUL_PRIMITIVES].map((e) => e.name).sort();
         expect(names).toEqual(FROZEN_API_V1_NAMES);
     });
@@ -465,15 +473,15 @@ describe("STATEFUL_PRIMITIVES", () => {
         expect(new Set(namesByFlag.keys())).toEqual(new Set(EXPECTED_ALL_NAMES));
     });
 
-    it("has exactly 185 slot: true entries and exactly 15 slot: false entries", () => {
+    it("has exactly 188 slot: true entries and exactly 16 slot: false entries", () => {
         let trueCount = 0;
         let falseCount = 0;
         for (const entry of STATEFUL_PRIMITIVES) {
             if (entry.slot) trueCount += 1;
             else falseCount += 1;
         }
-        expect(trueCount).toBe(185);
-        expect(falseCount).toBe(15);
+        expect(trueCount).toBe(188);
+        expect(falseCount).toBe(16);
     });
 
     it("is frozen", () => {

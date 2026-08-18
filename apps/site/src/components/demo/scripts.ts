@@ -4946,6 +4946,149 @@ export default defineIndicator({
 });
 `;
 
+const ORDER_EMA_CROSS = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, order, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Order EMA Cross",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot, order }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+
+        plot(fast, { color: "#26a69a", title: "EMA(12)" });
+        plot(slow, { color: "#ef5350", title: "EMA(26)" });
+
+        // Hoist both crossing tests and the position read OUT of the \`if\`s.
+        // A stateful \`ta.*\` callsite evaluated only on some bars desyncs its own
+        // history, and hoisting the position read leaves the one-fold lag as the
+        // single thing the branches depend on.
+        const up = ta.crossover(fast, slow).current;
+        const down = ta.crossunder(fast, slow).current;
+
+        // \`order.position()\` reads the position as of the PREVIOUS confirmed
+        // step — the runtime folds a bar's orders after \`compute\` returns, which
+        // reproduces Pine's \`strategy.position_size\` lag. So this is "flat or
+        // short going into this bar", and it is what keeps a run of consecutive
+        // crossovers from stacking a second entry on an open long.
+        const flatOrShort = order.position().size <= 0;
+
+        if (flatOrShort && up) {
+            order.buy({ label: "Long" });
+        }
+        if (!flatOrShort && down) {
+            order.close({ label: "Exit" });
+        }
+
+        // No drawing code anywhere: each accepted order additionally emits an
+        // \`arrow\` plot (and a \`label\` plot, since both calls pass one) through
+        // the plot pipeline every adapter already renders. \`marker: false\` opts
+        // out — see \`order-silent-markers.chart.ts\`.
+    },
+});
+`;
+
+const ORDER_RSI_REVERSAL = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, hline, order, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Order RSI Reversal",
+    apiVersion: 1,
+    overlay: false,
+    compute({ bar, ta, plot, hline, order }) {
+        const rsi = ta.rsi(bar.close, 14);
+
+        plot(rsi, { color: "#2563eb", title: "RSI(14)" });
+        hline(70, { title: "Overbought", color: "#ef4444", lineStyle: "dashed" });
+        hline(30, { title: "Oversold", color: "#16a34a", lineStyle: "dashed" });
+
+        const oversold = rsi.current < 30;
+        const overbought = rsi.current > 70;
+
+        // The position is SIGNED: \`> 0\` long, \`< 0\` short, \`0\` flat. That is the
+        // whole reason this reversal needs no \`state.bool\` flag — the runtime's
+        // own bookkeeping already distinguishes the three cases, and a flag
+        // maintained beside it would eventually disagree with it.
+        const size = order.position().size;
+
+        // \`qty\` is an UNSIGNED magnitude; the action names the side. A buy while
+        // short crosses zero and REVERSES the position in one order rather than
+        // stacking, so the two guards below only have to exclude "already on
+        // this side" — not model the flip.
+        if (oversold && size <= 0) {
+            order.buy({ qty: 2, label: "Long" });
+        }
+        if (overbought && size >= 0) {
+            order.sell({ qty: 2, label: "Short" });
+        }
+
+        // The nominal tracker prices a fold at the SIGNAL bar's close and knows
+        // nothing of capital, slippage or commission. A consumer that fills at
+        // the next bar's open will legitimately report a different average price
+        // than \`order.position().avgPrice\` — the language owns the signal, the
+        // consumer's simulator owns the economics.
+    },
+});
+`;
+
+const ORDER_SILENT_MARKERS = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, draw, order, plot, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Order Silent Markers",
+    apiVersion: 1,
+    overlay: true,
+    // One reused arrow-mark handle, re-emitted from a fixed callsite, so a
+    // single \`labels\` slot is the whole drawing budget this needs.
+    maxDrawings: { lines: 0, labels: 1, boxes: 0, polylines: 0, other: 0 },
+    compute({ bar, ta, plot, draw, order }) {
+        const fast = ta.ema(bar.close, 12);
+        const slow = ta.ema(bar.close, 26);
+
+        plot(fast, { color: "#26a69a", title: "EMA(12)" });
+        plot(slow, { color: "#ef5350", title: "EMA(26)" });
+
+        const up = ta.crossover(fast, slow).current;
+        const down = ta.crossunder(fast, slow).current;
+        const flatOrShort = order.position().size <= 0;
+
+        if (flatOrShort && up) {
+            // \`marker: false\` suppresses the auto-rendered arrow AND its label.
+            // The order itself is unaffected: it still rides the \`orders\`
+            // channel and still folds into the nominal position, because
+            // \`marker\` is render-side only and is deliberately absent from the
+            // wire emission. Orders are data first; the picture is a courtesy.
+            order.buy({ label: "Long", marker: false });
+
+            // Draw the entry glyph by hand instead. An author who wants control
+            // over colour, text or \`z\` layering takes this route — \`OrderOpts\`
+            // has no \`z\`, precisely so the courtesy render never competes with
+            // an author-owned drawing. Re-emitting from this one callsite reuses
+            // a single handle, so the mark follows the MOST RECENT entry (the
+            // same one-reused-handle idiom as \`pivot-high-ray.chart.ts\`).
+            draw.arrowMarkUp(bar.point(0, bar.low), {
+                color: "#7c3aed",
+                text: "Entry",
+                z: 1,
+            });
+        }
+
+        // The exit leg keeps the default marker, so one script shows both
+        // states: a hand-drawn entry glyph and a runtime-rendered exit arrow.
+        if (!flatOrShort && down) {
+            order.close({ label: "Exit" });
+        }
+    },
+});
+`;
+
 const INPUT_INT_LENGTH = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 //
@@ -7379,6 +7522,27 @@ export const DEMO_SCRIPTS: ReadonlyArray<DemoScript> = [
         description: "draw.trianglePattern — a 3-point triangle continuation [apex, baseHigh, baseLow] converging from a base to a current-bar apex; the LineDrawStyle outline form, distinct from the solid draw.triangle shape.",
         category: "draw-patterns",
         source: TRIANGLE_PATTERN,
+    },
+    {
+        id: "order-ema-cross",
+        label: "Order EMA Cross",
+        description: "order.buy / order.position — the golden-cross strategy shape: an EMA(12)/EMA(26) crossover opens a long and a crossunder closes it, each leg guarded by a read of the nominal position so the script never doubles an entry. The runtime auto-renders the entry/exit arrows through the plot pipeline, so no drawing code appears anywhere.",
+        category: "orders",
+        source: ORDER_EMA_CROSS,
+    },
+    {
+        id: "order-rsi-reversal",
+        label: "Order RSI Reversal",
+        description: "order.sell — a long/short mean-reversion reversal: RSI(14) below 30 buys, above 70 sells short, and each branch reads the SIGNED position size so a signal against an open position reverses it in one order instead of stacking. Both legs pass an explicit unsigned qty (the action names the side).",
+        category: "orders",
+        source: ORDER_RSI_REVERSAL,
+    },
+    {
+        id: "order-silent-markers",
+        label: "Order Silent Markers",
+        description: "order.close — the marker opt-out: the entry passes marker: false and draws its own draw.arrowMarkUp glyph instead, while the exit keeps the auto-rendered arrow. Both orders ride the wire identically, which is the point — the orders channel is the data and the markers are a courtesy render.",
+        category: "orders",
+        source: ORDER_SILENT_MARKERS,
     },
     {
         id: "input-int-length",

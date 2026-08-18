@@ -15,6 +15,8 @@ import type {
     DrawingEmission,
     ExternalSeriesFeedMap,
     LogEmission,
+    OrderAction,
+    OrderEmission,
     PlotEmission,
     PlotOverride,
     RunnerEmissions,
@@ -307,6 +309,16 @@ export type ScenarioEventStream =
  * failure message reports the expected key plus the first divergent
  * emission's `slotId` / `pane`. `@since 0.9`.
  *
+ * The `order-count` variant counts the whole buffered `orders` channel;
+ * `order-at-bar` pins the ordered subsequence of orders that landed on the
+ * bars its `expected` list names, so a 10 000-bar strategy can spot-check its
+ * first trades without pinning all of them. Only the named bars are compared
+ * — an order on any other bar is invisible to the assertion, which is what
+ * makes it a spot check rather than a second `order-count`. `label` is
+ * ALWAYS compared: `OrderEmission.label` is a required wire field that is
+ * `""` when the author gave none, so an omitted `expected.label` asserts that
+ * empty-string default rather than skipping the field. `@since 1.11`.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -349,7 +361,18 @@ export type ScenarioAssertion =
           readonly sha256: string;
       }
     /** @since 0.9 */
-    | { readonly kind: "all-plots-on-pane"; readonly pane: string };
+    | { readonly kind: "all-plots-on-pane"; readonly pane: string }
+    /** @since 1.11 */
+    | { readonly kind: "order-count"; readonly count: number }
+    /** @since 1.11 */
+    | {
+          readonly kind: "order-at-bar";
+          readonly expected: ReadonlyArray<{
+              readonly action: OrderAction;
+              readonly bar: number;
+              readonly label?: string;
+          }>;
+      };
 
 /**
  * A single conformance failure entry. `message` carries enough
@@ -453,6 +476,11 @@ type BufferedRun = {
     readonly drawings: ReadonlyArray<DrawingEmission>;
     readonly alerts: ReadonlyArray<AlertEmission>;
     readonly alertConditions: ReadonlyArray<AlertConditionEmission>;
+    // `orders` sits after `alertConditions` and before `logs` — the RFC 0002 §6
+    // normative queue position. `RunnerEmissions`, the nine-item spec roster in
+    // `docs/spec/semantics.md`, and this buffer are read as one list, and a
+    // roster that disagrees with itself is worse than either order.
+    readonly orders: ReadonlyArray<OrderEmission>;
     readonly logs: ReadonlyArray<LogEmission>;
     readonly diagnostics: ReadonlyArray<RuntimeDiagnostic>;
     /** Slot ids from the compiled `manifest.plots`, in source order. */
@@ -713,6 +741,38 @@ function evalAssertion(
                 message: `all-plots-on-pane: expected every plot.pane === "${assertion.pane}", got ${wrong.length} divergent (first divergent slotId=${first.slotId}, pane="${first.pane}")`,
             };
         }
+        case "order-count": {
+            const actual = run.orders.length;
+            if (actual === assertion.count) return null;
+            return {
+                scenarioId,
+                assertionKind: "order-count",
+                message: `order-count: expected ${assertion.count}, actual ${actual}`,
+            };
+        }
+        case "order-at-bar": {
+            // Compare only the bars the expectation names: the `orders` channel
+            // is append-only and a strategy over the 10 000 golden bars emits
+            // hundreds, so a whole-list comparison (the
+            // `alert-condition-fired-at-bar` shape) would be unpinnable. `label`
+            // is a required wire field, `""` when absent, so an omitted
+            // expectation asserts that default instead of skipping the field.
+            const bars = new Set(assertion.expected.map((entry) => entry.bar));
+            const actual = run.orders
+                .filter((order) => bars.has(order.bar))
+                .map((order) => ({ action: order.action, bar: order.bar, label: order.label }));
+            const expected = assertion.expected.map((entry) => ({
+                action: entry.action,
+                bar: entry.bar,
+                label: entry.label ?? "",
+            }));
+            if (JSON.stringify(actual) === JSON.stringify(expected)) return null;
+            return {
+                scenarioId,
+                assertionKind: "order-at-bar",
+                message: `order-at-bar: expected ${JSON.stringify(expected)}, actual ${JSON.stringify(actual)}`,
+            };
+        }
     }
 }
 
@@ -867,6 +927,7 @@ async function runOne(
     const drawings: DrawingEmission[] = [];
     const alerts: AlertEmission[] = [];
     const alertConditions: AlertConditionEmission[] = [];
+    const orders: OrderEmission[] = [];
     const logs: LogEmission[] = [];
     const diagnostics: RuntimeDiagnostic[] = [];
 
@@ -875,6 +936,7 @@ async function runOne(
         for (const d of drained.drawings) drawings.push(d);
         for (const a of drained.alerts) alerts.push(a);
         for (const a of drained.alertConditions) alertConditions.push(a);
+        for (const o of drained.orders) orders.push(o);
         for (const log of drained.logs) logs.push(log);
         for (const d of drained.diagnostics) diagnostics.push(d);
     };
@@ -899,6 +961,7 @@ async function runOne(
                 drawings,
                 alerts,
                 alertConditions,
+                orders,
                 logs,
                 diagnostics,
                 plotSlotIds,
@@ -967,6 +1030,7 @@ async function runOne(
         drawings,
         alerts,
         alertConditions,
+        orders,
         logs,
         diagnostics,
         plotSlotIds,

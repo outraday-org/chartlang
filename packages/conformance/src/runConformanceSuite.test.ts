@@ -36,6 +36,9 @@ import {
     MTF_SECURITY_EXPRESSION_NAN_FALLBACK_SCENARIO,
     MULTI_SYMBOL_NOT_SUPPORTED_SCENARIO,
     MULTI_SYMBOL_RATIO_SCENARIO,
+    ORDER_EMA_CROSS_SCENARIO,
+    ORDERS_GATED_SCENARIO,
+    ORDER_POSITION_READS_SCENARIO,
     PLOT_KIND_BG_COLOR_DYNAMIC_SCENARIO,
     PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
@@ -195,6 +198,16 @@ const PHASE_5_DRAW_TABLE_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DRAW_TABLE_GATED_SCENARIO,
 ]);
 
+// RFC 0002 order scenarios. Driven on the DEFAULT golden candles (each scenario
+// slices what it needs via `candleLimit`) because `order-ema-cross` pins its
+// counts + marker hashes over the full 10 000-bar stream. This group is also what
+// covers the two new `evalAssertion` arms against the package's 100% thresholds.
+const ORDER_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
+    ORDER_EMA_CROSS_SCENARIO,
+    ORDERS_GATED_SCENARIO,
+    ORDER_POSITION_READS_SCENARIO,
+]);
+
 const PHASE_7_DEP_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     DEP_PRIVATE_SINGLE_FILE_SCENARIO,
     DEP_MULTI_EXPORT_SCENARIO,
@@ -276,6 +289,15 @@ describe("runConformanceSuite", () => {
         expect(report.passed).toBe(PHASE_5_DRAW_TABLE_SCENARIOS.length);
         expect(report.failures).toEqual([]);
     }, 60_000);
+
+    it("runs the order.* scenarios end-to-end (emitting, gated, position reads)", async () => {
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: ORDER_SCENARIOS,
+        });
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(ORDER_SCENARIOS.length);
+        expect(report.failures).toEqual([]);
+    }, 120_000);
 
     it("runs Phase-7 indicator-composition scenarios end-to-end", async () => {
         const report = await runConformanceSuite(makeAdapter(), {

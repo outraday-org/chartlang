@@ -210,6 +210,20 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         outRelPath: "docs/primitives/alert/alert.md",
         seeAlso: "`alert.*` namespace",
     }),
+    // `order.*` gets one page PER MEMBER (the `request.*` shape), not one
+    // consolidated namespace page like `math` / `str`: each member carries its
+    // own JSDoc, and a single `docs/primitives/order.md` would additionally mint
+    // a bare `order` id in `scripts/examples-coverage.ts`'s target set that no
+    // example could ever credit.
+    ...["buy", "sell", "close", "position"].map((name) =>
+        Object.freeze({
+            title: `order.${name}`,
+            sourceRelPath: `${CORE}/order/order.ts`,
+            symbolPath: ["order", name],
+            outRelPath: `docs/primitives/order/${name}.md`,
+            seeAlso: "`order.*` namespace — [Orders](/language/orders)",
+        }),
+    ),
     ...["maxBarsBack", "format", "precision", "scale", "requiresIntervals", "shortName"].map(
         (name) =>
             Object.freeze({

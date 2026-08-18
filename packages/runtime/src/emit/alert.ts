@@ -7,6 +7,7 @@ import type { AlertChannel, AlertEmission } from "@invinite-org/chartlang-adapte
 import { ACTIVE_RUNTIME_CONTEXT, type RuntimeContext } from "../runtimeContext.js";
 import { pushAlert, pushDiagnostic } from "./emissionsQueue.js";
 import { hashStringStable } from "./hash.js";
+import { snapshotMeta } from "./snapshotMeta.js";
 
 const OUTSIDE_CTX_MESSAGE = "alert called outside an active script step";
 
@@ -17,24 +18,6 @@ function computeDedupeKey(
     meta: Readonly<Record<string, JsonValue>>,
 ): string {
     return `${slotId}::${bar}::${hashStringStable(message + JSON.stringify(meta))}`;
-}
-
-function snapshotUnknown(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map((item) => snapshotUnknown(item));
-    }
-    if (typeof value === "object" && value !== null) {
-        return Object.fromEntries(
-            Object.entries(value).map(([key, item]) => [key, snapshotUnknown(item)]),
-        );
-    }
-    return value;
-}
-
-function snapshotMeta(
-    meta: Readonly<Record<string, JsonValue>>,
-): Readonly<Record<string, JsonValue>> {
-    return snapshotUnknown(meta) as Readonly<Record<string, JsonValue>>;
 }
 
 function alertImpl(ctx: RuntimeContext, slotId: string, message: string, opts: AlertOpts): void {

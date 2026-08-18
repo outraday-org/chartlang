@@ -49,7 +49,11 @@ const HEADER = `// Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // charts through the abstract \`ActiveAdapterHandle\` + \`createActiveAdapter\`
 // + \`runActiveLoop\` exported here.
 
-import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit"`
+import type {
+  AlertEmission,
+  CandleEvent,
+  OrderEmission,
+} from "@invinite-org/chartlang-adapter-kit"`
 
 const OPTS_TYPES = `/** Library-agnostic options ChartPane passes to {@link createActiveAdapter}. */
 export type CreateAdapterOpts = Readonly<{
@@ -57,6 +61,9 @@ export type CreateAdapterOpts = Readonly<{
   candleSource: AsyncIterable<CandleEvent>
   interval?: string
   onAlert?: (a: AlertEmission) => void
+  /** Sink for the structured \`orders\` channel. Order markers ride the plot
+   *  pipeline, so this renders nothing — it is the door to the intents. */
+  onOrder?: (o: OrderEmission) => void
 }>
 
 /** Options forwarded to {@link runActiveLoop} (cancellation via \`signal\`). */
@@ -102,6 +109,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 
@@ -136,6 +144,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 
@@ -173,6 +182,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 
@@ -236,6 +246,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 
@@ -292,6 +303,9 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     // full history stays in memory and scrollable via pan / zoom-out.
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+    // Unlike onAlert, the konva factory DOES carry onOrder — it is that
+    // adapter's only per-emission app sink — so it needs no loop-side relay.
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
   if (opts.onAlert !== undefined) KONVA_ON_ALERT.set(handle, opts.onAlert)
   return handle
@@ -364,6 +378,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 

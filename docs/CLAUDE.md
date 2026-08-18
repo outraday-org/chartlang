@@ -115,6 +115,19 @@ the repo-root `DEPLOYMENT.md`).
   `examples/catalogue.ts` + the `.chart.ts` sources and byte-diffs against the
   committed tree. Hand-edits, missing pages, or stale pages fail the gate. Part
   of the root `check` chain.
+- `pnpm examples:idioms` reads `docs/language/**`. **Adding a hand-authored
+  page here fails that gate** until the page is either paired with an idiom in
+  `examples/idiom-manifest.json` (`"page": "language/<name>"`) or listed in its
+  `unrepresentedPages` with a reason (`"page": "<name>"` — the **bare tail**,
+  no `language/` prefix and no `.md`; the two fields are compared differently
+  on purpose). Renaming or deleting a language page fails it the other way,
+  as `UNKNOWN`.
+- **Never restate a total in `docs/spec/`.** Write the enumerating table and
+  let it be the count; where a number looks load-bearing, name the exported
+  type to re-extract from instead. `emissions.md` carried four such numerals
+  (`PlotKind`, `DrawingKind`, `DiagnosticCode`, `Capabilities`) and all four
+  went stale — two of them against tables that were themselves missing
+  members, so the numeral and the list disagreed as well.
 - `pnpm examples:coverage` (`scripts/examples-coverage.ts`) enumerates the
   primitive id set from this `docs/primitives/**` page tree and fails if a page
   has no example credit. The gate is **fully enforcing** (`target ⊆ covered`,
@@ -155,3 +168,4 @@ already wired and enforces the `primitives/ta/` byte equality today.
 | `reference/` | Glossary + FAQ. | 2 |
 | `skills/` | Hand-written overview of the `skills/` Agent Skills (index + one page per skill). Not auto-generated, not gated. | 3 |
 | `converter/` | Pine v6 → chartlang converter docs. `index.md`/`usage.md`/`supported.md`/`rejects.md` are **hand-authored**; `diagnostics.md` is **generated** by `pnpm converter:docs:generate` and gated by `pnpm converter:docs:check` (byte-diff vs `DIAGNOSTIC_CODE_ENTRIES`). Do not hand-edit `diagnostics.md`. | none |
+| `rfcs/` | Accept/reject records for cross-package architecture decisions. Hand-authored, byte-diff-ungated, but **VitePress-built** — see `rfcs/README.md` for the convention (numbering, no MIT header, `file:line` citations as code spans because `ignoreDeadLinks: false`). | none |

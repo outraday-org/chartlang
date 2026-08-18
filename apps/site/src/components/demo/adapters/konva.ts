@@ -11,6 +11,9 @@ import type { DemoAdapterFactory } from "./types";
  * the driver dynamic-imports `konva` and hands its default namespace in,
  * with `container: mountEl` so the stage attaches its content `<div>`.
  * Both the `container` option and `runKonvaLoop` land in Task 1.
+ *
+ * This adapter declares no `onAlert` (alert badges are a deferral there), so
+ * `onOrder` is the ONE per-emission app sink it forwards.
  */
 const factory: DemoAdapterFactory = async (mountEl, opts) => {
     const [{ createKonvaAdapter, runKonvaLoop }, konva] = await Promise.all([
@@ -32,6 +35,7 @@ const factory: DemoAdapterFactory = async (mountEl, opts) => {
             ? { initialVisibleBars: opts.initialVisibleBars }
             : {}),
         ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
+        ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
     });
 
     let disposed = false;

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { OrderPosition } from "../order/order.js";
 import type { JsonValue } from "../types.js";
 
 /**
@@ -50,16 +51,27 @@ export type StreamSnapshot = Readonly<{
  * `siblings[exportName]`, and `dependencies[localId]` sections —
  * one section per runner mounted by a `CompiledScriptBundle`.
  *
- * @since 0.7
+ * `orderPosition` is this runner's nominal `order.*` position as of the last
+ * confirmed fold. It is **optional and absence means flat** — a snapshot taken
+ * before the `orders` channel existed, or by a runner whose position is flat,
+ * omits it — so no snapshot version bump is spent on an additive field and a
+ * pre-orders payload stays loadable. It rides per runner rather than at the top
+ * level because a sibling's orders ARE forwarded to the parent wire, and a
+ * sibling position lost across an eviction would silently invert every later
+ * signal it emits.
+ *
+ * @since 0.7 — `orderPosition` added in 1.12
  * @stable
  * @example
  *     const r: RunnerSnapshot = {
  *         slots: { "x:state": { committed: 1, tentative: 1 } },
+ *         orderPosition: { size: 1, avgPrice: 101.5, entryBar: 3 },
  *     };
  *     void r;
  */
 export type RunnerSnapshot = Readonly<{
     slots: Readonly<Record<string, JsonValue>>;
+    orderPosition?: OrderPosition;
 }>;
 
 /**
@@ -85,7 +97,8 @@ export type RunnerSnapshot = Readonly<{
  * widening is additive — the validator accepts both the legacy flat
  * `slots:` shape (loaded as primary-only) and the structured
  * `primary` / `siblings?` / `dependencies?` shape (always written going
- * forward).
+ * forward). {@link RunnerSnapshot.orderPosition} is additive the same way and
+ * keeps the version at `2`: an absent field restores the flat position.
  *
  * @since 0.5 — widened to per-runner sections in 0.7, `barIndex` added in 1.11
  * @stable

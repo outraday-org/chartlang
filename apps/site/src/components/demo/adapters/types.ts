@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit";
+import type {
+    AlertEmission,
+    CandleEvent,
+    OrderEmission,
+} from "@invinite-org/chartlang-adapter-kit";
 import type { ScriptHost } from "@invinite-org/chartlang-host-worker";
 
 /** What the driver needs to stand up one live renderer in `mountEl`. */
@@ -11,6 +15,11 @@ export type DriverMountOpts = Readonly<{
     width: number;
     height: number;
     onAlert?: (alert: AlertEmission) => void;
+    /** App-layer sink for the structured `orders` channel. Order markers ride
+     * the plot pipeline, so this carries no rendering duty — it is the only
+     * door to the intents themselves. konva declares no `onAlert`, so this is
+     * that driver's ONLY per-emission sink. */
+    onOrder?: (order: OrderEmission) => void;
     /** Default visible window (most-recent bars shown on load); forwarded to
      * each adapter's `initialVisibleBars`. Omit to fit all data. */
     initialVisibleBars?: number;

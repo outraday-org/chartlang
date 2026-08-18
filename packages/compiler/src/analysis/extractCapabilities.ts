@@ -1,11 +1,10 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { CapabilityId } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { resolveCalleeName } from "../transformers/resolveCallee.js";
-
-type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
 
 /**
  * Derive the manifest `capabilities` array from a script's AST. The seed
@@ -16,6 +15,15 @@ type CapabilityId = "indicators" | "drawings" | "alerts" | "alertConditions";
  * user-shadowed identifiers named `alert` are filtered out via
  * `resolveCalleeName`. The result is deduplicated and sorted for
  * deterministic manifest output.
+ *
+ * `"orders"` is derived the same callsite way, and is the ONE capability id no
+ * script kind seeds (RFC 0002 §6): only `order.buy` / `order.sell` /
+ * `order.close` add it. `order.position()` is a pure read of the nominal
+ * position, so a script that merely inspects its own position never asks the
+ * adapter for a capability it does not use. Dotted callees resolve through the
+ * same `resolveCalleeName`, so both the core-import form and the destructured
+ * `compute({ order })` form are recognised while a user-shadowed `order` is
+ * not.
  *
  * The optional `scope` parameter narrows the walk to a single AST subtree
  * (typically one binding's `defineCall`) so multi-export files can derive
@@ -50,6 +58,13 @@ export function extractCapabilities(
             const calleeName = resolveCalleeName(node, checker);
             if (calleeName === "alert") {
                 found.add("alerts");
+            }
+            if (
+                calleeName === "order.buy" ||
+                calleeName === "order.sell" ||
+                calleeName === "order.close"
+            ) {
+                found.add("orders");
             }
         }
         ts.forEachChild(node, visit);

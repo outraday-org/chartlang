@@ -21,6 +21,7 @@ function makeCapabilities(): Capabilities {
         alerts: new Set(),
         alertConditions: false,
         logs: false,
+        orders: false,
         inputs: new Set(),
         intervals: [],
         multiTimeframe: false,

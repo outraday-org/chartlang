@@ -4,12 +4,13 @@
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import {
-    defineIndicator,
     type Bar,
     type CompiledScriptBundle,
     type MutableSlot,
+    type OrderOpts,
     type StateSnapshot,
     type StateStoreKey,
+    defineIndicator,
 } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
@@ -427,5 +428,199 @@ describe("persistent state snapshot bar cursor", () => {
 
         expect(saved.barIndex).toBe(-1);
         expect(restoredCursor).toBe(0);
+    });
+});
+
+describe("persistent state snapshot — nominal order position", () => {
+    type InjectedOrder = (slotId: string, opts?: OrderOpts) => void;
+
+    function orderCapabilities(): Capabilities {
+        return {
+            ...makeCapabilities(),
+            plots: capabilities.union(capabilities.allLines(), new Set(["arrow"] as const)),
+            orders: true,
+        };
+    }
+
+    function buyer(slot: string): ReturnType<typeof defineIndicator> {
+        return defineIndicator({
+            name: "buyer",
+            apiVersion: 1,
+            compute: ({ order }) => {
+                (order.buy as unknown as InjectedOrder)(slot, { marker: false });
+            },
+        });
+    }
+
+    it("omits the field entirely while the position is flat", async () => {
+        // Omit-when-default keeps every pre-`orders` snapshot byte-identical.
+        const store = inMemoryPersistentStateStore({ key: key() });
+        const runner = createScriptRunner({
+            compiled: withLookback(counterIndicator("flat")),
+            capabilities: orderCapabilities(),
+            persistentStateStore: store,
+            now: () => 1,
+        });
+        await runner.onBarClose(makeBar(0));
+        await runner.dispose();
+
+        const saved = await store.load();
+        expect(saved).not.toBeNull();
+        expect("orderPosition" in ((saved as StateSnapshot).primary as object)).toBe(false);
+    });
+
+    it("round-trips the primary's position through export / import", async () => {
+        const emitting = defineIndicator({
+            name: "emitting",
+            apiVersion: 1,
+            compute: ({ bar, order }) => {
+                if (bar.close.current === 103) {
+                    (order.buy as unknown as InjectedOrder)("rt:1:1#0", { qty: 2 });
+                }
+            },
+        });
+        const seed = createScriptRunner({
+            compiled: withLookback(emitting),
+            capabilities: orderCapabilities(),
+            now: () => 1,
+        });
+        for (let i = 0; i < 10; i += 1) await seed.onBarClose(makeBar(i));
+
+        const exported = seed.exportSnapshot();
+        expect(exported?.primary.orderPosition).toEqual({
+            size: 2,
+            avgPrice: 103,
+            entryBar: 3,
+        });
+        await seed.dispose();
+
+        const observed: Array<{ size: number; entryBar: number | null }> = [];
+        const reader = defineIndicator({
+            name: "emitting",
+            apiVersion: 1,
+            compute: ({ order }) => {
+                const position = order.position();
+                observed.push({ size: position.size, entryBar: position.entryBar });
+            },
+        });
+        const warm = createScriptRunner({
+            compiled: withLookback(reader),
+            capabilities: orderCapabilities(),
+        });
+        if (exported === null) throw new Error("expected a snapshot");
+        warm.importSnapshot(exported);
+        await warm.onBarClose(makeBar(10));
+
+        expect(observed).toEqual([{ size: 2, entryBar: 3 }]);
+        await warm.dispose();
+    });
+
+    it("restores a sibling's and a dependency's own position", async () => {
+        const seed = createScriptRunner({
+            compiled: bundleOf({
+                primary: counterIndicator("primary"),
+                siblings: [{ exportName: "slow", compiled: buyer("sb:1:1#0") }],
+                dependencies: [{ localId: "fast", compiled: buyer("dp:1:1#0") }],
+            }),
+            capabilities: orderCapabilities(),
+            now: () => 1,
+        });
+        await seed.onBarClose(makeBar(0));
+
+        const exported = seed.exportSnapshot();
+        expect(exported?.siblings?.slow.orderPosition?.size).toBe(1);
+        expect(exported?.dependencies?.fast.orderPosition?.size).toBe(1);
+        await seed.dispose();
+
+        const siblingSeen: number[] = [];
+        const depSeen: number[] = [];
+        const recorder = (sink: number[]): ReturnType<typeof defineIndicator> =>
+            defineIndicator({
+                name: "recorder",
+                apiVersion: 1,
+                compute: ({ order }) => {
+                    sink.push(order.position().size);
+                },
+            });
+        const warm = createScriptRunner({
+            compiled: bundleOf({
+                primary: counterIndicator("primary"),
+                siblings: [{ exportName: "slow", compiled: recorder(siblingSeen) }],
+                dependencies: [{ localId: "fast", compiled: recorder(depSeen) }],
+            }),
+            capabilities: orderCapabilities(),
+        });
+        if (exported === null) throw new Error("expected a snapshot");
+        warm.importSnapshot(exported);
+        await warm.onBarClose(makeBar(1));
+
+        expect(siblingSeen).toEqual([1]);
+        expect(depSeen).toEqual([1]);
+        await warm.dispose();
+    });
+
+    it("imports a field-less snapshot as the flat position", async () => {
+        // A snapshot captured before the `orders` channel existed carries no
+        // position — absence means flat, which is why version 2 was not bumped.
+        const seed = createScriptRunner({
+            compiled: withLookback(counterIndicator("legacy")),
+            capabilities: orderCapabilities(),
+            now: () => 1,
+        });
+        await seed.onBarClose(makeBar(0));
+        const exported = seed.exportSnapshot();
+        await seed.dispose();
+        if (exported === null) throw new Error("expected a snapshot");
+
+        const observed: Array<number> = [];
+        const buyThenRead = defineIndicator({
+            name: "legacy",
+            apiVersion: 1,
+            compute: ({ order }) => {
+                observed.push(order.position().size);
+            },
+        });
+        const warm = createScriptRunner({
+            compiled: withLookback(buyThenRead),
+            capabilities: orderCapabilities(),
+        });
+        // Move the live position off flat first, so the restore is observably
+        // resetting rather than merely agreeing with the mount value.
+        warm.importSnapshot({
+            ...exported,
+            primary: { ...exported.primary, orderPosition: { size: 4, avgPrice: 1, entryBar: 0 } },
+        });
+        warm.importSnapshot(exported);
+        await warm.onBarClose(makeBar(1));
+
+        expect(observed).toEqual([0]);
+        await warm.dispose();
+    });
+
+    it("rejects a snapshot whose position is malformed", async () => {
+        const seed = createScriptRunner({
+            compiled: withLookback(counterIndicator("bad")),
+            capabilities: orderCapabilities(),
+            now: () => 1,
+        });
+        await seed.onBarClose(makeBar(0));
+        const exported = seed.exportSnapshot();
+        await seed.dispose();
+        if (exported === null) throw new Error("expected a snapshot");
+
+        const warm = createScriptRunner({
+            compiled: withLookback(counterIndicator("bad")),
+            capabilities: orderCapabilities(),
+        });
+        expect(() =>
+            warm.importSnapshot({
+                ...exported,
+                primary: {
+                    ...exported.primary,
+                    orderPosition: { size: Number.NaN, avgPrice: null, entryBar: null },
+                },
+            }),
+        ).toThrow("state snapshot failed validation");
+        await warm.dispose();
     });
 });

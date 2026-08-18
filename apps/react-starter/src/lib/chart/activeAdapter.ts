@@ -7,7 +7,11 @@
 // charts through the abstract `ActiveAdapterHandle` + `createActiveAdapter`
 // + `runActiveLoop` exported here.
 
-import type { AlertEmission, CandleEvent } from "@invinite-org/chartlang-adapter-kit"
+import type {
+  AlertEmission,
+  CandleEvent,
+  OrderEmission,
+} from "@invinite-org/chartlang-adapter-kit"
 import {
   createWebglAdapter,
   runWebglLoop,
@@ -24,6 +28,9 @@ export type CreateAdapterOpts = Readonly<{
   candleSource: AsyncIterable<CandleEvent>
   interval?: string
   onAlert?: (a: AlertEmission) => void
+  /** Sink for the structured `orders` channel. Order markers ride the plot
+   *  pipeline, so this renders nothing — it is the door to the intents. */
+  onOrder?: (o: OrderEmission) => void
 }>
 
 /** Options forwarded to {@link runActiveLoop} (cancellation via `signal`). */
@@ -54,6 +61,7 @@ export function createActiveAdapter(opts: CreateAdapterOpts): ActiveAdapterHandl
     initialVisibleBars: 120,
     ...(opts.interval !== undefined ? { interval: opts.interval } : {}),
     ...(opts.onAlert !== undefined ? { onAlert: opts.onAlert } : {}),
+    ...(opts.onOrder !== undefined ? { onOrder: opts.onOrder } : {}),
   })
 }
 

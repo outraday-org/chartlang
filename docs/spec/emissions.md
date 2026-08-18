@@ -83,7 +83,7 @@ omitted wire as no opt).
 
 ### Plot Kinds
 
-The v1 `PlotKind` set has 17 members:
+The v1 `PlotKind` set, in union order:
 
 | Kind | Style fields |
 | --- | --- |
@@ -103,6 +103,8 @@ The v1 `PlotKind` set has 17 members:
 | `"bg-color"` | `color: non-empty color string`, optional `transp: finite number in [0, 100]`. |
 | `"bar-color"` | `color: non-empty color string`. |
 | `"horizontal-histogram"` | `buckets: array` of `{ price: finite number, volume: finite non-negative number, color?: non-empty string }`. |
+| `"candle"` | `open`, `high`, `low`, `close`: each a finite number or `null` (all four or none), `bull` and `bear`: non-empty color strings, optional `doji`, `wickColor`, `borderColor`. Pine `plotcandle`. |
+| `"ohlc-bar"` | `open`, `high`, `low`, `close`: each a finite number or `null` (all four or none), `color`: non-empty color string, optional `upColor`, `downColor`. Pine `plotbar`. |
 
 Adapters gate plots with `Capabilities.plots`. If `style.kind` is absent from
 that set, the runtime drops the plot and emits `unsupported-plot-kind`.
@@ -140,12 +142,12 @@ fields MUST be JSON-compatible and finite where numeric.
 
 ### Drawing Kinds
 
-The v1 `DrawingKind` set has 62 members, grouped in canonical order:
+The v1 `DrawingKind` set, grouped in canonical order:
 
 | Group | Kinds |
 | --- | --- |
 | Lines / Rays | `"line"`, `"horizontal-line"`, `"horizontal-ray"`, `"vertical-line"`, `"cross-line"`, `"trend-angle"` |
-| Boxes / Shapes | `"rectangle"`, `"rotated-rectangle"`, `"triangle"`, `"polyline"`, `"circle"`, `"ellipse"`, `"path"`, `"marker"` |
+| Boxes / Shapes | `"rectangle"`, `"rotated-rectangle"`, `"triangle"`, `"polyline"`, `"circle"`, `"ellipse"`, `"path"`, `"fill-between"`, `"marker"` |
 | Curves | `"arc"`, `"curve"`, `"double-curve"` |
 | Freehand | `"pen"`, `"highlighter"`, `"brush"` |
 | Annotations | `"text"`, `"arrow"`, `"arrow-marker"`, `"arrow-mark-up"`, `"arrow-mark-down"` |
@@ -174,6 +176,7 @@ The validator checks each kind's state shape:
 | Harmonic patterns and several Elliott waves | `anchors` quint. |
 | `three-drives-pattern`, `elliott-double-combo`, `elliott-triple-combo` | `anchors` hept. |
 | `polyline` and freehand/path-like states | Variable `anchors` array with finite `WorldPoint` entries. |
+| `fill-between` | Two variable `WorldPoint` arrays, `edgeA` and `edgeB`, each with at least two finite anchors. The edges need not share x-coordinates or length. |
 | `group` | `childHandleIds: string[]` with at most 100 entries. |
 | `frame` | `anchors` pair plus `childHandleIds`. |
 | `table` | `position`, non-empty 2D `cells`, optional border/frame styling. |
@@ -223,6 +226,39 @@ Adapters gate condition emissions with `Capabilities.alertConditions`. When
 false, the runtime drops signals and emits `alert-conditions-not-supported`
 once per condition id. Unknown ids drop with `unknown-alert-condition`.
 
+## OrderEmission
+
+`OrderEmission` represents one `order.buy(...)`, `order.sell(...)`, or
+`order.close(...)` call. `order.position()` is a pure read and emits nothing.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `kind` | literal `"order"` | Emission discriminator. |
+| `slotId` | non-empty string | Compiler-issued callsite id. A sibling-forwarded order carries the `export:<name>/` prefix. |
+| `action` | `OrderAction` | `"buy"`, `"sell"`, or `"close"`. Names the side; the magnitude is never signed. |
+| `qty` | finite number `> 0`, or `null` | Unsigned magnitude. `null` means the author gave none — the consumer's default. |
+| `label` | string | `""` when the author gave none. |
+| `bar` | non-negative integer | Main-stream bar index. |
+| `time` | finite number | UTC milliseconds for the bar. |
+| `meta` | record of `JsonValue` | Script-supplied metadata snapshot. |
+| `dedupeKey` | non-empty string | Stable idempotency key: slot id, bar, and a stable hash of action, qty, label, and metadata. A sibling-forwarded order keeps the **original, unprefixed** slot id in this key, so host idempotency survives a remount. |
+
+`OrderOpts.marker` is render-side only and is deliberately absent from the
+wire: the emission records the intent, not how it was drawn.
+
+Every field is required. Orders are **append-only** — unlike plots and alerts
+they are not deduped per `(slotId, bar)`, because an order is an event rather
+than an idempotent visual and the runtime's own position tracker folds every
+accepted one. Hosts that dispatch through asynchronous channels use `dedupeKey`
+for idempotency instead.
+
+Adapters gate orders with `Capabilities.orders`. When false, the runtime drops
+the call, emits no auto-markers, and pushes `unsupported-orders` once per slot
+per mount. Full semantics — the confirmed-step fold, the one-fold read lag, the
+tick and halt discipline, and the nominal-versus-simulated price divergence —
+are in [Execution semantics § Order semantics](./semantics.md#order-semantics)
+and [Orders](../language/orders.md).
+
 ## LogEmission
 
 `LogEmission` represents one `runtime.log.info`, `runtime.log.warn`, or
@@ -266,7 +302,9 @@ debugging.
 | `unsupported-alert-channel` | An alert cannot be routed because the adapter declares no alert channel. |
 | `unsupported-pane` | A plot requests `"new"` or a named pane that the current runtime folds back to `"overlay"`. |
 | `unsupported-interval` | A requested interval is absent from `Capabilities.intervals`. |
+| `unsupported-orders` | A script emits an order while `Capabilities.orders` is false. Fires once per slot per mount. |
 | `multi-timeframe-not-supported` | `request.security` or `request.lowerTf` needs secondary streams but `Capabilities.multiTimeframe` is false. |
+| `multi-symbol-not-supported` | `request.security` names a secondary symbol but `Capabilities.multiSymbol` is false. |
 | `unknown-secondary-stream` | A request or candle event names an interval not registered from the manifest. |
 | `lookback-exceeded` | Runtime history access exceeds the allowed lookback capacity. |
 | `drawing-budget-exceeded` | A drawing create would exceed the effective per-bucket drawing budget. |
@@ -281,12 +319,19 @@ debugging.
 | `malformed-log-meta` | `runtime.log.*` metadata is not JSON-compatible. |
 | `runtime-error-thrown` | Script code calls the runtime error primitive or throws through runtime execution. |
 | `session-info-missing` | Session metadata needed by a runtime feature is missing. |
+| `tz-dst-unsupported` | A time or session call names a DST timezone; v1 resolves UTC and fixed offsets only and falls back to UTC. |
 | `fixed-range-inverted` | A fixed visible range or anchored range has invalid ordering. |
 | `state-snapshot-restored` | A persistent state snapshot was restored successfully. |
 | `state-snapshot-future-dated` | A persistent snapshot is newer than the requested warm-start cursor. |
 | `state-snapshot-malformed` | A persistent snapshot fails shape or JSON validation. |
 | `state-snapshot-save-failed` | Saving a persistent state snapshot fails. |
 | `malformed-emission` | A payload fails wire-schema validation. |
+| `dep-error` | A dependency runner threw or halted while producing values for its consumer. |
+| `dep-cycle` | The dependency graph contains a cycle. |
+| `dep-unknown-output` | A consumer reads `<binding>.output("title")` the producer does not declare. |
+| `dep-invalid-input-override` | A `.withInputs({...})` key is not declared by the producer, or its value has the wrong kind. |
+| `dep-dynamic` | A dependency binding, `.output(...)` receiver, or `.withInputs(...)` key/value is not statically resolvable. |
+| `dep-output-not-titled` | A producer emits an untitled `plot(...)` that a consumer references by title. |
 
 ## RunnerEmissions
 
@@ -298,6 +343,7 @@ The runtime drains emissions as one batch:
 | `drawings` | `DrawingEmission[]` | Drawing queue. |
 | `alerts` | `AlertEmission[]` | Alert queue. |
 | `alertConditions` | `AlertConditionEmission[]` | Alert-condition queue. |
+| `orders` | `OrderEmission[]` | Order queue. |
 | `logs` | `LogEmission[]` | Log queue. |
 | `diagnostics` | `RuntimeDiagnostic[]` | Diagnostic queue. |
 | `fromBar` | non-negative integer | First main bar covered by the batch. |
@@ -306,8 +352,8 @@ The runtime drains emissions as one batch:
 Adapters MAY assume a drain payload is an atomic batch for the covered bar
 range. Within one batch, plots and alerts have already been deduped by
 `(slotId, bar)` with last-write-wins. Drawings have been deduped by
-`(handleId, bar)` with last-write-wins. Alert conditions and logs preserve
-append order. Detailed execution ordering is specified in
+`(handleId, bar)` with last-write-wins. Alert conditions, orders, and logs
+preserve append order. Detailed execution ordering is specified in
 [Execution semantics](./semantics.md#emission-ordering).
 
 ## Capability Gating
@@ -320,13 +366,16 @@ append order. Detailed execution ordering is specified in
 | Drawing budgets | `Capabilities.maxDrawingsPerScript` plus manifest `maxDrawings` | Drop overflow creates; emit `drawing-budget-exceeded`. |
 | Alerts | `Capabilities.alerts` | Drop the alert when no channel is declared; emit `unsupported-alert-channel`. |
 | Alert conditions | `Capabilities.alertConditions` | Drop the signal; emit `alert-conditions-not-supported`. |
+| Orders | `Capabilities.orders` | Drop the order and its auto-markers; emit `unsupported-orders` once per slot per mount. |
+| Order auto-markers | `Capabilities.plots` (`arrow`, `label`) | Skip the marker plot **silently** — no diagnostic. The `orders` channel is the source of truth; markers are a courtesy. |
 | Logs | `Capabilities.logs` | Silent no-op; no diagnostic. |
-| Request-driven secondary streams | `Capabilities.intervals` and `Capabilities.multiTimeframe` | Return fallback request values and emit `unsupported-interval`, `multi-timeframe-not-supported`, or `unknown-secondary-stream`. |
+| Request-driven secondary streams | `Capabilities.intervals`, `Capabilities.multiTimeframe`, and `Capabilities.multiSymbol` | Return fallback request values and emit `unsupported-interval`, `multi-timeframe-not-supported`, `multi-symbol-not-supported`, or `unknown-secondary-stream`. |
 
-The full capability bag has these 13 keys: `plots`, `drawings`, `alerts`,
-`alertConditions`, `logs`, `inputs`, `intervals`, `multiTimeframe`,
+The full capability bag is `plots`, `drawings`, `alerts`, `alertConditions`,
+`logs`, `orders`, `inputs`, `intervals`, `multiTimeframe`, `multiSymbol`,
 `subPanes`, `symInfoFields`, `maxDrawingsPerScript`, `maxLookback`, and
-`maxTickHz`.
+`maxTickHz`. Every key is required; the exported `Capabilities` type is the
+authority.
 
 ## Conformance Hooks
 
@@ -345,30 +394,35 @@ the §15.3 conformance trio are described in
 
 ## Mechanical Verification
 
-This page was checked by extracting the current exported inventories and
-comparing them to the tables above:
+The tables above are membership lists, not summaries: each one enumerates every
+member of the matching exported type, so the enumeration *is* the count and
+there is no separate total to fall out of date. Re-verify by extracting these
+four inventories and diffing them against the tables:
 
-- `PlotKind`: 17 members.
-- `DrawingKind`: 62 members.
-- `DiagnosticCode`: 26 members.
-- `Capabilities`: 13 keys in the current type, including `maxTickHz`.
+| Table | Source of truth |
+| --- | --- |
+| Plot kinds | `PlotKind` (`packages/core/src/plot/plot.ts`, re-exported by `adapter-kit`) |
+| Drawing kinds | `DrawingKind` (`packages/core/src/draw/drawingKind.ts`) |
+| Diagnostic codes | `DiagnosticCode` (`packages/adapter-kit/src/types.ts`) |
+| Capability keys | `Capabilities` (`packages/adapter-kit/src/types.ts`) |
 
-No membership drift was found between the extracted unions and the lists in
-this page.
+Do **not** restate a total anywhere on this page. Four such numerals were
+carried here at one point and all four went stale against the unions they
+counted.
 
 ## Conformance Checklist
 
 - Every emission is a plain JSON-compatible object and passes the
   wire-safety invariant.
-- `PlotEmission` fields match the schema and `style.kind` is one of the 17
-  plot kinds listed above.
+- `PlotEmission` fields match the schema and `style.kind` is one of the plot
+  kinds listed above.
 - `DrawingEmission` fields match the schema, `state.kind === drawingKind`, and
-  `drawingKind` is one of the 62 listed kinds.
-- `AlertEmission`, `AlertConditionEmission`, and `LogEmission` fields match
-  their tables and use only JSON-compatible metadata.
-- `RuntimeDiagnostic.code` is one of the 26 listed diagnostic codes.
+  `drawingKind` is one of the listed kinds.
+- `AlertEmission`, `AlertConditionEmission`, `OrderEmission`, and `LogEmission`
+  fields match their tables and use only JSON-compatible metadata.
+- `RuntimeDiagnostic.code` is one of the listed diagnostic codes.
 - `RunnerEmissions` batches expose plots, drawings, alerts, alert conditions,
-  logs, diagnostics, and bar range fields.
+  orders, logs, diagnostics, and bar range fields.
 - Unsupported capability families drop or no-op exactly as specified.
 - Adapters validate payloads at structured-clone boundaries and never treat an
   unsupported additive kind as schema corruption when it can be handled as a

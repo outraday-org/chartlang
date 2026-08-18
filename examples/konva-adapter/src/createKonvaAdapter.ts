@@ -9,6 +9,7 @@ import {
     type DrawingEmission,
     type InteractionHandlers,
     type LogEmission,
+    type OrderEmission,
     type PlotEmission,
     type PlotStyle,
     RENDER_BAND,
@@ -146,6 +147,16 @@ export type CreateKonvaAdapterOpts = {
     readonly palette?: KonvaPalette;
     readonly resolveInputs?: (scriptId: string) => Readonly<Record<string, unknown>>;
     readonly feedExternalSeries?: Adapter["feedExternalSeries"];
+    /**
+     * App-layer sink for the structured `orders` channel. Every order that
+     * passes `validateEmission` is forwarded in wire order on each drain. This
+     * adapter renders order markers with no help from it — they arrive as
+     * ordinary `arrow` / `label` plot emissions — so the option exists purely so
+     * an embedding app can read the intents themselves (an order panel, a
+     * backtest simulator). It is this adapter's ONLY per-emission app sink:
+     * alert badges are still a deferral here, so there is no `onAlert` beside it.
+     */
+    readonly onOrder?: (o: OrderEmission) => void;
     /**
      * Default visible window: when set, the chart opens framed on only the
      * most recent N bars (rest stay scrollable); omit/0 = fit all data,
@@ -1107,7 +1118,11 @@ function applyLog(state: AdapterState, log: LogEmission): void {
     }
 }
 
-function ingest(state: AdapterState, emissions: RunnerEmissions): void {
+function ingest(
+    state: AdapterState,
+    emissions: RunnerEmissions,
+    onOrder?: (o: OrderEmission) => void,
+): void {
     applyValidated(emissions.plots, (plot) => applyPlot(state, plot));
     applyValidated(emissions.drawings, (drawing) => applyDrawing(state, drawing));
     // alertConditions are CURRENT-drain state: clear, then re-collect the
@@ -1119,6 +1134,10 @@ function ingest(state: AdapterState, emissions: RunnerEmissions): void {
     applyValidated(emissions.alertConditions, (condition) =>
         state.currentAlertConditions.push(condition),
     );
+    // Orders keep no adapter state — their picture already rode in on the plot
+    // channel above — so the only thing to do is hand the validated intents to
+    // the app-layer sink, in the queue position the wire declares them.
+    applyValidated(emissions.orders, (order) => onOrder?.(order));
     applyValidated(emissions.logs, (log) => applyLog(state, log));
 }
 
@@ -1567,7 +1586,7 @@ export function createKonvaAdapter(opts: CreateKonvaAdapterOpts): KonvaAdapterHa
         symInfo: KONVA_SYM_INFO,
         candles: () => opts.candleSource,
         onEmissions: (emissions) => {
-            ingest(state, emissions);
+            ingest(state, emissions, opts.onOrder);
             rebuildSeriesLayer(state);
             rebuildAxisLayer(state);
         },
