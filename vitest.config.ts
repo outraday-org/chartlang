@@ -17,10 +17,17 @@ export default defineConfig({
             // ungated scratch harnesses: the apps/site vite build emits
             // assets with dangling sourceMappingURL comments that hard-error
             // the v8 coverage provider, so apps/** is excluded wholesale.
+            // `packages/conformance/.cache/**` is the same class of hazard for
+            // a different reason: each scenario compiles to a throwaway `.mjs`
+            // there, imports it, and deletes it in a `finally`. v8 re-reads
+            // every executed module AFTER the suite ends, so a temp file that
+            // is already gone takes the whole `pnpm test` run down with an
+            // unhandled ENOENT — a timing flake, not a real failure.
             exclude: [
                 "**/node_modules/**",
                 "**/dist/**",
                 "**/coverage/**",
+                "packages/conformance/.cache/**",
                 "docs/**",
                 "scripts/**",
                 "apps/**",

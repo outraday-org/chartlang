@@ -223,9 +223,9 @@ as `unknown-identifier`. A direction the converter cannot resolve assumes
 only the tracked position is signed. A `buy` while short crosses zero and
 reverses in one order rather than stacking.
 
-**Do not emit orders as `alert(...)`.** That was the pre-`order.*` workaround,
-and it forced every consumer to guess a direction out of English prose. Keep
-`alert(...)` for notifications.
+**Never carry an order signal in an `alert(...)` message.** That was the
+pre-`order.*` workaround, and it forced every consumer to guess a direction out
+of English prose. Keep `alert(...)` for notifications.
 
 **A Pine variable named `order` is renamed to `order2`.** Pine's own unrelated
 `order` root (`order.ascending` / `order.descending`, the `array.sort` enum)

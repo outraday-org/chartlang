@@ -15,6 +15,12 @@
  * site and needs a Chromium install (~minutes); this gate closes the gap
  * where a site UI change passes every content gate but breaks the CI
  * `E2E (apps/site/)` job.
+ *
+ * TRAP: the skip is only meaningful BEFORE a branch merges. Once its commits
+ * are on the upstream branch the diff is empty, so this gate reports
+ * "untouched" and exits 0 no matter how much of `apps/site/` the work
+ * actually changed. A post-merge audit must run `pnpm site:e2e` directly
+ * rather than reading a skip as evidence.
  */
 import { spawnSync } from "node:child_process";
 

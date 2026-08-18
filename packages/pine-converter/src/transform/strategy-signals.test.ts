@@ -169,7 +169,11 @@ describe("emitStrategySignal", () => {
     });
 
     it("omits a qty that is not an inline scalar and says so", () => {
-        for (const arg of ["na", '"two"', "true", "[1, 2]"]) {
+        // `strategy.short` is the misplaced-direction case: the semantic pass
+        // skips direction constants ANYWHERE in a signal call, so one landing
+        // in the qty slot arrives here unresolved and must not be emitted
+        // verbatim into `qty:`.
+        for (const arg of ["na", '"two"', "true", "[1, 2]", "strategy.short"]) {
             const { source, messages } = emit(`strategy.entry("L", strategy.long, ${arg})`);
             expect(source).toBe('order.buy({ label: "L" });');
             expect(messages.some((m) => m.includes("not an inline scalar"))).toBe(true);

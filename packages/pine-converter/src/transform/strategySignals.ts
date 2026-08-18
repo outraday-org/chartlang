@@ -187,13 +187,24 @@ export function isStrategySignalCall(call: CallExpression): boolean {
 // Whether a `qty` argument is a shape the converter can emit inline as a
 // number. Valid Pine always types `qty` numeric, so this only rejects the
 // shapes that could never lower to a scalar expression — an explicit `na`, a
-// string/bool literal, and the aggregate expression forms.
+// string/bool literal, a direction constant, and the aggregate expression
+// forms.
 function isInlineScalar(node: ExpressionNode): boolean {
     if (node.kind === "na-expression") {
         return false;
     }
     if (node.kind === "literal-expression") {
         return node.literalKind === "int" || node.literalKind === "float";
+    }
+    // The semantic pass skips resolving a `strategy.long` / `strategy.short`
+    // anywhere inside a signal call, not only in the direction slot — a
+    // position-independent skip is what keeps `strategy` from being a
+    // namespace. So a misplaced direction constant reaches here unresolved,
+    // and emitting it verbatim would put the token `strategy.long` into a
+    // `qty:` field. Drop it into the named "not an inline scalar" note
+    // instead, which is the diagnostic every other unemittable qty gets.
+    if (isStrategyDirectionExpr(node)) {
+        return false;
     }
     return (
         node.kind !== "tuple-expression" &&

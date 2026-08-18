@@ -23,6 +23,9 @@ export default defineIndicator({
             let slow = ta.ema(bar.close, 26).current;
             hist.push(bar.close);
             hist.sort();
+            let order2 = ta.sma(bar.close, 5).current;
+            order.buy({ label: "Ambiguous" });
+            plot(order2);
             if (ta.crossover(fast, slow)) { order.buy({ label: "Long" }); }
             if (ta.crossunder(fast, slow)) { order.sell({ label: "Short", qty: (inputs.qtyIn as number) }); }
             order.buy({ label: "Scale", qty: 3 });
