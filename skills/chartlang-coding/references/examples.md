@@ -5,6 +5,10 @@ Complete, compileable chartlang scripts, copied verbatim from the
 demonstrates one specific contract detail; read the introduction before
 the source, then read the source.
 
+This file is **self-contained** — everything you need to write a script is
+below. Do not go looking for the source directory: most surfaces that host
+this skill have no filesystem access to the chartlang repo at all.
+
 ## 1. EMA cross with alert
 
 Demonstrates the canonical indicator pattern: top-level imports +
@@ -296,14 +300,126 @@ close, and there is no capital, slippage, commission, or P&L. Whatever consumes
 `RunnerEmissions.orders` owns the economics, typically filling at the next
 bar's open. Never carry a trade signal in an `alert(...)` message.
 
+## 7. Swing-high ray (`draw.*`)
+
+Demonstrates the drawing surface: `ta.pivotsHighLow` for swing detection,
+`bar.point(-n, price)` to resolve a confirmed pivot's real historical
+timestamp, and the **per-bar re-emit → one handle** idiom that keeps a single
+ray moving instead of stacking a new one every bar. Note `maxDrawings`, which
+declares the script's own per-bucket drawing budget.
+
+```ts
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+
+import { defineIndicator, draw, state, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Pivot High Ray",
+    apiVersion: 1,
+    overlay: true,
+    // One ray, reused across every bar (see below), so a single "lines"
+    // slot is the whole drawing budget we need.
+    maxDrawings: { lines: 1, labels: 0, boxes: 0, polylines: 0, other: 0 },
+    compute({ bar, ta, state, draw }) {
+        // Swing-high detection: a bar whose high tops the 5 bars on each
+        // side. A pivot can only be *confirmed* once the 5 bars to its
+        // right exist, so `pivots.high.current` turns non-NaN 5 bars late
+        // and reports the high from 5 bars back.
+        const pivots = ta.pivotsHighLow({ leftLength: 5, rightLength: 5 });
+
+        // `state.*` slots persist across bars (Pine `var`). Remember the
+        // latest pivot high's price AND time so we can keep drawing from
+        // it on every later bar — this is the "track the last high" part.
+        const lastTime = state.float(Number.NaN);
+        const lastPrice = state.float(Number.NaN);
+
+        if (!Number.isNaN(pivots.high.current)) {
+            // The confirmed pivot sits 5 bars back. `bar.point(-5, …)`
+            // resolves that offset to the real historical timestamp from
+            // the runtime's time buffer — no hand-rolled time series. The
+            // offset literal must stay in sync with `rightLength` above (a
+            // negative integer literal is what sizes the lookback buffer).
+            const anchor = bar.point(-5, pivots.high.current);
+            lastTime.value = anchor.time;
+            lastPrice.value = anchor.price;
+        }
+
+        // Once a high is known, draw a horizontal ray from it to the right
+        // edge. Calling `draw.horizontalRay` every bar from this same line
+        // of source reuses one drawing handle — the runtime emits an
+        // `update`, not a new ray — so the single line simply jumps to each
+        // new swing high as it is confirmed.
+        if (!Number.isNaN(lastPrice.value)) {
+            draw.horizontalRay(
+                { time: lastTime.value, price: lastPrice.value },
+                { color: "#ef5350", lineWidth: 2, lineStyle: "dashed" },
+            );
+        }
+    },
+});
+```
+
+The re-emit idiom is the thing to take from it: a `draw.*` callsite is keyed
+by its **source position**, so calling it once per bar from the same line
+updates one drawing. Emitting from a loop, or from two different lines, gives
+you one handle per callsite and burns the `maxDrawings` budget.
+
+## 8. Session high alert (`barstate` + `state.*`)
+
+Demonstrates the `barstate` namespace and a running level held in a
+`state.float` slot: reset the high at the session open, extend it otherwise,
+plot it, and alert on a crossover. `barstate.isfirst` is how you special-case
+the very first bar without a counter.
+
+```ts
+// Copyright (c) 2026 Invinite. Licensed under the MIT License.
+// See the LICENSE file in the repo root for full license text.
+//
+// Pine-parity reference: "Session High" — running highest high
+// reset on session open, alerts on crossover. Translated from
+// public Pine documentation idioms (no specific source SHA).
+
+import { alert, defineIndicator, input, plot, state, ta } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Session High Alert",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        alertOnCross: input.bool(true, { title: "Alert on cross" }),
+    },
+    compute({ bar, state, alert, plot, ta, barstate, inputs }) {
+        const high = state.float(Number.NaN);
+        const isSessionOpen = barstate.isfirst || bar.time % 86_400_000 === 0;
+        if (isSessionOpen) {
+            high.value = bar.high;
+        } else if (Number.isNaN(high.value) || bar.high > high.value) {
+            high.value = bar.high;
+        }
+        plot(high.value, { color: "#ff9900", title: "Session high" });
+        if (inputs.alertOnCross && ta.crossover(bar.close, high.value).current) {
+            alert("Close crossed session high", { severity: "info" });
+        }
+    },
+});
+```
+
+Note that `ta.crossover(...)` is called unconditionally and only its
+`.current` is read inside the `if` — a stateful `ta.*` callsite evaluated on
+only some bars desyncs its own history, the same rule §6 states for `order.*`.
+
 ## Cross-links
 
 - `references/forbidden.md` — the constructs the compiler rejects.
 - `references/primitives.md` — the full `ta.*` / `draw.*` signature
   reference.
-- `examples/scripts/` in the chartlang repo — additional scripts
-  (`fib-retracement`, `session-high-alert`, `daily-rsi-divergence`,
-  `mintick-snapped-entry`) for `draw.*`, `state.*`, `timeframe.*`, and
-  `syminfo.*` surfaces, plus `order-rsi-reversal` (signed-position
-  reversal with `qty`) and `order-silent-markers` (`marker: false` and a
-  hand-drawn glyph) for the rest of the `order.*` surface.
+
+Every script above is copied verbatim from `examples/scripts/` in the
+chartlang repo, which holds further variations on the same surfaces —
+`fib-retracement`, `daily-rsi-divergence` and `mintick-snapped-entry` for
+`draw.*` / `timeframe.*` / `syminfo.*`, and `order-rsi-reversal`
+(signed-position reversal with `qty`) plus `order-silent-markers`
+(`marker: false` and a hand-drawn glyph) for the rest of `order.*`. They add
+no contract this file does not already state, so treat them as provenance,
+not as reading you owe.

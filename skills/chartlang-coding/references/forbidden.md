@@ -20,13 +20,21 @@ stream every run. That rules out wall-clock and entropy sources.
 |---|---|---|
 | `Date`, `Date.now()`, `new Date()` | `hostile-global` | `bar.time` (UTC ms at the bar boundary). |
 | `Math.random()` | `hostile-global` | Not supported. Derive variation from price/volume series. |
-| `performance.now()` | `hostile-global` | `bar.time`. |
+| `performance.now()` | *(none today — it compiles)* | `bar.time`. |
 
 ```ts
 // hostile-global — forbidden
 const now = Date.now();
 const r = Math.random();
 ```
+
+`performance` is **not** in `HOSTILE_GLOBAL_NAMES`, so `performance.now()`
+compiles clean and emits no diagnostic — do not tell a user the compiler
+stopped them. It is still forbidden by the determinism rule above: it reads
+wall clock, so a replay produces different values from the live run for the
+same candle stream. Treat a `performance.*` read the way you treat any other
+undiagnosed determinism break — rewrite it to `bar.time` rather than waiting
+for a compile error that will not arrive.
 
 ## Sandbox I/O — no network or arbitrary code
 

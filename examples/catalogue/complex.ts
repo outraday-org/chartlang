@@ -158,7 +158,7 @@ const COMPLEX_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         description:
             "state.array reductions — the analytic methods on the window handle. A z-score (close − win.avg()) / win.stdev() over the last 20 closes, showing both call styles: win.avg() (method) and array.stdev(win) (the Pine-parity free-function alias that delegates 1:1). The reductions skip NaN and return NaN on an empty window, so the divide is guarded while the window warms.",
         category: "complex",
-        primitives: [],
+        primitives: ["array"],
     },
     {
         id: "symbol-ratio",

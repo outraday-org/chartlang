@@ -84,6 +84,46 @@ const STR_FIXTURE: Phase4DocInput = {
     sourceUrl: "https://example.invalid/str.ts",
 };
 
+const ARRAY_FIXTURE: Phase4DocInput = {
+    entry: {
+        title: "array",
+        sourceRelPath: "packages/core/src/array/index.ts",
+        symbolPath: ["array"],
+        outRelPath: "docs/primitives/array.md",
+        seeAlso: "`array.*` namespace",
+    },
+    description: "",
+    since: "1.4",
+    stability: "stable",
+    example: "const m = array.avg(win);",
+    signature:
+        "array = Object.freeze({\n    avg: (a: MutableArraySlot<number>): number => a.avg(),\n})",
+    sourceUrl: "https://example.invalid/array.ts",
+};
+
+const BARSTATE_FIXTURE: Phase4DocInput = {
+    entry: {
+        title: "barstate",
+        sourceRelPath: "packages/core/src/views/barstate.ts",
+        symbolPath: ["barstate"],
+        outRelPath: "docs/primitives/barstate.md",
+        seeAlso: "`barstate.*` view",
+    },
+    description: "Module-scope `barstate` fallback.",
+    since: "0.4",
+    stability: "stable",
+    example: "void barstate;",
+    signature: "barstate: BarStateView = Object.freeze({\n    isnew: false,\n})",
+    sourceUrl: "https://example.invalid/barstate.ts",
+};
+
+const NAMESPACE_FIXTURES: ReadonlyArray<Phase4DocInput> = [
+    MATH_FIXTURE,
+    STR_FIXTURE,
+    ARRAY_FIXTURE,
+    BARSTATE_FIXTURE,
+];
+
 const ORDER_FIXTURE: ReadonlyArray<Phase4DocInput> = [
     {
         entry: {
@@ -109,14 +149,13 @@ describe("renderReference", () => {
             [DRAW_FIXTURE],
             [PLOT_FIXTURE],
             ORDER_FIXTURE,
-            MATH_FIXTURE,
-            STR_FIXTURE,
+            NAMESPACE_FIXTURES,
         );
         expect(md.split("\n")[0]).toBe(AUTO_HEADER);
     });
 
     it("renders a ta.* block with signature, formula, warmup, since/stability", () => {
-        const md = renderReference([TA_FIXTURE], [], [], ORDER_FIXTURE, MATH_FIXTURE, STR_FIXTURE);
+        const md = renderReference([TA_FIXTURE], [], [], ORDER_FIXTURE, NAMESPACE_FIXTURES);
         expect(md).toContain("### ta.ema");
         expect(md).toContain(TA_FIXTURE.signature);
         expect(md).toContain("Exponential moving average.");
@@ -126,14 +165,7 @@ describe("renderReference", () => {
     });
 
     it("renders a draw.* block with signature, anchors, since/stability", () => {
-        const md = renderReference(
-            [],
-            [DRAW_FIXTURE],
-            [],
-            ORDER_FIXTURE,
-            MATH_FIXTURE,
-            STR_FIXTURE,
-        );
+        const md = renderReference([], [DRAW_FIXTURE], [], ORDER_FIXTURE, NAMESPACE_FIXTURES);
         expect(md).toContain("### draw.line");
         expect(md).toContain(DRAW_FIXTURE.signature);
         expect(md).toContain("**Anchors:** `a`, `b` — two `WorldPoint`s");
@@ -141,14 +173,7 @@ describe("renderReference", () => {
     });
 
     it("renders a plot-family block under a ## plot family section", () => {
-        const md = renderReference(
-            [],
-            [],
-            [PLOT_FIXTURE],
-            ORDER_FIXTURE,
-            MATH_FIXTURE,
-            STR_FIXTURE,
-        );
+        const md = renderReference([], [], [PLOT_FIXTURE], ORDER_FIXTURE, NAMESPACE_FIXTURES);
         expect(md).toContain("## plot family");
         expect(md).toContain("### bgcolor");
         expect(md).toContain(PLOT_FIXTURE.signature);
@@ -157,14 +182,7 @@ describe("renderReference", () => {
     });
 
     it("renders a per-member ## order.* section between plot family and math.*", () => {
-        const md = renderReference(
-            [],
-            [],
-            [PLOT_FIXTURE],
-            ORDER_FIXTURE,
-            MATH_FIXTURE,
-            STR_FIXTURE,
-        );
+        const md = renderReference([], [], [PLOT_FIXTURE], ORDER_FIXTURE, NAMESPACE_FIXTURES);
         expect(md).toContain("## order.*");
         // Per MEMBER (the ta.*/draw.* shape), not one consolidated block like
         // math.*/str.* — `order` has four doc pages, one per member.
@@ -176,18 +194,30 @@ describe("renderReference", () => {
         expect(md.indexOf("## order.*")).toBeLessThan(md.indexOf("## math.*"));
     });
 
-    it("renders consolidated ## math.* / ## str.* namespace blocks", () => {
-        const md = renderReference([], [], [], ORDER_FIXTURE, MATH_FIXTURE, STR_FIXTURE);
-        expect(md).toContain("## math.*");
-        expect(md).toContain(MATH_FIXTURE.signature);
-        expect(md).toContain(`**Example:** \`${MATH_FIXTURE.example}\``);
-        expect(md).toContain("## str.*");
-        expect(md).toContain(STR_FIXTURE.signature);
-        expect(md).toContain(`**Example:** \`${STR_FIXTURE.example}\``);
+    it("renders one consolidated block per namespace, in the order given", () => {
+        const md = renderReference([], [], [], ORDER_FIXTURE, NAMESPACE_FIXTURES);
+        for (const doc of NAMESPACE_FIXTURES) {
+            expect(md).toContain(`## ${doc.entry.title}.*`);
+            expect(md).toContain(doc.signature);
+            expect(md).toContain(`**Example:** \`${doc.example}\``);
+        }
         expect(md).toContain("**Since:** 1.4 · stable");
-        // math.* renders after the plot family, str.* after math.*.
+        // The consolidated blocks render after the plot family, and the
+        // caller's array order is the render order verbatim.
         expect(md.indexOf("## plot family")).toBeLessThan(md.indexOf("## math.*"));
-        expect(md.indexOf("## math.*")).toBeLessThan(md.indexOf("## str.*"));
+        const positions = NAMESPACE_FIXTURES.map((doc) => md.indexOf(`## ${doc.entry.title}.*`));
+        expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    });
+
+    it("renders the array.* and barstate.* namespaces the generator added last", () => {
+        // Both were absent for months because `collectNamespace` was typed
+        // `"math" | "str"`; `barstate` had zero coverage anywhere in the skill.
+        const md = renderReference([], [], [], ORDER_FIXTURE, NAMESPACE_FIXTURES);
+        expect(md).toContain("## array.*");
+        expect(md).toContain("## barstate.*");
+        expect(md).toContain("**Since:** 0.4 · stable");
+        expect(md.indexOf("## str.*")).toBeLessThan(md.indexOf("## array.*"));
+        expect(md.indexOf("## array.*")).toBeLessThan(md.indexOf("## barstate.*"));
     });
 });
 

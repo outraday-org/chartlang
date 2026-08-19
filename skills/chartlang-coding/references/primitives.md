@@ -4,7 +4,7 @@
 
 Generated from source JSDoc. Authoritative — do not hand-edit. Run
 `pnpm skills:generate` after changing a `ta.*` / `draw.*` / plot-family /
-`order.*` / `math.*` / `str.*` primitive.
+`order.*` / `math.*` / `str.*` / `array.*` / `barstate.*` primitive.
 
 The chartlang compiler injects a leading `slotId: string` argument at
 every callsite, so script authors call `ta.<id>(...)` / `draw.<id>(...)`
@@ -3451,3 +3451,43 @@ str = Object.freeze({
 **Example:** `const label = str.format("{0}={1,number,#.##}", str.upper("eth"), 12.349);
     void label; // "ETH=12.35"`
 **Since:** 1.4 · stable
+
+## array.*
+
+```ts
+array = Object.freeze({
+    sum: (a: MutableArraySlot<number>): number => a.sum(),
+    avg: (a: MutableArraySlot<number>): number => a.avg(),
+    min: (a: MutableArraySlot<number>): number => a.min(),
+    max: (a: MutableArraySlot<number>): number => a.max(),
+    range: (a: MutableArraySlot<number>): number => a.range(),
+    variance: (a: MutableArraySlot<number>, biased?: boolean): number => a.variance(biased),
+    stdev: (a: MutableArraySlot<number>, biased?: boolean): number => a.stdev(biased),
+    median: (a: MutableArraySlot<number>): number => a.median(),
+    percentile: (a: MutableArraySlot<number>, p: number): number => a.percentile(p),
+    indexOf: (a: MutableArraySlot<number>, v: number): number => a.indexOf(v),
+    includes: (a: MutableArraySlot<number>, v: number): boolean => a.includes(v),
+    sort: (a: MutableArraySlot<number>, order?: "asc" | "desc"): ReadonlyArray<number> => a.sort(order),
+})
+```
+
+**Example:** `const m = array.avg(win);
+    void m;`
+**Since:** 1.4 · stable
+
+## barstate.*
+
+```ts
+barstate: BarStateView = Object.freeze({
+    isfirst: false,
+    islast: false,
+    isnew: false,
+    ishistory: false,
+    isrealtime: false,
+    isconfirmed: false,
+})
+```
+
+**Example:** `import { barstate } from "@invinite-org/chartlang-core";
+    void barstate;`
+**Since:** 0.4 · stable

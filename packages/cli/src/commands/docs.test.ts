@@ -113,6 +113,8 @@ const MINIMAL_PHASE4_MATH = `/** Chart-aware scalar math. @since 1.2 @stable @ex
 export const math = Object.freeze({});`;
 const MINIMAL_PHASE4_STR = `/** String namespace. @since 1.4 @stable @example void str; */
 export const str = Object.freeze({});`;
+const MINIMAL_PHASE4_ARRAY = `/** Array reductions namespace. @since 1.4 @stable @example void array; */
+export const array = Object.freeze({});`;
 const MINIMAL_PHASE4_TIME = `/** Calendar accessors. @since 1.5 @stable @example void time; */
 export const time = Object.freeze({});`;
 const MINIMAL_PHASE4_SESSION = `/** Session helpers. @since 1.5 @stable @example void session; */
@@ -177,6 +179,7 @@ const PHASE4_CORE_FIXTURES: Readonly<Record<string, string>> = {
     "packages/core/src/time-accessors/sessionAccessors.ts": MINIMAL_PHASE4_SESSION,
     "packages/core/src/math/index.ts": MINIMAL_PHASE4_MATH,
     "packages/core/src/str/index.ts": MINIMAL_PHASE4_STR,
+    "packages/core/src/array/index.ts": MINIMAL_PHASE4_ARRAY,
     "packages/core/src/define/overrides.ts": MINIMAL_PHASE4_OVERRIDES,
     "packages/core/src/plot/plot.ts": MINIMAL_PHASE4_PLOT,
     "packages/core/src/alert/alert.ts": MINIMAL_PHASE4_ALERT,

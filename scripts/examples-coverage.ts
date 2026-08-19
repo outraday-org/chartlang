@@ -42,8 +42,8 @@ export function mapPageToId(relPath: string): string {
     const noExt = relPath.replace(/\.md$/, "");
     const parts = noExt.split("/");
     if (parts.length === 1) {
-        // Top-level single-page namespace: `math`, `str`, `session`,
-        // `time`, `barstate`, `syminfo`, `timeframe`.
+        // Top-level single-page namespace: `math`, `str`, `array`,
+        // `session`, `time`, `barstate`, `syminfo`, `timeframe`.
         return parts[0] ?? "";
     }
     if (parts.length > 2) {
