@@ -162,6 +162,13 @@ export const PHASE4_DOC_ENTRIES: ReadonlyArray<Phase4DocEntry> = Object.freeze([
         seeAlso: "`str.*` namespace — [Strings](/language/strings)",
     }),
     Object.freeze({
+        title: "array",
+        sourceRelPath: `${CORE}/array/index.ts`,
+        symbolPath: ["array"],
+        outRelPath: "docs/primitives/array.md",
+        seeAlso: "`array.*` namespace — [Series and indexing](/language/series-and-indexing)",
+    }),
+    Object.freeze({
         title: "time",
         sourceRelPath: `${CORE}/time-accessors/timeAccessors.ts`,
         symbolPath: ["time"],

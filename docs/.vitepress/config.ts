@@ -199,6 +199,7 @@ export default defineConfig({
                         { text: "Draw", link: "/primitives/draw/" },
                         { text: "Math", link: "/primitives/math" },
                         { text: "Strings", link: "/primitives/str" },
+                        { text: "Arrays", link: "/primitives/array" },
                         { text: "Bar state", link: "/primitives/barstate" },
                         { text: "Symbol info", link: "/primitives/syminfo" },
                         { text: "Timeframe", link: "/primitives/timeframe" },
