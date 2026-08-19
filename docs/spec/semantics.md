@@ -579,6 +579,7 @@ Required fallback behavior:
 | Drawing budget | Drop overflow creates and diagnose `drawing-budget-exceeded`. |
 | Alert channels | Drop the alert and diagnose `unsupported-alert-channel`. |
 | Alert conditions | Drop signals and diagnose `alert-conditions-not-supported`. |
+| Input kind | Resolve the input to its manifest default, ignore any host override for that key, and diagnose `unsupported-input-kind`. `external-series` is exempt. |
 | Multi-timeframe requests | Return all-`NaN` security bars or empty lower-timeframe buckets and diagnose `multi-timeframe-not-supported`, `unsupported-interval`, or `unknown-secondary-stream`. |
 | Runtime logs | If `Capabilities.logs` is false, drop the log without rendering. |
 

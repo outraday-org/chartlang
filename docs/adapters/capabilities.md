@@ -49,7 +49,7 @@ authority on the roster.
 | `alertConditions` | `boolean` | `signal(id, fired)` from `defineAlertCondition`. `false` drops with `alert-conditions-not-supported`. |
 | `logs` | `boolean` | `runtime.log.*`. `false` is a silent no-op (no diagnostic — logs are debug output). |
 | `orders` | `boolean` | `order.buy` / `order.sell` / `order.close`. `false` drops the order **and** its auto-markers and emits `unsupported-orders` once per slot per mount. `order.position()` is unaffected — it is a pure read. |
-| `inputs` | `ReadonlySet<InputKind>` | Which input kinds the adapter can render in a settings UI. Out-of-set inputs use the manifest default; no editor renders for them. |
+| `inputs` | `ReadonlySet<InputKind>` | Which input kinds the adapter can render in a settings UI. An out-of-set input resolves to its manifest default, any host override for that key is ignored, and the runtime emits `unsupported-input-kind` once per input key per mount. `external-series` is exempt — that feed arrives through the host callback, not this set. |
 | `intervals` | `ReadonlyArray<IntervalDescriptor>` | Which timeframes `candles({ interval })` can deliver. `request.security`/`request.lowerTf` must name an entry here. |
 | `multiTimeframe` | `boolean` | Whether the adapter can deliver more than one candle stream per script. `false` triggers an all-NaN fallback for `request.security` and an empty bucket for `request.lowerTf` with `multi-timeframe-not-supported`. |
 | `multiSymbol` | `boolean` | Whether the adapter can deliver candle streams for a **different symbol** than the chart's own. Strictly larger than `multiTimeframe`, and gated independently of it: `false` triggers the all-NaN fallback for any `request.security({ symbol })` whose symbol differs from the chart symbol, with `multi-symbol-not-supported`. |
@@ -76,7 +76,13 @@ Two rules every adapter author must internalise:
    Declining (`orders: false`) is a supported posture: the runtime drops
    the order, skips its markers, and diagnoses `unsupported-orders` once
    per slot per mount. A headless evaluator that only needs alerts
-   declines exactly as it already declines drawings.
+   declines exactly as it already declines drawings. `inputs` reads the
+   same way: list a kind only once the adapter can actually put a
+   control for it in front of a user. An adapter that renders no
+   settings UI at all declares the empty set honestly — every scalar
+   input then runs on its manifest default and diagnoses
+   `unsupported-input-kind` once per key per mount, which is the signal,
+   not a failure. All six bundled example adapters do exactly that.
 2. **The runtime, not the adapter, drops unsupported work.** A script
    that calls a primitive outside the adapter's capability set never
    reaches `onEmissions` with a payload the adapter cannot render. The

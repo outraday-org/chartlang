@@ -109,6 +109,7 @@ function makeContext(multiTimeframe = true, multiSymbol = true): RuntimeContext 
         diagnosedTzKeys: new Set(),
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
 }

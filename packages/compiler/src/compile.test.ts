@@ -620,6 +620,78 @@ export default defineIndicator({
         }
     });
 
+    it("throws CompileError for unsupported-input-kind when declaredInputKinds are supplied", async () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "undeclared input kind",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`;
+        try {
+            await compile(source, {
+                apiVersion: 1,
+                sourcePath: "gated.chart.ts",
+                declaredInputKinds: ["int", "float"],
+            });
+            expect.unreachable("compile should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CompileError);
+            const compileError = err as CompileError;
+            expect(compileError.diagnostics[0]?.code).toBe("unsupported-input-kind");
+            expect(compileError.message).toContain("unsupported-input-kind");
+        }
+    });
+
+    // The false-positive proof: a VALID script must not be broken by the gate.
+    // Every kind it declares is in the roster, and `external-series` is exempt
+    // even though it is absent from the roster.
+    it("compiles a script whose input kinds are all declared, plus an exempt externalSeries", async () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+const schema = { kind: "external-series-schema" } as const;
+export default defineIndicator({
+    name: "declared inputs",
+    apiVersion: 1,
+    inputs: {
+        len: input.int(14),
+        sess: input.session("0930-1600"),
+        ext: input.externalSeries({ name: "earnings", schema }),
+    },
+    compute: () => {},
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "declared.chart.ts",
+            declaredInputKinds: ["int", "session"],
+        });
+        expect(Object.keys(result.manifest.inputs).sort()).toEqual(["ext", "len", "sess"]);
+    });
+
+    // The additivity proof at the public entry point: the same script that
+    // throws above compiles clean when the caller does not opt in.
+    it("compiles an undeclared input kind clean when declaredInputKinds is omitted", async () => {
+        const result = await compile(
+            `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "ungated",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`,
+            { apiVersion: 1, sourcePath: "ungated.chart.ts" },
+        );
+        expect(result.manifest.inputs.sess).toEqual({
+            kind: "session",
+            defaultValue: "0930-1600",
+        });
+    });
+
     it("throws CompileError for non-literal input defaults", async () => {
         const source = `
 import { defineIndicator, input } from "@invinite-org/chartlang-core";

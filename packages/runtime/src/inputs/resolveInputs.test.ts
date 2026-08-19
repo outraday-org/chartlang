@@ -2,7 +2,12 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
-import { input, type ScriptManifest, type Series } from "@invinite-org/chartlang-core";
+import {
+    input,
+    type InputKind,
+    type ScriptManifest,
+    type Series,
+} from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import type { RuntimeContext } from "../runtimeContext.js";
@@ -32,7 +37,28 @@ function manifest(inputs: ScriptManifest["inputs"]): ScriptManifest {
     };
 }
 
-function context(): RuntimeContext {
+// Every scalar `InputKind` — the DECLARED set a fixture uses unless a test is
+// specifically exercising the `unsupported-input-kind` gate. `external-series`
+// is deliberately absent: it is exempt from the gate, so leaving it out of the
+// default set is itself part of the proof.
+const ALL_SCALAR_INPUT_KINDS: ReadonlyArray<InputKind> = [
+    "int",
+    "float",
+    "bool",
+    "string",
+    "enum",
+    "color",
+    "source",
+    "time",
+    "price",
+    "symbol",
+    "interval",
+    "session",
+];
+
+function context(
+    declaredInputKinds: ReadonlyArray<InputKind> = ALL_SCALAR_INPUT_KINDS,
+): RuntimeContext {
     const stream = createStreamState({ interval: "", capacity: 1, symbol: "" });
     const stateStore = inMemoryStateStore();
     return {
@@ -44,7 +70,7 @@ function context(): RuntimeContext {
             alerts: new Set(),
             alertConditions: false,
             logs: false,
-            inputs: new Set(),
+            inputs: new Set(declaredInputKinds),
             intervals: [],
             multiTimeframe: false,
             subPanes: 0,
@@ -89,6 +115,7 @@ function context(): RuntimeContext {
         scriptPane: "script:demo",
         plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
 }
@@ -332,6 +359,120 @@ describe("resolveInputs", () => {
 
         expect(ctx.emissions.diagnostics).toHaveLength(1);
         expect(ctx.diagnosedInputKeys.has("length")).toBe(true);
+    });
+
+    it("gates an undeclared input kind to its default, once across many resolves", () => {
+        const ctx = context(["int"]);
+        const m = manifest({ window: input.session("0930-1600") });
+
+        // One resolve per "bar" — the gate must not re-emit per call.
+        const resolved = resolveInputs(m, {}, ctx);
+        resolveInputs(m, {}, ctx);
+        resolveInputs(m, {}, ctx);
+
+        expect(resolved.window).toBe("0930-1600");
+        expect(ctx.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unsupported-input-kind",
+                message: 'Adapter does not support "session" inputs; "window" uses its default.',
+                slotId: "window",
+                bar: null,
+            },
+        ]);
+        expect(ctx.diagnosedUnsupportedInputKeys.has("window")).toBe(true);
+        // The gate keys on its OWN set, never the coercion set.
+        expect(ctx.diagnosedInputKeys.size).toBe(0);
+    });
+
+    it("leaves a declared input kind unchanged", () => {
+        const ctx = context(["int", "session"]);
+        const resolved = resolveInputs(
+            manifest({ window: input.session("0930-1600"), length: input.int(14) }),
+            { window: "0800-1700" },
+            ctx,
+        );
+
+        expect(resolved).toEqual({ window: "0800-1700", length: 14 });
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("never gates external-series, even when the declared set omits it", () => {
+        // The default fixture set is the 12 SCALAR kinds — `external-series` is
+        // absent from it on purpose.
+        const ctx = context();
+        ctx.externalSeriesSlots = createExternalSeriesSlots(
+            [{ inputKey: "value", feedName: "earnings" }],
+            1,
+        );
+        const resolved = resolveInputs(
+            manifest({
+                value: input.externalSeries({
+                    name: "earnings",
+                    schema: { kind: "external-series-schema" },
+                }),
+            }),
+            {},
+            ctx,
+        );
+
+        expect(resolved.value).toBe(ctx.externalSeriesSlots.get("value")?.view);
+        expect(ctx.emissions.diagnostics).toEqual([]);
+    });
+
+    it("ignores an override on an undeclared kind and emits only unsupported-input-kind", () => {
+        // A shared dedup set would be invisible here without the bad override:
+        // this asserts the coercion diagnostic is NOT emitted *and* not merely
+        // suppressed — `diagnosedInputKeys` stays empty, so a later legitimate
+        // coercion on another key could still report.
+        const ctx = context(["int"]);
+        const resolved = resolveInputs(
+            manifest({ window: input.session("0930-1600") }),
+            { window: 930 },
+            ctx,
+        );
+
+        expect(resolved.window).toBe("0930-1600");
+        expect(ctx.emissions.diagnostics).toHaveLength(1);
+        expect(ctx.emissions.diagnostics[0]?.code).toBe("unsupported-input-kind");
+        expect(ctx.diagnosedInputKeys.size).toBe(0);
+    });
+
+    it("gates every scalar key once under an empty declared set", () => {
+        const ctx = context([]);
+        const m = manifest({
+            length: input.int(14),
+            flag: input.bool(true),
+            feed: input.externalSeries({
+                name: "earnings",
+                schema: { kind: "external-series-schema" },
+            }),
+        });
+
+        resolveInputs(m, {}, ctx);
+        const resolved = resolveInputs(m, {}, ctx);
+
+        expect(resolved.length).toBe(14);
+        expect(resolved.flag).toBe(true);
+        // Two scalar keys, one diagnostic each; `external-series` is exempt.
+        expect(ctx.emissions.diagnostics.map((d) => d.slotId)).toEqual(["length", "flag"]);
+        expect(ctx.emissions.diagnostics.every((d) => d.code === "unsupported-input-kind")).toBe(
+            true,
+        );
+    });
+
+    it("gates exactly the complement of a partial declared set", () => {
+        const ctx = context(["int"]);
+        const resolved = resolveInputs(
+            manifest({ length: input.int(14), flag: input.bool(true) }),
+            { length: 20, flag: false },
+            ctx,
+        );
+
+        // Declared kind keeps its override; the undeclared one falls back.
+        expect(resolved).toEqual({ length: 20, flag: true });
+        expect(ctx.emissions.diagnostics.map((d) => d.slotId)).toEqual(["flag"]);
     });
 
     it("ignores presentation metadata when resolving values", () => {

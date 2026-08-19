@@ -329,6 +329,75 @@ export default defineIndicator({
         );
     });
 
+    it("emits unsupported-input-kind only when declaredInputKinds are supplied", () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`;
+        const withKinds = transformAndAnalyse(source, {
+            sourcePath: "demo.chart.ts",
+            declaredInputKinds: ["int", "float"],
+        });
+        expect(withKinds.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+            "unsupported-input-kind",
+        );
+
+        const withoutKinds = transformAndAnalyse(source, { sourcePath: "demo.chart.ts" });
+        expect(withoutKinds.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
+            "unsupported-input-kind",
+        );
+    });
+
+    it("leaves a script whose input kinds are all declared clean", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { len: input.int(14), sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`,
+            { sourcePath: "demo.chart.ts", declaredInputKinds: ["int", "session"] },
+        );
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    // Regression guard: the roster is threaded to the file-level `extractInputs`
+    // walk only. Threading it into `buildDrawnManifest` too would report every
+    // input of a multi-export file twice.
+    it("reports each offending callsite exactly once in a multi-export file", () => {
+        const result = transformAndAnalyse(
+            `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+
+export const sibling = defineIndicator({
+    name: "Sibling",
+    apiVersion: 1,
+    inputs: { siblingSess: input.session("0930-1600") },
+    compute: () => {},
+});
+
+export default defineIndicator({
+    name: "Default",
+    apiVersion: 1,
+    inputs: { defaultSess: input.session("0930-1600") },
+    compute: () => {},
+});
+`,
+            { sourcePath: "multi.chart.ts", declaredInputKinds: [] },
+        );
+        const gated = result.diagnostics.filter((d) => d.code === "unsupported-input-kind");
+        expect(gated).toHaveLength(2);
+        expect(new Set(gated.map((d) => `${d.line}:${d.column}`)).size).toBe(2);
+    });
+
     it("surfaces TypeScript semantic errors as `type-error` diagnostics with file/line/column", () => {
         // PLAN §5.2 step 1: tsc programmatic-API typechecking against
         // @invinite-org/chartlang-core ambient declarations must abort

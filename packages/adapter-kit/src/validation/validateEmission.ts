@@ -146,6 +146,7 @@ const DIAGNOSTIC_CODE_PRESENCE: Readonly<Record<DiagnosticCode, true>> = {
     "unsupported-pane": true,
     "unsupported-interval": true,
     "unsupported-orders": true,
+    "unsupported-input-kind": true,
     "multi-timeframe-not-supported": true,
     "multi-symbol-not-supported": true,
     "unknown-secondary-stream": true,

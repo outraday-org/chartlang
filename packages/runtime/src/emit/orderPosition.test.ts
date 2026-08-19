@@ -117,6 +117,7 @@ function makeCtx(opts: { bar?: Bar; plots?: ReadonlySet<string>; barIndex?: numb
         scriptPane: "script:demo",
         plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: { barstate: undefined, syminfo: undefined, timeframe: undefined },
     } as unknown as RuntimeContext;
     return { ctx, emissions };

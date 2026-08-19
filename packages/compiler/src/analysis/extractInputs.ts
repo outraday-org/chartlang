@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { InputKind } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
@@ -88,6 +89,13 @@ export type ExtractInputsResult = Readonly<{
  * (typically one binding's `defineCall`) so multi-export files derive
  * per-binding inputs. Defaults to the whole `sourceFile`.
  *
+ * The optional `declaredInputKinds` is the host's `Capabilities.inputs` roster.
+ * When supplied, every declared builder whose wire kind is absent from it emits
+ * `unsupported-input-kind`; when omitted the check is skipped entirely, so
+ * existing callers are unaffected. `external-series` is exempt at both rungs —
+ * that feed support is host-callback-supplied, not part of the capability
+ * subset.
+ *
  * @since 0.4
  * @example
  *     // const r = extractInputs(sourceFile, checker, "demo.chart.ts");
@@ -100,9 +108,13 @@ export function extractInputs(
     checker: ts.TypeChecker,
     sourcePath: string = sourceFile.fileName,
     scope: ts.Node = sourceFile,
+    declaredInputKinds?: ReadonlyArray<InputKind>,
 ): ExtractInputsResult {
     const inputs: Record<string, ExtractedDescriptor> = {};
     const diagnostics: CompileDiagnostic[] = [];
+    // Absent roster ⇒ the capability check is skipped entirely (additive).
+    const declaredKinds =
+        declaredInputKinds === undefined ? null : new Set<string>(declaredInputKinds);
     let userPickableInterval = false;
     let intervalCount = 0;
 
@@ -135,6 +147,28 @@ export function extractInputs(
                     }
 
                     const wireKind = KIND_TO_WIRE[kind] as string;
+                    // Compare the WIRE kind, never the callsite builder name:
+                    // `input.externalSeries` only becomes `"external-series"`
+                    // after KIND_TO_WIRE, and a check written against the
+                    // builder spelling would never match the exempt kind — it
+                    // would fail open silently.
+                    if (
+                        declaredKinds !== null &&
+                        wireKind !== "external-series" &&
+                        !declaredKinds.has(wireKind)
+                    ) {
+                        diagnostics.push(
+                            createDiagnostic({
+                                severity: "error",
+                                code: "unsupported-input-kind",
+                                message: `input.${kind}() declares an input of kind "${wireKind}", which this host's adapter does not support (declared: ${formatDeclaredKinds(declaredKinds)})`,
+                                file: sourcePath,
+                                node: initializer.expression,
+                                sourceFile,
+                            }),
+                        );
+                    }
+
                     if (wireKind === "interval") {
                         intervalCount += 1;
                         userPickableInterval = true;
@@ -179,6 +213,12 @@ type SerialiseContext = Readonly<{
     sourcePath: string;
     diagnostics: CompileDiagnostic[];
 }>;
+
+/** Render the declared roster for the diagnostic message, sorted for stability. */
+function formatDeclaredKinds(declaredKinds: ReadonlySet<string>): string {
+    if (declaredKinds.size === 0) return "none";
+    return Array.from(declaredKinds).sort().join(", ");
+}
 
 function isDefineCall(node: ts.CallExpression, checker: ts.TypeChecker): boolean {
     const calleeName = resolveCalleeName(node, checker);

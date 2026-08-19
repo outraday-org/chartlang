@@ -110,6 +110,7 @@ function makeContext(multiTimeframe = true, multiSymbol = false): RuntimeContext
         scriptPane: "script:htf",
         plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
     return ctx;

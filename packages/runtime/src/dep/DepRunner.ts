@@ -229,6 +229,7 @@ function buildSubRunnerState(
             // dep-output plots are not host-overridable.
             plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
+            diagnosedUnsupportedInputKeys: new Set(),
             views: createRuntimeViews(),
             slotIdPrefix,
             isDep,

@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, relative, resolve as resolvePath } from "nod
 import { STATEFUL_PRIMITIVES_BY_NAME } from "@invinite-org/chartlang-core";
 import type {
     DependencyDeclaration,
+    InputKind,
     IntervalDescriptor,
     OutputDeclaration,
     PlotSlotDescriptor,
@@ -57,6 +58,8 @@ import { emitTypes } from "./typesEmit.js";
  * does not read any other file. `declaredIntervals` is the host-supplied
  * `Capabilities.intervals` set used by the `lower-tf-not-lower` validation —
  * when omitted the lower-timeframe ordering check is skipped.
+ * `declaredInputKinds` is its `Capabilities.inputs` counterpart, used by the
+ * `unsupported-input-kind` validation — when omitted that check is skipped too.
  *
  * `resolveProducer` is the sync §22.10 indicator-composition snapshot
  * lookup; `compile` builds this from the pre-resolved cross-file
@@ -71,6 +74,24 @@ import { emitTypes } from "./typesEmit.js";
 export type TransformAndAnalyseOptions = Readonly<{
     sourcePath: string;
     declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * The host adapter's `Capabilities.inputs` roster. When supplied, every
+     * `input.<kind>(...)` declaration whose kind is absent from it emits an
+     * error-severity `unsupported-input-kind` diagnostic; `external-series` is
+     * always exempt (that feed support is host-callback-supplied, not part of
+     * the capability subset). Absent ⇒ the check is skipped entirely.
+     *
+     * The compiler cannot know which adapter will run the artifact — this
+     * option is the CALLER's assertion about the execution environment, exactly
+     * as `declaredIntervals` is. A host whose compiled artifact may run against
+     * more than one adapter (e.g. a cached script served to both a frontend
+     * adapter and a headless evaluator) must pass the INTERSECTION of those
+     * adapters' `Capabilities.inputs`, or it will reject scripts that are valid
+     * on the adapter that actually runs them.
+     *
+     * @since 1.14
+     */
+    declaredInputKinds?: ReadonlyArray<InputKind>;
     /**
      * `./X.chart` import specifiers whose source is supplied in-memory (not
      * on disk). Each is served to the typecheck program as a virtual
@@ -158,7 +179,19 @@ export function transformAndAnalyse(
     });
 
     const structural = runStructuralChecks(sourceFile, checker, sourcePath);
-    const fileInputs = extractInputs(sourceFile, checker, sourcePath);
+    // `declaredInputKinds` is threaded HERE and nowhere else. This file-level
+    // walk (default `scope = sourceFile`) visits every `define*` call in the
+    // file, so multi-export files are covered exactly once; the per-binding
+    // `extractInputs` call inside `buildDrawnManifest` exists only to derive
+    // that binding's manifest and its diagnostics are deliberately discarded.
+    // Passing the roster there too would double-report every input.
+    const fileInputs = extractInputs(
+        sourceFile,
+        checker,
+        sourcePath,
+        sourceFile,
+        opts.declaredInputKinds,
+    );
     const fileInputLoopBounds = inputLoopBoundsFromDescriptors(fileInputs.inputs);
     const forbidden = runForbiddenConstructs(sourceFile, sourcePath, fileInputLoopBounds);
     const statefulInLoop = runStatefulCallInLoop(
@@ -522,7 +555,9 @@ function readDefineCallName(defineCall: ts.CallExpression): string {
  * bundler's flags. `declaredIntervals` is the adapter's
  * `Capabilities.intervals` set — when supplied, `request.lowerTf` literals
  * are validated against the smallest declared main interval
- * (`lower-tf-not-lower`).
+ * (`lower-tf-not-lower`). `declaredInputKinds` is the adapter's
+ * `Capabilities.inputs` set — when supplied, `input.<kind>(...)` declarations
+ * outside it are rejected (`unsupported-input-kind`).
  *
  * @since 0.1
  * @example
@@ -536,6 +571,16 @@ export type CompileOptions = Readonly<{
     minify?: boolean;
     target?: "es2022";
     declaredIntervals?: ReadonlyArray<IntervalDescriptor>;
+    /**
+     * The host adapter's `Capabilities.inputs` roster, forwarded to the
+     * `unsupported-input-kind` validation. Absent ⇒ the check is skipped, so
+     * this option is purely additive. See
+     * {@link TransformAndAnalyseOptions.declaredInputKinds} for the caller's
+     * obligation when one artifact can run against more than one adapter.
+     *
+     * @since 1.14
+     */
+    declaredInputKinds?: ReadonlyArray<InputKind>;
     /**
      * Cross-file `.chart.ts` resolver. When undefined, `compile` builds
      * a default per-call resolver rooted at the file's directory.
@@ -698,6 +743,9 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
         ...(opts.declaredIntervals === undefined
             ? {}
             : { declaredIntervals: opts.declaredIntervals }),
+        ...(opts.declaredInputKinds === undefined
+            ? {}
+            : { declaredInputKinds: opts.declaredInputKinds }),
         ...(inMemoryChartImports.length === 0 ? {} : { inMemoryChartImports }),
         resolveProducer: (modSpec, expName) => {
             const compiled = resolvedBySpecifier.get(modSpec);
@@ -1070,6 +1118,7 @@ function stripWriteFlag(opts: CompileFileOptions): CompileOptions {
         minify,
         target,
         declaredIntervals,
+        declaredInputKinds,
         resolveProducer,
         rootDir,
     } = opts;
@@ -1079,6 +1128,7 @@ function stripWriteFlag(opts: CompileFileOptions): CompileOptions {
     if (minify !== undefined) out.minify = minify;
     if (target !== undefined) out.target = target;
     if (declaredIntervals !== undefined) out.declaredIntervals = declaredIntervals;
+    if (declaredInputKinds !== undefined) out.declaredInputKinds = declaredInputKinds;
     if (resolveProducer !== undefined) out.resolveProducer = resolveProducer;
     if (rootDir !== undefined) out.rootDir = rootDir;
     return out;

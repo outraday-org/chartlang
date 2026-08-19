@@ -19,7 +19,14 @@ import type ts from "typescript";
  * `state.array` feature adds `state-array-capacity-not-literal` and
  * `state-array-capacity-exceeds-max` for the capacity-literal guard. The
  * multi-symbol feature adds `request-security-symbol-not-literal` for a
- * non-literal `request.security({ symbol })` opt.
+ * non-literal `request.security({ symbol })` opt. The inputs-capability gate
+ * adds `unsupported-input-kind`.
+ *
+ * The two input-kind codes are NOT interchangeable: `unknown-input-kind` means
+ * the callee is not an `input.*` builder at all (a typo — always wrong, no
+ * caller opt needed), while `unsupported-input-kind` means a real builder whose
+ * kind the host's adapter did not declare in `declaredInputKinds` (wrong only
+ * against that host, and only reported when the host supplies the roster).
  *
  * @since 0.1
  * @example
@@ -56,7 +63,8 @@ export type CompileDiagnosticCode =
     | "request-security-expr-captures-local"
     | "state-array-capacity-not-literal"
     | "state-array-capacity-exceeds-max"
-    | "request-security-symbol-not-literal";
+    | "request-security-symbol-not-literal"
+    | "unsupported-input-kind";
 
 /**
  * Single diagnostic the compiler emits while transforming or analysing a

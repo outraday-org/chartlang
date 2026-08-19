@@ -82,6 +82,7 @@ export function dispose(state: RunnerState): void {
     state.runtimeContext.diagnosedTzKeys.clear();
     state.runtimeContext.diagnosedOrderSlots.clear();
     state.runtimeContext.diagnosedInputKeys.clear();
+    state.runtimeContext.diagnosedUnsupportedInputKeys.clear();
     const counters = state.runtimeContext.drawingBucketCounters;
     counters.lines = 0;
     counters.labels = 0;

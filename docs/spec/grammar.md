@@ -152,6 +152,7 @@ set.
 | `api-version-mismatch` | The `define*` object is missing `apiVersion: 1`, uses another value, or is not an object literal. |
 | `input-default-not-literal` | An `input.*` default or descriptor option that must be serialised into the manifest is not literal. |
 | `unknown-input-kind` | The script uses an `input.*` builder that is not part of chartlang v1. |
+| `unsupported-input-kind` | The script declares a real `input.*` builder whose kind is absent from the target adapter's declared input roster. Emitted only when the caller supplies that roster; `input.externalSeries` is exempt. |
 | `multiple-input-interval` | More than one `input.interval(...)` appears in the script's input schema. |
 | `requires-intervals-not-literal` | `requiresIntervals` is not an array literal of string literals. |
 | `alert-condition-not-literal` | `defineAlertCondition({ conditions })` is missing or not an object literal. |
@@ -194,10 +195,10 @@ diagnostics when the registry marks them as language-level stateful calls.
 The input pass serialises the literal `inputs` object from the default
 `define*` call into the manifest. It recognises `input.int`, `input.float`,
 `input.bool`, `input.string`, `input.enum`, `input.color`, `input.source`,
-`input.time`, `input.price`, `input.symbol`, `input.interval`, and
-`input.externalSeries`. Defaults and descriptor options that become manifest
-data MUST be literal. Only one `input.interval` is allowed; its presence sets
-the manifest's user-pickable interval flag.
+`input.time`, `input.price`, `input.symbol`, `input.interval`,
+`input.session`, and `input.externalSeries`. Defaults and descriptor options
+that become manifest data MUST be literal. Only one `input.interval` is
+allowed; its presence sets the manifest's user-pickable interval flag.
 
 ### Requested Intervals
 
@@ -243,6 +244,26 @@ lower-timeframe pass validates literal `request.lowerTf` intervals against
 the smallest parseable main interval. The requested interval MUST be strictly
 lower. Interval comparisons use declared second counts when present and
 standard chart interval parsing otherwise.
+
+### Input-Kind Validation
+
+When the compiler is given the target adapter's declared input roster — its
+`Capabilities.inputs` set — the input pass additionally rejects every
+`input.<kind>(...)` declaration whose kind is absent from that roster with
+`unsupported-input-kind`. The comparison is against the manifest wire tag, so
+`input.externalSeries` is matched as `external-series` — and it is exempt
+regardless, because external-series feeds are supplied through a host callback
+rather than through this capability subset. When the roster is not supplied the
+pass is skipped entirely.
+
+The roster is the **caller's** assertion about the execution environment, in
+exactly the way the declared main intervals are for the lower-timeframe pass:
+the compiler does not know which adapter will run the artifact. A host whose
+compiled artifact may run against more than one adapter MUST pass the
+intersection of those adapters' declared input sets, or it will reject scripts
+that are valid on the adapter that actually runs them. The runtime enforces the
+same axis unconditionally — see
+[Emissions § Capability Gating](./emissions.md#capability-gating).
 
 ## Callsite Identity
 

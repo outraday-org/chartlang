@@ -966,6 +966,17 @@ export type DrawingEmission = {
  * mount**: one per order per bar would turn a 10k-bar backfill into a denial
  * of service on the diagnostic channel rather than a warning.
  *
+ * `unsupported-input-kind` — a manifest input's `kind` is absent from the
+ * adapter's declared {@link Capabilities.inputs} set. The key resolves to its
+ * descriptor default, any host override for it is ignored (the adapter cannot
+ * render the control, so it cannot be the override's source), and the
+ * diagnostic fires **once per input key per mount** at mount-time input
+ * resolution — hence `bar: null`. `external-series` is exempt: those feeds are
+ * host-callback-supplied and are not part of this capability subset. An EMPTY
+ * `inputs` set therefore gates every scalar key once; a partial set gates
+ * exactly its complement. Neither is an error state — the script still runs,
+ * on its defaults.
+ *
  * @since 0.1
  * @stable
  * @example
@@ -981,6 +992,7 @@ export type DiagnosticCode =
     | "unsupported-pane"
     | "unsupported-interval"
     | "unsupported-orders"
+    | "unsupported-input-kind"
     | "multi-timeframe-not-supported"
     | "multi-symbol-not-supported"
     | "unknown-secondary-stream"

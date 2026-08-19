@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { createScriptRunner } from "../createScriptRunner.js";
 import type { RunnerState } from "../createScriptRunner.js";
+import { resetBarEmissions } from "../execution/runComputeStep.js";
 import { createStreamState } from "../streamState.js";
 import { createDepOutputStore } from "./DepOutputStore.js";
 import { createDepRunner, createSiblingRunner, runDepStep, runSiblingStep } from "./DepRunner.js";
@@ -138,6 +139,70 @@ describe("createDepRunner / createSiblingRunner — shape", () => {
         expect(dep.state.runtimeContext.externalSeriesFeeds).toEqual({
             "dep-feed": { values: [1] },
         });
+    });
+
+    it("gates an undeclared dep input kind on the dep's OWN dedup set", () => {
+        const store = createDepOutputStore({
+            producers: [{ producerId: "x", outputs: [{ title: "line" }] }],
+            capacity: 4,
+        });
+        const compiled = defineIndicator({
+            name: "dep",
+            apiVersion: 1,
+            inputs: { window: input.session("0930-1600") },
+            compute: () => {},
+        });
+        // `makeCapabilities()` declares an EMPTY `inputs` set, so `session` is
+        // undeclared. The gate lives inside `resolveInputs`, which the dep
+        // reaches through `DepRunner.ts`'s own mount-time call — no second
+        // check was added there.
+        const parentCapabilities = makeCapabilities();
+        const makeDep = (): ReturnType<typeof createDepRunner> =>
+            createDepRunner({
+                compiled,
+                localId: "x",
+                parentCapabilities,
+                chartSymbol: "",
+                mainStream: fakeMainStream(),
+                secondaryStreams: new Map(),
+                depOutputStore: store,
+                inputOverrides: { window: "0800-1700" },
+                now: () => 0,
+            });
+
+        const dep = makeDep();
+        const other = makeDep();
+
+        // Gated ⇒ the override is ignored and the descriptor default wins.
+        expect(dep.state.runtimeContext.resolvedInputs).toEqual({ window: "0930-1600" });
+        expect(dep.state.runtimeContext.emissions.diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unsupported-input-kind",
+                message: 'Adapter does not support "session" inputs; "window" uses its default.',
+                slotId: "window",
+                bar: null,
+            },
+        ]);
+
+        // PINNED: a sub-runner builds its OWN `RuntimeContext`
+        // (`DepRunner.ts:buildSubRunnerState`) and therefore its own dedup set — it
+        // does NOT share the parent's. Two runners over the same producer
+        // warn once EACH, and a refactor that started sharing the context
+        // would silently turn N diagnostics into one (or one into N).
+        expect(other.state.runtimeContext.diagnosedUnsupportedInputKeys).not.toBe(
+            dep.state.runtimeContext.diagnosedUnsupportedInputKeys,
+        );
+        expect(other.state.runtimeContext.emissions.diagnostics).toHaveLength(1);
+
+        // Known limitation, asserted so it cannot change unnoticed: input
+        // resolution is MOUNT-time, and `runDepStep` calls `resetBarEmissions`
+        // before every compute — so this diagnostic never reaches the parent's
+        // drain. Pre-existing and shared with `input-coercion-failed`, not
+        // introduced by the gate.
+        resetBarEmissions(dep.state);
+        expect(dep.state.emissions.diagnostics).toEqual([]);
     });
 
     it("createSiblingRunner sets export slot-id prefix and isDep=false", () => {

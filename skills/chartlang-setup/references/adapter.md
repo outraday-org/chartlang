@@ -34,6 +34,13 @@ declare is a **silent runtime no-op** — scripts that emit an unsupported
 plot kind, drawing kind, or alert kind drop the emission and log a
 diagnostic instead of crashing the renderer.
 
+`inputs` gates the same way, on the input side of the mount: a manifest
+input whose kind is not in the set resolves to its declared default, any
+override you pass for that key is ignored, and the runtime emits
+`unsupported-input-kind` once per key per mount. Declare exactly the kinds
+your settings UI can render — `external-series` is exempt, since that feed
+arrives through your candle/feed callback rather than this set.
+
 ```ts
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
@@ -286,9 +293,11 @@ per-adapter renderer.
 
 ## Validate with the conformance harness
 
-`@invinite-org/chartlang-conformance` ships 220 scenarios covering every
-plot kind, drawing kind, alert kind, multi-timeframe flows,
-drawing-budget overflow, and unsupported-capability gating. Each
+`@invinite-org/chartlang-conformance` ships a scenario suite covering
+every plot kind, drawing kind, alert kind, multi-timeframe flows,
+drawing-budget overflow, and unsupported-capability gating (`ALL_SCENARIOS`
+is the roster; the generated `CONFORMANCE.md` reports the count for the
+version you install). Each
 scenario is **gated by capability** — your adapter only runs the
 scenarios matching what you declared, so a minimal "lines and toasts"
 adapter sees a focused subset.

@@ -105,6 +105,7 @@ function freshState(): RunnerState {
             scriptPane: "script:demo",
             plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
+            diagnosedUnsupportedInputKeys: new Set(),
             views: createRuntimeViews({
                 syminfo: makeSymInfoView({ ticker: "DEMO" }, new Set(["ticker"])),
             }),

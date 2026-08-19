@@ -66,6 +66,16 @@ TanStack Start server route deployed as a Netlify Function — it runs
 `compile()` behind `POST /api/compile` and ships the response to the
 browser editor.
 
+If you already know which adapter will run the artifact, add
+`declaredInputKinds` — its `Capabilities.inputs` roster, as kebab-case
+`InputKind` values. A script declaring an input kind that adapter never
+declared then fails the compile with an error-severity
+`unsupported-input-kind` instead of resolving silently to its default at
+run time. Omitting the option skips the check, so it is purely opt-in;
+when one cached artifact is served to several adapters, pass the
+**intersection** of their sets. See
+[grammar § Input-Kind Validation](../spec/grammar.md#input-kind-validation).
+
 ## Host the bundle
 
 The compiled `moduleSource` is a self-contained ESM string with an

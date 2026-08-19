@@ -575,6 +575,7 @@ function buildPrimaryState(
             scriptPane: resolveScriptPane(primary.manifest),
             plotOverrides: Object.freeze({}),
             diagnosedInputKeys: new Set(),
+            diagnosedUnsupportedInputKeys: new Set(),
             views,
         },
         emissions,
@@ -689,7 +690,9 @@ function attachBundle(
  * re-seed mirrors a fresh load and leaves the snapshot untouched).
  *
  * **Rebuilt fresh:** everything else, including secondary streams (they start
- * empty — the host re-pushes secondary history) and `diagnosedInputKeys`.
+ * empty — the host re-pushes secondary history), `diagnosedInputKeys`, and
+ * `diagnosedUnsupportedInputKeys` — so a re-seed re-warns about a gated input
+ * kind exactly once, like a fresh mount.
  *
  * **Dropped:** any undrained emissions queued before the re-seed — their bar
  * indices conflict with the replayed `0..N-1` range, and a host that re-pushes

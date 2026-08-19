@@ -121,6 +121,23 @@
   alongside the body precisely to catch that last form. The
   `securityExpressions` list attaches to the **default manifest only** (mirrors
   `plots` scoping).
+- **`declaredInputKinds` gates input kinds and MUST compare the WIRE kind.**
+  The optional opt (`TransformAndAnalyseOptions` / `CompileOptions`, forwarded by
+  `compile` and copied by `stripWriteFlag` — miss that copy and `compileFile` +
+  `compileProject` are silently ungated) carries the host's
+  `Capabilities.inputs`; `extractInputs` emits one error `unsupported-input-kind`
+  per declaration outside it. **Absent ⇒ skipped entirely** — the option is the
+  CALLER's assertion about the execution environment (the compiler cannot know
+  which adapter runs the artifact; a host serving one artifact to several
+  adapters must pass their INTERSECTION), so it can only ever be opt-in. The
+  comparison runs against `KIND_TO_WIRE[kind]`, never the callsite builder name:
+  `input.externalSeries` is `"external-series"` only *after* that map, and the
+  exemption written against the camelCase spelling matches nothing and fails
+  **open** with no test noticing. The roster is threaded to the file-level
+  `extractInputs` call ONLY — `buildDrawnManifest`'s per-binding call discards
+  its diagnostics, so passing it there adds nothing and risks double-reporting
+  every input of a multi-export file. Distinct from `unknown-input-kind`, which
+  means the callee is not an `input.*` builder at all.
 - **Static-analysis runs on the original AST.** `structuralChecks`,
   `forbiddenConstructs`, and `statefulCallInLoop` operate on the source
   file as parsed; the transformer is a pure rewrite step that never

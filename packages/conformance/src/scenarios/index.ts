@@ -103,6 +103,7 @@ import { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.
 import { EXTERNAL_SERIES_FEED_SCENARIO } from "./externalSeriesFeed.scenario.js";
 import { HISTORY_RESEED_FEED_SCENARIO } from "./historyReseedFeed.scenario.js";
 import { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
+import { INPUTS_GATED_SCENARIO } from "./inputsGated.scenario.js";
 import { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 import { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 import { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
@@ -371,6 +372,7 @@ export { EMPTY_INTERVAL_PASSTHROUGH_SCENARIO } from "./emptyIntervalPassthrough.
 export { EXTERNAL_SERIES_FEED_SCENARIO } from "./externalSeriesFeed.scenario.js";
 export { HISTORY_RESEED_FEED_SCENARIO } from "./historyReseedFeed.scenario.js";
 export { INPUT_INTERVAL_SCENARIO } from "./inputInterval.scenario.js";
+export { INPUTS_GATED_SCENARIO } from "./inputsGated.scenario.js";
 export { LOOP_SMA_SCENARIO } from "./loopSma.scenario.js";
 export { LOWER_TF_CAPABILITY_FALSE_SCENARIO } from "./lowerTfCapabilityFalse.scenario.js";
 export { LOWER_TF_HAPPY_PATH_SCENARIO } from "./lowerTfHappyPath.scenario.js";
@@ -839,6 +841,8 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // Phase 4 Task 16 — editor/runtime tier-1 surfaces.
     BARSTATE_CONFIRMED_SCENARIO,
     INPUT_INTERVAL_SCENARIO,
+    // The `inputs` capability set as a real gate (the axis that had none).
+    INPUTS_GATED_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     // Pine's empty-interval idiom: a chart-symbol `request.security({ interval:
     // "" })` resolves to the MAIN stream (no secondary feed, no capability), so

@@ -75,6 +75,7 @@ export function harness<T>(
         logBudgetExceededDiagnosed: false,
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
     const out: T[] = [];
@@ -190,6 +191,7 @@ export function harnessWithCtx<T>(
         logBudgetExceededDiagnosed: false,
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
     const out: T[] = [];
@@ -270,6 +272,7 @@ export function withPrefilledContext<T>(
         logBudgetExceededDiagnosed: false,
         resolvedInputs: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
 

@@ -20,7 +20,23 @@ function makeCapabilities(maxLookback = 5000): Capabilities {
         alerts: new Set(),
         alertConditions: false,
         logs: false,
-        inputs: new Set(),
+        // Every scalar `InputKind`, so the input-resolution tests below exercise
+        // override coercion rather than the `unsupported-input-kind` capability
+        // gate. The gate has its own bag — see the narrowed one it builds.
+        inputs: new Set([
+            "int",
+            "float",
+            "bool",
+            "string",
+            "enum",
+            "color",
+            "source",
+            "time",
+            "price",
+            "symbol",
+            "interval",
+            "session",
+        ]),
         intervals: [
             { value: "1m", label: "1 minute", group: "minute" },
             { value: "1D", label: "1 day", group: "daily" },
@@ -521,6 +537,51 @@ describe("createScriptRunner", () => {
         ]);
         expect(diagnostics.map((d) => d.slotId)).toEqual(["length", "source"]);
         expect(diagnostics.every((d) => d.code === "input-coercion-failed")).toBe(true);
+    });
+
+    it("gates an input kind the capability bag does not declare", async () => {
+        const seen: ReadonlyArray<unknown>[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                length: input.int(14),
+                window: input.session("0930-1600"),
+            },
+            compute: ({ inputs }) => {
+                seen.push([inputs.length, inputs.window]);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: { ...makeCapabilities(), inputs: new Set(["int"]) },
+            inputOverrides: { length: 20, window: "0800-1700" },
+        });
+        // Input resolution is MOUNT-time, so the diagnostic is queued before
+        // any bar. This drain-before-the-first-push is what makes it
+        // observable: `onBarClose` resets the per-bar queues.
+        const diagnostics = runner.drain().diagnostics;
+
+        await runner.onBarClose(makeBar(0));
+        await runner.onBarClose(makeBar(1));
+
+        // Declared kind keeps its override; the undeclared one is gated back to
+        // its default and its override is dropped.
+        expect(seen).toEqual([
+            [20, "0930-1600"],
+            [20, "0930-1600"],
+        ]);
+        expect(diagnostics).toEqual([
+            {
+                kind: "diagnostic",
+                severity: "warning",
+                code: "unsupported-input-kind",
+                message: 'Adapter does not support "session" inputs; "window" uses its default.',
+                slotId: "window",
+                bar: null,
+            },
+        ]);
+        await runner.dispose();
     });
 
     it("applies mount-time plot overrides supplied directly via args.plotOverrides", async () => {

@@ -238,6 +238,34 @@ plot hashes, alert counts, and diagnostic codes.
   `plotKindBgColor`. This is expected, not a copy-paste bug; re-pin via the
   runner's "expected vs actual" message only when the golden bars change.
 
+## `inputs` capability-gate scenario invariant
+
+- **`inputs-gated` runs in `historyReseed` mode because MOUNT-TIME diagnostics
+  are otherwise unobservable here, not because it cares about feeds.** Input
+  resolution happens once at mount; `runOne`'s per-bar close loop reaches
+  `onBarClose` → `resetBarEmissions`, which blanks the diagnostics queue before
+  the first `compute`, so the mount queue is gone before the first `absorb`. A
+  `history` push HOISTS that queue (`runtime/src/execution/onHistory.ts`), and
+  `historyReseed` is the only harness mode that pushes one. This is why no
+  scenario has ever asserted `input-coercion-failed` PRESENT — the sibling
+  mount-time code has always been invisible here, and a future scenario that
+  tries to assert one on the per-bar path will fail for this reason, not because
+  the runtime stopped emitting. The re-seed additionally pins the dedup set's
+  lifetime: the replay re-warns exactly ONCE (a surviving set would give zero, a
+  leaked pre-reseed queue two). `reseedFeeds` is `{}`.
+- **It PINS a non-empty `inputs` set via `capabilitiesOverride` that simply
+  omits the kind under test.** All six bundled example adapters currently
+  declare an EMPTY `inputs` set, so inheriting would (a) make the scenario an
+  "empty set" special case rather than a membership test and (b) silently break
+  the day someone fills those sets in. Same "pin it per scenario, never inherit"
+  rule as `orders`.
+- **Its `plot-hash` is deliberately gate-INVARIANT.** The harness passes no
+  input overrides, so a declined key resolves to the same default with or
+  without the gate; the hash proves only "the script still ran on its default".
+  The `diagnostic-code-present` assertion is the load-bearing one, and the
+  paired `diagnostic-code-absent: input-coercion-failed` is the cross-host proof
+  that the gate's dedup set is separate from the coercion one.
+
 ## Pine round-trip invariants
 
 - **The `pine-converter-round-trip-*` scenarios convert a committed

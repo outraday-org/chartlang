@@ -73,7 +73,8 @@
   whole point is to re-read them from bar 0) and the persistence handle / `now`
   / caps (by reference via `state.args`; `warmStart` is NOT auto-run).
   **Rebuilt fresh:** everything else — streams, ta/`state.*` slots, dep/sibling
-  runners, external-series slots, `diagnosedInputKeys`. **Dropped:** undrained
+  runners, external-series slots, `diagnosedInputKeys`,
+  `diagnosedUnsupportedInputKeys`. **Dropped:** undrained
   pre-reseed emissions (old bar indices conflict with the replayed range).
   **Secondary streams reset empty — the caller re-pushes them** (the runtime
   can't know the host's secondary sources). Mechanism: `buildPrimaryState`
@@ -647,6 +648,32 @@
   descriptor.options.includes(value)` — string-enum membership is unchanged, so
   string-enum overrides stay byte-identical. The default path already
   round-trips a numeric default (it is a plain number).
+- **`capabilities.inputs` is a REAL gate, and its dedup set is deliberately
+  NOT `diagnosedInputKeys`.** `resolveInputs` resolves a non-`external-series`
+  descriptor whose `kind` is absent from `ctx.capabilities.inputs` to its
+  DEFAULT, drops any override for it, and pushes `unsupported-input-kind` once
+  per key per mount on `ctx.diagnosedUnsupportedInputKeys`. Sharing one set with
+  `input-coercion-failed` would let whichever fired first suppress the other for
+  that key — a silent loss of the gate's own signal, which is why the "override
+  on a gated key emits only `unsupported-input-kind`" test exists. The gated key
+  never reaches `matchesDescriptor`, so no paired coercion diagnostic is
+  possible by construction. `external-series` is exempt (host-callback-supplied,
+  outside the capability subset), an EMPTY set gates every scalar key once, and
+  a partial set gates exactly its complement — none of these is an error state,
+  the script runs on its defaults. Both `resolveInputs` call sites
+  (`createScriptRunner`, `dep/DepRunner`) inherit the gate from inside the
+  function; a dep sub-runner builds its OWN `RuntimeContext` and therefore its
+  own dedup set, so a parent and a dep gating the same key warn once EACH (pinned
+  by `dep/DepRunner.test.ts`).
+- **A MOUNT-TIME diagnostic (`unsupported-input-kind`, `input-coercion-failed`)
+  is DISCARDED on the per-bar close path.** Input resolution runs once at mount,
+  and `onBarClose` → `resetBarEmissions` blanks `emissions.diagnostics` before
+  the first `compute` — so a host that streams bar-by-bar without draining first
+  never sees it. It survives an `onHistory` push (which HOISTS the queue before
+  its loop), a history RE-SEED, and a `drain()` before the first bar; real hosts
+  backfill through `history`, which is why this has gone unnoticed since 0.4.
+  Measured, not inferred. Do not "fix" it by asserting the mount diagnostic on a
+  per-bar-driven test — the test is right and the queue is empty.
 - **`RuntimeContext.plotOverrides` is the one mutable presentation
   field — frozen entries, swappable container.** Resolved once at mount
   (`args.plotOverrides ?? args.resolvePlotOverrides?.(name) ?? {}`) and
