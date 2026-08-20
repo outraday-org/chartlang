@@ -5516,4 +5516,10 @@ describe("validateEmission — diagnostic", () => {
             ok: true,
         });
     });
+
+    it("accepts unsupported-input-kind", () => {
+        expect(validateEmission({ ...validDiagnostic, code: "unsupported-input-kind" })).toEqual({
+            ok: true,
+        });
+    });
 });

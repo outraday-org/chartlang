@@ -52,12 +52,23 @@ them into `manifest.inputs`. Non-literal defaults are rejected with
 | `input.price(default, opts?)` | finite number | `title` | [price](../primitives/input/price.md) |
 | `input.symbol(default, opts?)` | string | `title` | [symbol](../primitives/input/symbol.md) |
 | `input.interval(default, opts?)` | string | `title` | [interval](../primitives/input/interval.md) |
+| `input.session(default, opts?)` | `"HH:MM-HH:MM"` window string | `title` | [session](../primitives/input/session.md) |
 | `input.externalSeries({ name, schema, title? })` | host-supplied numeric series | `name`, `schema`, `title` | [external series](../primitives/input/externalSeries.md) |
 
 Adapters declare which input families they can render via
-`Capabilities.inputs`. An input whose kind is outside the adapter's
-declared set is still resolved from the manifest default; the adapter
-just won't expose an editor for it.
+`Capabilities.inputs`. That set is a **gate**, not a hint. An input whose
+kind is outside the adapter's declared set resolves to its manifest
+default, any override the host passes for that key is ignored, and the
+runtime emits one `unsupported-input-kind` warning per key per mount. The
+script still runs — this is not an error state — but the input is not
+tunable on that adapter. `input.externalSeries` is exempt: its feed
+arrives through a host callback rather than through this capability set.
+
+A host that knows its adapter at compile time can move the same check
+earlier: pass the adapter's input roster to the compiler and an
+undeclared kind becomes an error-severity `unsupported-input-kind`
+compile diagnostic instead of a runtime warning. See
+[grammar § Input-Kind Validation](../spec/grammar.md#input-kind-validation).
 
 ## Special-case rules
 
@@ -86,13 +97,24 @@ just won't expose an editor for it.
 At mount the runtime:
 
 1. Reads `manifest.inputs` defaults.
-2. Merges adapter / host overrides (`Adapter.resolveInputs?`,
-   per-script settings UI, etc.) over the defaults.
-3. Coerces every override against its manifest descriptor. A value that
-   cannot be coerced drops to the manifest default and emits
+2. Gates each descriptor against `Capabilities.inputs`. A kind the
+   adapter did not declare takes the default, drops any override
+   unexamined, and emits `unsupported-input-kind` — step 3 never runs for
+   that key, so it can never also report `input-coercion-failed`.
+3. Merges adapter / host overrides (`Adapter.resolveInputs?`,
+   per-script settings UI, etc.) over the defaults, and coerces every
+   override against its manifest descriptor. A value that cannot be
+   coerced drops to the manifest default and emits
    `input-coercion-failed`.
 4. Freezes the resolved scalar-input record and passes it as
    `ctx.inputs` to every compute step for the lifetime of the runner.
+
+Both diagnostics from this phase are raised at **mount**, with `bar: null`.
+A host sees them only if it drains before pushing the first event or seeds
+the runner with a `history` push — the per-bar close path resets the
+emission queues before each compute step and discards an undrained
+mount-time diagnostic. See
+[emissions § Mount-time diagnostics](../spec/emissions.md#mount-time-diagnostics).
 
 Once resolved, scalar input values are frozen — they do not mutate
 between bars. Script-author logic that needs to react to a scalar input

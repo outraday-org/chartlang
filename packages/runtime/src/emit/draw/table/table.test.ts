@@ -72,6 +72,7 @@ function makeCtx(caps?: Capabilities): { ctx: RuntimeContext; emissions: Mutable
         logBudgetExceededDiagnosed: false,
         resolvedInputs: {},
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
     return { ctx, emissions };

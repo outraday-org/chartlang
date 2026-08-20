@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-import { defineIndicator } from "@invinite-org/chartlang-core";
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
 import type { Bar } from "@invinite-org/chartlang-core";
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
@@ -100,6 +100,29 @@ describe("dispose", () => {
         phase = "after";
         await runner.onBarClose(makeBar(1));
         expect(observedSize).toBe(0);
+    });
+
+    it("clears the unsupported-input-kind dedup set", async () => {
+        const sizes: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            // `makeCapabilities()` declares an EMPTY `inputs` set, so this key
+            // is gated at mount and seeds the dedup set before any bar runs.
+            inputs: { window: input.session("0930-1600") },
+            compute: () => {
+                const ctx = ACTIVE_RUNTIME_CONTEXT.current;
+                if (!ctx) return;
+                sizes.push(ctx.diagnosedUnsupportedInputKeys.size);
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        await runner.onBarClose(makeBar(0));
+        runner.dispose();
+        await runner.onBarClose(makeBar(1));
+        // Seeded at mount, emptied by dispose — reading 0 on both would mean
+        // the gate never fired and the assertion proved nothing.
+        expect(sizes).toEqual([1, 0]);
     });
 
     it("preserves the host-owned state store passed in", async () => {

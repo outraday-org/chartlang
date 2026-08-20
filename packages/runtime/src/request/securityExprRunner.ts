@@ -156,6 +156,7 @@ function buildExprContext(
         scriptPane: parent.scriptPane,
         plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
         slotIdPrefix: `security:${slotId}/`,
     };

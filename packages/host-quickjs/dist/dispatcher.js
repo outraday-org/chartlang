@@ -2967,6 +2967,11 @@ function resolveInputs(manifest, overrides, ctx) {
       continue;
     }
     const fallback2 = descriptor.defaultValue;
+    if (!ctx.capabilities.inputs.has(descriptor.kind)) {
+      pushUnsupportedInputDiagnostic(ctx, key, descriptor.kind);
+      out[key] = fallback2;
+      continue;
+    }
     if (!Object.hasOwn(overrides, key) || overrides[key] === void 0) {
       out[key] = fallback2;
       continue;
@@ -3013,6 +3018,20 @@ function pushInputDiagnostic(ctx, key, expected, value) {
     code: "input-coercion-failed",
     message: `input "${key}" expected ${expected}, got ${describeValue(value)}`,
     slotId: key,
+    bar: null
+  });
+}
+function pushUnsupportedInputDiagnostic(ctx, key, kind) {
+  if (ctx.diagnosedUnsupportedInputKeys.has(key))
+    return;
+  ctx.diagnosedUnsupportedInputKeys.add(key);
+  ctx.emissions.diagnostics.push({
+    kind: "diagnostic",
+    severity: "warning",
+    code: "unsupported-input-kind",
+    message: `Adapter does not support "${kind}" inputs; "${key}" uses its default.`,
+    slotId: key,
+    // Input resolution is mount-time — there is no bar to attribute it to.
     bar: null
   });
 }
@@ -3404,6 +3423,7 @@ function buildExprContext(parent, slotId, foldStream) {
     scriptPane: parent.scriptPane,
     plotOverrides: Object.freeze({}),
     diagnosedInputKeys: /* @__PURE__ */ new Set(),
+    diagnosedUnsupportedInputKeys: /* @__PURE__ */ new Set(),
     views: createRuntimeViews(),
     slotIdPrefix: `security:${slotId}/`
   };
@@ -3885,6 +3905,7 @@ var DIAGNOSTIC_CODE_PRESENCE = {
   "unsupported-pane": true,
   "unsupported-interval": true,
   "unsupported-orders": true,
+  "unsupported-input-kind": true,
   "multi-timeframe-not-supported": true,
   "multi-symbol-not-supported": true,
   "unknown-secondary-stream": true,
@@ -17225,6 +17246,7 @@ function buildSubRunnerState(args, slotIdPrefix, isDep) {
       // dep-output plots are not host-overridable.
       plotOverrides: Object.freeze({}),
       diagnosedInputKeys: /* @__PURE__ */ new Set(),
+      diagnosedUnsupportedInputKeys: /* @__PURE__ */ new Set(),
       views: createRuntimeViews(),
       slotIdPrefix,
       isDep,
@@ -17450,6 +17472,7 @@ function dispose(state2) {
   state2.runtimeContext.diagnosedTzKeys.clear();
   state2.runtimeContext.diagnosedOrderSlots.clear();
   state2.runtimeContext.diagnosedInputKeys.clear();
+  state2.runtimeContext.diagnosedUnsupportedInputKeys.clear();
   const counters = state2.runtimeContext.drawingBucketCounters;
   counters.lines = 0;
   counters.labels = 0;
@@ -18257,6 +18280,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
       scriptPane: resolveScriptPane(primary.manifest),
       plotOverrides: Object.freeze({}),
       diagnosedInputKeys: /* @__PURE__ */ new Set(),
+      diagnosedUnsupportedInputKeys: /* @__PURE__ */ new Set(),
       views
     },
     emissions,

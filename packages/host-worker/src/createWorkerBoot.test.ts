@@ -219,7 +219,11 @@ describe("createWorkerBoot", () => {
         await deliver({
             kind: "load",
             compiled: { moduleSource, manifest: m },
-            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series"]) },
+            // `int` must be DECLARED for the override to reach the script:
+            // an undeclared kind is gated to its default with an
+            // `unsupported-input-kind` diagnostic, and this script throws on
+            // anything but 20.
+            capabilities: { ...makeCapabilities(), inputs: new Set(["external-series", "int"]) },
             inputOverrides: { length: 20 },
             limits: LIMITS,
         });

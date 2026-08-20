@@ -303,6 +303,7 @@ debugging.
 | `unsupported-pane` | A plot requests `"new"` or a named pane that the current runtime folds back to `"overlay"`. |
 | `unsupported-interval` | A requested interval is absent from `Capabilities.intervals`. |
 | `unsupported-orders` | A script emits an order while `Capabilities.orders` is false. Fires once per slot per mount. |
+| `unsupported-input-kind` | A manifest input's `kind` is not in `Capabilities.inputs`. The input takes its manifest default and any host override for that key is ignored. Fires once per input key per mount. `external-series` is exempt. |
 | `multi-timeframe-not-supported` | `request.security` or `request.lowerTf` needs secondary streams but `Capabilities.multiTimeframe` is false. |
 | `multi-symbol-not-supported` | `request.security` names a secondary symbol but `Capabilities.multiSymbol` is false. |
 | `unknown-secondary-stream` | A request or candle event names an interval not registered from the manifest. |
@@ -332,6 +333,18 @@ debugging.
 | `dep-invalid-input-override` | A `.withInputs({...})` key is not declared by the producer, or its value has the wrong kind. |
 | `dep-dynamic` | A dependency binding, `.output(...)` receiver, or `.withInputs(...)` key/value is not statically resolvable. |
 | `dep-output-not-titled` | A producer emits an untitled `plot(...)` that a consumer references by title. |
+
+#### Mount-time diagnostics
+
+`unsupported-input-kind` and `input-coercion-failed` are both raised while
+input resolution runs at **mount**, before any bar has been processed, so
+neither carries a `bar` (both set `bar: null`). A host only observes them if it
+either drains before pushing the first event or seeds the runner with a
+`history` push: the per-bar close path resets the emission queues at the start
+of each compute step, which discards a mount-time diagnostic that has not been
+drained yet. A host that streams bar-by-bar from mount and never re-seeds
+history will not see either code. This is the current runtime behavior, not an
+aspiration — build against it.
 
 ## RunnerEmissions
 
@@ -369,6 +382,7 @@ preserve append order. Detailed execution ordering is specified in
 | Orders | `Capabilities.orders` | Drop the order and its auto-markers; emit `unsupported-orders` once per slot per mount. |
 | Order auto-markers | `Capabilities.plots` (`arrow`, `label`) | Skip the marker plot **silently** — no diagnostic. The `orders` channel is the source of truth; markers are a courtesy. |
 | Logs | `Capabilities.logs` | Silent no-op; no diagnostic. |
+| Inputs | `Capabilities.inputs` | Resolve the input to its manifest default, ignore any host override for that key, and emit `unsupported-input-kind` once per input key per mount. The script still runs. `external-series` is exempt — those feeds are host-callback-supplied, not part of this capability subset. |
 | Request-driven secondary streams | `Capabilities.intervals`, `Capabilities.multiTimeframe`, and `Capabilities.multiSymbol` | Return fallback request values and emit `unsupported-interval`, `multi-timeframe-not-supported`, `multi-symbol-not-supported`, or `unknown-secondary-stream`. |
 
 The full capability bag is `plots`, `drawings`, `alerts`, `alertConditions`,

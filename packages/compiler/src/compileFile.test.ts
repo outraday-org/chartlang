@@ -73,6 +73,38 @@ export default defineIndicator({
         ).rejects.toThrow("lower-tf-not-lower");
     });
 
+    // `stripWriteFlag` rebuilds `CompileOptions` from an explicit allowlist, so
+    // an option missing from it is silently dropped for every `compileFile` and
+    // `compileProject` caller.
+    it("forwards declaredInputKinds through stripWriteFlag", async () => {
+        const sourcePath = join(workspace, "gated.chart.ts");
+        await fs.writeFile(
+            sourcePath,
+            `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "gated",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`,
+            "utf8",
+        );
+
+        await expect(
+            compileFile(sourcePath, {
+                apiVersion: 1,
+                write: false,
+                declaredInputKinds: ["int", "float"],
+            }),
+        ).rejects.toThrow("unsupported-input-kind");
+
+        // Same file, no roster ⇒ compiles clean.
+        await expect(
+            compileFile(sourcePath, { apiVersion: 1, write: false }),
+        ).resolves.toBeDefined();
+    });
+
     it("writes an external sourcemap sibling when sourcemap: 'external'", async () => {
         const sourcePath = join(workspace, "ema.chart.ts");
         await fs.writeFile(sourcePath, EMA_CROSS, "utf8");

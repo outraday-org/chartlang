@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { InputKind } from "@invinite-org/chartlang-core";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -521,5 +522,139 @@ export default defineIndicator({
         expect(Object.keys(def.inputs)).toEqual(["defaultLen"]);
         expect(sibling.inputs.siblingLen).toEqual({ kind: "int", defaultValue: 7 });
         expect(def.inputs.defaultLen).toEqual({ kind: "int", defaultValue: 33 });
+    });
+});
+
+describe("extractInputs — declaredInputKinds capability gate", () => {
+    function runGated(inputs: string, declared?: ReadonlyArray<InputKind>) {
+        const { sourceFile, checker } = createProgramForSource(sourceFor(inputs), {
+            sourcePath: "gated.chart.ts",
+        });
+        return extractInputs(sourceFile, checker, "gated.chart.ts", sourceFile, declared);
+    }
+
+    it("emits unsupported-input-kind for a kind the host did not declare", () => {
+        const result = runGated(`sess: input.session("0930-1600"),`, ["int", "float"]);
+
+        expect(result.diagnostics).toHaveLength(1);
+        const diagnostic = result.diagnostics[0];
+        expect(diagnostic?.code).toBe("unsupported-input-kind");
+        expect(diagnostic?.severity).toBe("error");
+        expect(diagnostic?.file).toBe("gated.chart.ts");
+        expect(diagnostic?.message).toContain("session");
+        expect(diagnostic?.message).toContain("float, int");
+    });
+
+    it("spans the `input.<kind>` member expression of the offending callsite", () => {
+        // Derived from the generated source rather than hard-coded, so the
+        // assertion keeps meaning if `sourceFor`'s preamble ever changes. The
+        // span is the `input.<kind>` member expression — the same one
+        // `unknown-input-kind` reports for a bad builder name.
+        const declaration = `sess: input.session("0930-1600"),`;
+        const lines = sourceFor(declaration).split("\n");
+        const lineIndex = lines.findIndex((line) => line.includes("input.session"));
+        const expectedLine = lineIndex + 1;
+        const expectedColumn = (lines[lineIndex]?.indexOf("input.session") ?? -1) + 1;
+
+        const result = runGated(declaration, []);
+        const diagnostic = result.diagnostics[0];
+        expect(diagnostic?.line).toBe(expectedLine);
+        expect(diagnostic?.column).toBe(expectedColumn);
+    });
+
+    it("stays clean when every declared kind is in the roster", () => {
+        const result = runGated(
+            `
+            len: input.int(14),
+            sess: input.session("0930-1600"),
+        `,
+            ["int", "session"],
+        );
+
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs.len).toEqual({ kind: "int", defaultValue: 14 });
+        expect(result.inputs.sess).toEqual({ kind: "session", defaultValue: "0930-1600" });
+    });
+
+    // The additivity proof: an existing caller that never passes the roster
+    // must see byte-identical behaviour to before the gate existed.
+    it("emits nothing when the roster is absent", () => {
+        const result = runGated(`sess: input.session("0930-1600"),`);
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs.sess).toEqual({ kind: "session", defaultValue: "0930-1600" });
+    });
+
+    it("never diagnoses input.externalSeries, even with an empty roster", () => {
+        const result = runGated(
+            `ext: input.externalSeries({ name: "earnings", schema, title: "Earnings" }),`,
+            [],
+        );
+
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs.ext).toEqual({
+            kind: "external-series",
+            name: "earnings",
+            schema: { kind: "external-series-schema" },
+            title: "Earnings",
+        });
+    });
+
+    it("gates every non-externalSeries callsite when the roster is empty", () => {
+        const result = runGated(
+            `
+            len: input.int(14),
+            mult: input.float(2.5),
+            sess: input.session("0930-1600"),
+            ext: input.externalSeries({ name: "earnings", schema }),
+        `,
+            [],
+        );
+
+        expect(result.diagnostics.map((d) => d.code)).toEqual([
+            "unsupported-input-kind",
+            "unsupported-input-kind",
+            "unsupported-input-kind",
+        ]);
+        expect(result.diagnostics.every((d) => d.message.includes("declared: none"))).toBe(true);
+    });
+
+    it("still serialises the descriptor for a gated input", () => {
+        const result = runGated(`sess: input.session("0930-1600", { title: "Session" }),`, []);
+
+        expect(result.diagnostics).toHaveLength(1);
+        expect(result.inputs.sess).toEqual({
+            kind: "session",
+            defaultValue: "0930-1600",
+            title: "Session",
+        });
+    });
+
+    // Dotted-callee resolution runs through the type checker, so a local
+    // binding that merely shares the name `input` is not an input builder.
+    it("does not confuse a locally declared identifier named `input`", () => {
+        const source = `
+import { defineIndicator } from "@invinite-org/chartlang-core";
+const input = { session: (value: string) => value };
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`;
+        const { sourceFile, checker } = createProgramForSource(source, {
+            sourcePath: "shadowed.chart.ts",
+        });
+        const result = extractInputs(sourceFile, checker, "shadowed.chart.ts", sourceFile, []);
+
+        expect(result.diagnostics).toEqual([]);
+        expect(result.inputs).toEqual({});
+    });
+
+    // `unknown-input-kind` (not a builder at all) short-circuits before the
+    // capability check, so the two input codes never double-report.
+    it("does not add the capability diagnostic on top of unknown-input-kind", () => {
+        const result = runGated(`bogus: input.nope(1),`, []);
+        expect(result.diagnostics.map((d) => d.code)).toEqual(["unknown-input-kind"]);
     });
 });

@@ -91,6 +91,28 @@ describe("compileProject", () => {
         expect(names).toEqual(["EMA cross", "demo"]);
     });
 
+    // `compileProject` spreads its opts into `compileFile`, which rebuilds
+    // `CompileOptions` from an allowlist — this proves the two compose so the
+    // project entry point is not silently ungated.
+    it("forwards declaredInputKinds to every file it compiles", async () => {
+        const gated = `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "gated",
+    apiVersion: 1,
+    inputs: { sess: input.session("0930-1600") },
+    compute: () => {},
+});
+`;
+        await writeFile(join(workspace, "gated.chart.ts"), gated, "utf8");
+
+        await expect(
+            compileProject(workspace, { apiVersion: 1, declaredInputKinds: ["int"] }),
+        ).rejects.toThrow("unsupported-input-kind");
+
+        const results = await compileProject(workspace, { apiVersion: 1 });
+        expect(results).toHaveLength(1);
+    });
+
     it("does not write sibling files (in-memory only)", async () => {
         await writeFile(join(workspace, "a.chart.ts"), VALID_DEFINE, "utf8");
         await compileProject(workspace, { apiVersion: 1 });

@@ -73,7 +73,13 @@ Stage the lifecycle as:
    batch since the last drain. Revalidate plot and alert emissions on
    the way out with `validateEmission` from
    `@invinite-org/chartlang-adapter-kit` — this is the defence-in-depth
-   trust boundary.
+   trust boundary. Note that the **mount-time** diagnostics raised while
+   inputs resolve (`unsupported-input-kind`, `input-coercion-failed`) are
+   only observable if the embedder drains before the first event or seeds
+   the runner with a `history` push — the per-bar close path resets the
+   emission queues before each compute step. A host that streams bar-by-bar
+   from mount and never re-seeds discards them (see
+   [Emissions § Mount-time diagnostics](../spec/emissions.md#mount-time-diagnostics)).
 4. **`exportSnapshot` / `importSnapshot`.** Lift the runner's whole state
    out (`runner.exportSnapshot()` inside the isolate) as a
    {@link HostSnapshot} envelope — the `StateSnapshot` bound to the

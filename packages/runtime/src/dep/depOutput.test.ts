@@ -93,6 +93,7 @@ function freshContext(): RuntimeContext {
         scriptPane: "script:demo",
         plotOverrides: Object.freeze({}),
         diagnosedInputKeys: new Set(),
+        diagnosedUnsupportedInputKeys: new Set(),
         views: createRuntimeViews(),
     };
 }

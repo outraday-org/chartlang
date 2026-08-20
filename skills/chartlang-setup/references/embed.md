@@ -33,6 +33,22 @@ export async function compileScript(
 }
 ```
 
+If you know which adapter will run the artifact, pass its
+`Capabilities.inputs` roster as `declaredInputKinds` (kebab-case
+`InputKind`s — `"external-series"`, not `"externalSeries"`). Every
+`input.<kind>(...)` declaration outside that roster then fails the compile
+with an error-severity `unsupported-input-kind`, instead of resolving
+silently to its default at run time. Omit the option and the check is
+skipped entirely, so it is purely opt-in. Two cautions: the compiler does
+not know which adapter will run the artifact, so a host that caches one
+compiled script and serves it to several adapters (say a browser adapter
+and a headless evaluator) must pass the **intersection** of their input
+sets or it will reject scripts that are valid where they actually run; and
+already-cached artifacts do not recompile, so they keep running and pick up
+only the runtime rung's warning. `compileFile` and `compileProject` accept
+the same option. `declaredIntervals` is its sibling for the
+`request.lowerTf` check.
+
 `compile()` returns a frozen `CompiledScript` —
 `{ moduleSource, manifest, types, sourcemap? }`. Only `moduleSource` and
 `manifest` cross the boundary to the host. The reference server route is

@@ -204,6 +204,7 @@ describe("type assertions", () => {
             | "unsupported-pane"
             | "unsupported-interval"
             | "unsupported-orders"
+            | "unsupported-input-kind"
             | "multi-timeframe-not-supported"
             | "multi-symbol-not-supported"
             | "unknown-secondary-stream"

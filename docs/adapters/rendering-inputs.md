@@ -35,9 +35,18 @@ line and data window, but still render the input in the settings panel.
 
 `Capabilities.inputs` is still the set of input kinds an adapter can render.
 When an adapter advertises a kind, it should also honor that kind's metadata
-through `groupInputs()`. Unsupported kinds can fall back to the manifest
-default; there is no conformance scenario for `groupInputs()` because it is a
-pure presentation helper, not a runtime emission capability.
+through `groupInputs()`. There is no conformance scenario for `groupInputs()`
+itself because it is a pure presentation helper, not a runtime emission
+capability.
+
+Undeclared kinds do not merely *fall back* — the runtime gates them. An input
+whose kind is absent from `Capabilities.inputs` resolves to its manifest
+default, any override the host passes for that key is ignored, and one
+`unsupported-input-kind` diagnostic fires per key per mount (`external-series`
+is exempt). So only build settings controls for the kinds the bag declares:
+rendering a control for an undeclared kind produces a widget whose value the
+runtime will drop. Widening the bag is the fix, not passing the override
+anyway.
 
 ## Worked example
 

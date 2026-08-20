@@ -28,6 +28,11 @@ const SOURCE_FIELDS = new Set<string>([
  * to the descriptor default and emit `input-coercion-failed` once per
  * mount/key.
  *
+ * A descriptor whose `kind` is absent from `ctx.capabilities.inputs` is GATED:
+ * it takes its default, any override is ignored, and `unsupported-input-kind`
+ * fires once per key per mount. `external-series` is exempt (host-callback
+ * supplied, not part of the capability subset).
+ *
  * @since 0.4
  * @stable
  * @example
@@ -55,6 +60,15 @@ export function resolveInputs(
             continue;
         }
         const fallback = descriptor.defaultValue;
+        if (!ctx.capabilities.inputs.has(descriptor.kind)) {
+            // The adapter cannot offer this control, so it cannot be the source
+            // of an override for it — the key takes its default and the
+            // override is dropped WITHOUT a paired `input-coercion-failed`
+            // (advice about a control that does not exist).
+            pushUnsupportedInputDiagnostic(ctx, key, descriptor.kind);
+            out[key] = fallback;
+            continue;
+        }
         if (!Object.hasOwn(overrides, key) || overrides[key] === undefined) {
             out[key] = fallback;
             continue;
@@ -114,6 +128,27 @@ function pushInputDiagnostic(
         code: "input-coercion-failed",
         message: `input "${key}" expected ${expected}, got ${describeValue(value)}`,
         slotId: key,
+        bar: null,
+    });
+}
+
+function pushUnsupportedInputDiagnostic(
+    ctx: RuntimeContext,
+    key: string,
+    kind: ScalarInputDescriptor["kind"],
+): void {
+    // Once per key per mount, on a set of its OWN — sharing
+    // `diagnosedInputKeys` with `input-coercion-failed` would let either
+    // diagnostic suppress the other for that key.
+    if (ctx.diagnosedUnsupportedInputKeys.has(key)) return;
+    ctx.diagnosedUnsupportedInputKeys.add(key);
+    ctx.emissions.diagnostics.push({
+        kind: "diagnostic",
+        severity: "warning",
+        code: "unsupported-input-kind",
+        message: `Adapter does not support "${kind}" inputs; "${key}" uses its default.`,
+        slotId: key,
+        // Input resolution is mount-time — there is no bar to attribute it to.
         bar: null,
     });
 }

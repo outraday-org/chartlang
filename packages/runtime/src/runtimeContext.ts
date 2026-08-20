@@ -475,6 +475,17 @@ export type RuntimeContext = {
      */
     readonly diagnosedInputKeys: Set<string>;
     /**
+     * Runtime diagnostic dedupe for the `unsupported-input-kind` capability
+     * gate, keyed by manifest input key — so a script whose input kind the
+     * adapter does not declare warns **once per key per mount**. Deliberately
+     * SEPARATE from {@link RuntimeContext.diagnosedInputKeys}: one shared set
+     * would let whichever of `input-coercion-failed` / `unsupported-input-kind`
+     * fired first suppress the other for that key for the whole mount, which
+     * silently loses exactly the signal the gate exists to raise. Cleared on
+     * `dispose`. @since 1.12
+     */
+    readonly diagnosedUnsupportedInputKeys: Set<string>;
+    /**
      * Runtime `barstate.*`, `syminfo.*`, and `timeframe.*` views. The
      * container is mutable; each assigned view snapshot is frozen.
      * @since 0.4

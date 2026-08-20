@@ -201,6 +201,17 @@ is **typed per descriptor** — `int`/`float`/`time`/`price` → `number`,
 (an `as number` / `as string` cast stays legal but is no longer required).
 Only one `input.interval` per script (the user-pickable main timeframe).
 
+**An input kind only works on an adapter that declares it.** The host's
+`Capabilities.inputs` set gates the axis: a kind outside it resolves to
+its declared default, any host override for that key is ignored, and the
+runtime warns `unsupported-input-kind` once per key per mount (the script
+still runs). If the host also passes its roster to the compiler, the same
+mistake is an error-severity `unsupported-input-kind` at compile instead —
+the script will not build. Check the target's capability bag before
+reaching for a less common kind; the six bundled example adapters declare
+the **empty** set, so every scalar input is gated on them and runs on its
+default. `input.externalSeries` is exempt from the gate.
+
 `input.externalSeries` resolves to an indexable host-fed `Series<number>`
 — read `.current` / `[n]` and feed it into `ta.*` directly, all cast-free
 (the old `as Series<number>` narrow is now redundant). Bars the host has
