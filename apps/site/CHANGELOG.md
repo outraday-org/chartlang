@@ -1,5 +1,12 @@
 # chartlang-site
 
+## 0.0.22
+
+### Patch Changes
+
+- Updated dependencies [917caf6]
+  - @invinite-org/chartlang-host-worker@1.6.2
+
 ## 0.0.21
 
 ### Patch Changes
