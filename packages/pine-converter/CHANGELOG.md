@@ -1,5 +1,67 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.9.2
+
+### Patch Changes
+
+- a9f6d9c: Emit chartlang's real day and week interval tokens (`1D` / `1W`), not `1d` / `1w`
+
+  `PINE_TO_INTERVAL` lowered Pine `"D"`/`"1D"`/`"W"`/`"1W"` to `"1d"`/`"1w"`, but
+  chartlang's interval grammar is `^(\d+)([smHhDWMY]?)$` (`intervalToSeconds` in
+  `@invinite-org/chartlang-core`) — there is no lowercase day or week suffix, so
+  `intervalToSeconds({ value: "1d" })` throws. The converter was emitting a token
+  outside the language's own grammar, for the commonest Pine multi-timeframe
+  idiom, on the chart's own symbol as well as cross-symbol.
+
+  Every in-tree caller catches that throw, so the damage was silent rather than
+  loud: any host whose `capabilities.intervals` does not declare the literal
+  refuses the feed by name (every default roster), and where a host DOES declare
+  it — `capabilities` carries raw descriptor values, so this is possible and
+  deliberate for some evaluators — the runtime's `secondaryIsFinerThanMain`
+  answers "not finer" and quietly selects the coarser/equal alignment branch,
+  exposing the in-progress bar on a read the author expected to be
+  non-repainting.
+
+  Nothing was red: the converter's suites compared emitted text against goldens
+  carrying the same wrong token, and the compiler does not validate interval
+  literals. The new `emitted-intervals-are-parseable.test.ts` checks the table and
+  a real conversion against core's own parser instead of against a second table,
+  so a re-lowercasing fails rather than shipping.
+
+  `intervalToPineTimeframe` now keys on `"1D"`/`"1W"` and returns `null` for the
+  retired spellings. Emitted output changes for any script using a daily or weekly
+  timeframe; the other nine table entries (`1s`, `15s`, `1m`, `5m`, `1h`, `4h`,
+  `1M`) are unchanged and were already correct.
+
+- a9f6d9c: Fix Pine series-boolean control-flow predicates reading the `Series` object
+
+  `ta.crossover` / `ta.crossunder` return a `Series<boolean>` in chartlang, and a
+  Series OBJECT is truthy on every bar. The converter emitted
+  `if (ta.crossover(fast, slow))`, so an imported EMA-crossover strategy ran BOTH
+  order branches on EVERY bar — a 1,000-bar backtest of the canonical Pine v5
+  crossover strategy consumed 2,000 orders and opened 999 same-day round trips.
+
+  Every position the converter lowers into a JS truthiness test (or a scalar
+  boolean option) now emits through the existing `emitScalar` / `lowerTaToCurrent`
+  seam instead of the series-rooted emitter, so a root `ta.*` boolean is projected
+  to its per-bar `.current` value: the initial `if` and every `else if`
+  (parenthesised or not), each arm of the subjectless `switch` (plus the subject
+  and `case` tests of the subject form), a `strategy.*` `when =` guard, the
+  `plotshape` / `plotchar` / `plotarrow` condition, a conditional-colour ternary
+  test, and the `display = cond ? display.all : display.none` toggle. This
+  replaces the name-shaped `.current` append `plotshape` carried, which silently
+  missed a parenthesised predicate.
+
+  Only a ROOT `ta.*` call changes: comparisons, literals, `input.bool` reads,
+  boolean locals and already-lowered compound predicates emit byte-identically,
+  and nothing is projected twice. The `nested-ta-lowered` / `nested-ta-not-lowered`
+  diagnostic messages now name the branch-predicate position (codes unchanged).
+
+  `@invinite-org/chartlang-conformance` gains the
+  `pine-converter-round-trip-order-crossover` scenario, which converts that exact
+  Pine strategy, compiles it, runs it over the 10 000 golden bars and pins the
+  `orders` channel: 153 orders with the rule, 20 000 without it.
+
 ## 0.9.1
 
 ### Patch Changes
