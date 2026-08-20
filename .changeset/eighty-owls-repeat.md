@@ -7,10 +7,18 @@ Emit chartlang's real day and week interval tokens (`1D` / `1W`), not `1d` / `1w
 `PINE_TO_INTERVAL` lowered Pine `"D"`/`"1D"`/`"W"`/`"1W"` to `"1d"`/`"1w"`, but
 chartlang's interval grammar is `^(\d+)([smHhDWMY]?)$` (`intervalToSeconds` in
 `@invinite-org/chartlang-core`) — there is no lowercase day or week suffix, so
-`intervalToSeconds({ value: "1d" })` throws and no adapter can serve such a
-feed. Every converted daily or weekly `request.security` therefore resolved to
-nothing on every host, on the chart's own symbol as well as cross-symbol — the
-commonest Pine multi-timeframe idiom.
+`intervalToSeconds({ value: "1d" })` throws. The converter was emitting a token
+outside the language's own grammar, for the commonest Pine multi-timeframe
+idiom, on the chart's own symbol as well as cross-symbol.
+
+Every in-tree caller catches that throw, so the damage was silent rather than
+loud: any host whose `capabilities.intervals` does not declare the literal
+refuses the feed by name (every default roster), and where a host DOES declare
+it — `capabilities` carries raw descriptor values, so this is possible and
+deliberate for some evaluators — the runtime's `secondaryIsFinerThanMain`
+answers "not finer" and quietly selects the coarser/equal alignment branch,
+exposing the in-progress bar on a read the author expected to be
+non-repainting.
 
 Nothing was red: the converter's suites compared emitted text against goldens
 carrying the same wrong token, and the compiler does not validate interval

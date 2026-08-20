@@ -7,12 +7,16 @@
  *
  * Until 0.9.2 the timeframe table lowered Pine `"D"`/`"W"` to `"1d"`/`"1w"`,
  * which chartlang's own grammar (`^(\d+)([smHhDWMY]?)$`, `intervalToSeconds` in
- * `@invinite-org/chartlang-core`) has no suffix for — `intervalToSeconds({
- * value: "1d" })` THROWS, so no adapter could ever serve such a feed. Every
- * converted daily or weekly `request.security` therefore resolved to nothing,
- * cross-symbol AND on the chart's own symbol. Nothing was red: the converter's
- * own suites compared emitted text against goldens carrying the same wrong
- * token, and the compiler does not validate interval literals.
+ * `@invinite-org/chartlang-core`) has no suffix for, so `intervalToSeconds({
+ * value: "1d" })` throws.
+ *
+ * Every in-tree caller CATCHES that throw, so the damage was silent rather than
+ * loud: a feed refused by name on any roster that does not declare the literal
+ * (every default one), and — where a host DOES declare it — a
+ * `secondaryIsFinerThanMain` that answers "not finer" and quietly picks the
+ * repainting alignment branch. Nothing was red here either: the converter's own
+ * suites compared emitted text against goldens carrying the same wrong token,
+ * and the compiler does not validate `request.security` interval literals.
  *
  * So the oracle here is deliberately NOT another table — it is core's real
  * parser, applied to the values the converter actually emits.

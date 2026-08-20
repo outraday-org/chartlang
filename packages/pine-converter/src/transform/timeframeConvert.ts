@@ -10,13 +10,34 @@
 // TRAP — the SUFFIX CASE is load-bearing and is not a style choice. chartlang's
 // interval grammar is `^(\d+)([smHhDWMY]?)$` (`@invinite-org/chartlang-core`,
 // `intervalToSeconds`): seconds and minutes are lowercase, day / week / month /
-// year are UPPERCASE, and hours accept either. So `"1d"` and `"1w"` are not
-// chartlang intervals at all — `intervalToSeconds({ value: "1d" })` THROWS, and
-// a host serving such a feed is impossible. This table emitted them until
-// 0.9.2, which made every converted daily / weekly `request.security` — the
-// commonest Pine MTF idiom, cross-symbol AND same-symbol — resolve to nothing
-// on every adapter. `emitted-intervals-are-parseable.test.ts` now checks every
-// value here against core's own parser, so a re-lowercasing reddens.
+// year are UPPERCASE, and hours accept either. `"1d"` and `"1w"` are therefore
+// not chartlang intervals — `intervalToSeconds({ value: "1d" })` throws. This
+// table emitted them until 0.9.2.
+//
+// NOTHING CRASHES, and that is the point: every in-tree caller CATCHES that
+// throw, so the damage is silent degradation rather than a failure anyone would
+// notice.
+//
+//  - `runtime/request/security.ts::secondaryIsFinerThanMain` answers
+//    `undefined` → "not finer", so a genuinely finer secondary (a `"1d"` read
+//    on a `"1W"` main) silently takes the coarser/equal alignment branch, which
+//    EXPOSES the in-progress bar instead of the last closed one. A repainting
+//    read where the author asked for a non-repainting one.
+//  - `compiler/analysis/validateLowerTfIntervals.ts::smallestParseableMain`
+//    skips an unparseable descriptor when picking the main interval to compare
+//    `request.lowerTf` against.
+//  - Any host whose `capabilities.intervals` does not declare the literal
+//    refuses the feed by name — which is every default roster.
+//
+// What is NOT true: that no adapter can serve such a feed. `capabilities`
+// carries raw descriptor VALUES, so a host may declare `"1d"` deliberately
+// (Invinite's server evaluator does, to also accept its own lowercase enum
+// vocabulary) and then serve it. The defect is that the converter emitted a
+// token outside the language's own grammar and outside every default roster,
+// not that the string is unserveable.
+//
+// `emitted-intervals-are-parseable.test.ts` checks every value here against
+// core's own parser, so a re-lowercasing reddens.
 const PINE_TO_INTERVAL: ReadonlyMap<string, string> = new Map([
     ["1S", "1s"],
     ["15S", "15s"],
