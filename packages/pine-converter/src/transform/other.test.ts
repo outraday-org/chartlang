@@ -748,7 +748,7 @@ describe("transformOther — passthrough and skips", () => {
 
     it("lowers request.security as a declaration value", () => {
         expect(stmts('htf = request.security(syminfo.tickerid, "1D", close)\nplot(htf)')).toContain(
-            'let htf = request.security({ interval: "1d" }).close.current;',
+            'let htf = request.security({ interval: "1D" }).close.current;',
         );
     });
 
@@ -790,7 +790,7 @@ describe("transformOther — passthrough and skips", () => {
 
     it("lowers a special call used as a bare statement", () => {
         expect(stmts('request.security(syminfo.tickerid, "D", close)')).toContain(
-            'request.security({ interval: "1d" }).close.current;',
+            'request.security({ interval: "1D" }).close.current;',
         );
         expect(stmts("ta.ema(close, 9)").some((s) => s.startsWith("ta.ema("))).toBe(true);
     });

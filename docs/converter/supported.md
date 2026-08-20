@@ -664,7 +664,7 @@ the symbol and the **third** decides the chartlang form:
   the higher-timeframe clock the way Pine does — the source's OHLCV reads are
   rewritten to `bar.close` / `bar.hl2` / … inside the callback. For example
   `request.security(syminfo.tickerid, "D", ta.ema(close, 9))` becomes
-  `request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9))`.
+  `request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, 9))`.
 
 A **computed** (non-literal) symbol, a non-literal timeframe, or an otherwise
 unmapped form rejects (`request-security-not-mapped`); a `lookahead` argument
@@ -677,8 +677,8 @@ independent read per element**, each binding its own `const` and all sharing the
 element uses the data form, a `ta.*` / computed element the callback form —
 exactly as the single-source dispatch above. For example
 `[src_hi, src_lo] = request.security(syminfo.tickerid, "D", [high, low])` becomes
-two reads `const src_hi = request.security({ interval: "1d" }).high` and
-`const src_lo = request.security({ interval: "1d" }).low`; a `_` element is
+two reads `const src_hi = request.security({ interval: "1D" }).high` and
+`const src_lo = request.security({ interval: "1D" }).low`; a `_` element is
 discarded. A name/source-length mismatch warns `security-tuple-arity-mismatch`
 and binds what it can; a non-array third argument rejects
 `security-tuple-source-not-list`. (The bound reads are `Series` — read `.current`

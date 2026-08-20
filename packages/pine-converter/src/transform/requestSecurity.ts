@@ -123,7 +123,7 @@ const REJECTED_SECURITY_PLACEHOLDER = "Number.NaN /* unsupported request.securit
  *         span: member(["a"]).span,
  *     } as const;
  *     emitRequestSecurity(call, ctx, new DiagnosticCollector());
- *     // 'request.security({ interval: "1d" }).close'
+ *     // 'request.security({ interval: "1D" }).close'
  */
 export function emitRequestSecurity(
     call: CallExpression,

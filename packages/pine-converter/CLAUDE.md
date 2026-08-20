@@ -981,8 +981,14 @@ that has no byte-identical chartlang analogue.
   synthetic-AST test (`inputs.synthetic.test.ts`).
 - **`pineTimeframeToInterval`/`intervalToPineTimeframe`
   (`timeframeConvert.ts`) are the §3 Pine-timeframe ↔ chartlang-interval
-  table (`"60"`↔`"1h"`, `"D"`→`"1d"`, …), returning `null` for an
-  out-of-table value. Reused by Task 15's MTF `request.security`. The
+  table (`"60"`↔`"1h"`, `"D"`→`"1D"`, …), returning `null` for an
+  out-of-table value. **The SUFFIX CASE is load-bearing:** chartlang's grammar
+  is `^(\d+)([smHhDWMY]?)$` (core's `intervalToSeconds`), so day / week / month
+  are UPPERCASE and `"1d"` / `"1w"` are not intervals at all — the table emitted
+  them until 0.9.2, which made every converted daily / weekly `request.security`
+  unservable on every adapter with nothing red (the goldens carried the same
+  wrong token). `emitted-intervals-are-parseable.test.ts` now validates the
+  table against core's own parser rather than against a second table. Reused by Task 15's MTF `request.security`. The
   `tuple-expression`/`switch`-as-value walk arms are unreachable from the
   real parser and are covered by a synthetic-AST unit test
   (`inputs.synthetic.test.ts`), the established defensive-arm precedent.

@@ -89,7 +89,7 @@ describe("resolveSecurityFeed", () => {
         const [symbol, tf] = args('request.security("NASDAQ:AAPL", "D", close)');
         expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toEqual({
             symbol: '"NASDAQ:AAPL"',
-            interval: '"1d"',
+            interval: '"1D"',
         });
     });
 
@@ -110,7 +110,7 @@ describe("resolveSecurityFeed", () => {
         const inputs: SecurityFeedInputs = new Map([["sym", "symbol"]]);
         expect(resolveSecurityFeed(symbol, tf, inputs)).toEqual({
             symbol: "inputs.sym as string",
-            interval: '"1d"',
+            interval: '"1D"',
         });
     });
 
@@ -118,7 +118,7 @@ describe("resolveSecurityFeed", () => {
         const [symbol, tf] = args('request.security("ESD:" + "AAPL" + ";EARNINGS", "D", open)');
         expect(resolveSecurityFeed(symbol, tf, NO_INPUTS)).toEqual({
             symbol: '"ESD:AAPL;EARNINGS"',
-            interval: '"1d"',
+            interval: '"1D"',
         });
     });
 
@@ -164,12 +164,12 @@ describe("resolveSecurityFeed", () => {
 
 describe("securityOpts", () => {
     it("omits the symbol for the chart's own feed", () => {
-        expect(securityOpts(null, '"1d"')).toBe('{ interval: "1d" }');
+        expect(securityOpts(null, '"1D"')).toBe('{ interval: "1D" }');
     });
 
     it("carries a literal cross-symbol feed", () => {
-        expect(securityOpts('"NASDAQ:QQQ"', '"1w"')).toBe(
-            '{ symbol: "NASDAQ:QQQ", interval: "1w" }',
+        expect(securityOpts('"NASDAQ:QQQ"', '"1W"')).toBe(
+            '{ symbol: "NASDAQ:QQQ", interval: "1W" }',
         );
     });
 
@@ -182,14 +182,14 @@ describe("securityOpts", () => {
 
 describe("securityDataRead / securityCallbackRead", () => {
     it("builds the data form for an OHLCV field", () => {
-        expect(securityDataRead('{ interval: "1d" }', "high")).toBe(
-            'request.security({ interval: "1d" }).high.current',
+        expect(securityDataRead('{ interval: "1D" }', "high")).toBe(
+            'request.security({ interval: "1D" }).high.current',
         );
     });
 
     it("builds the callback form for a computed body", () => {
-        expect(securityCallbackRead('{ interval: "1d" }', "ta.ema(bar.close, 9)")).toBe(
-            'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9)).current',
+        expect(securityCallbackRead('{ interval: "1D" }', "ta.ema(bar.close, 9)")).toBe(
+            'request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, 9)).current',
         );
     });
 });

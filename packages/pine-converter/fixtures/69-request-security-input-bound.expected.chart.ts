@@ -16,7 +16,7 @@ export default defineIndicator({
         },
         inputs: {
             sym: input.symbol("NASDAQ:QQQ"),
-            tf: input.interval("1d"),
+            tf: input.interval("1D"),
         },
         compute({ bar, plot, inputs, request }) {
             let custom = request.security({ symbol: inputs.sym as string, interval: inputs.tf as string }).close.current;

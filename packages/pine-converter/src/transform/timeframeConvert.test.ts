@@ -13,10 +13,10 @@ describe("pineTimeframeToInterval", () => {
         ["5", "5m"],
         ["60", "1h"],
         ["240", "4h"],
-        ["D", "1d"],
-        ["1D", "1d"],
-        ["W", "1w"],
-        ["1W", "1w"],
+        ["D", "1D"],
+        ["1D", "1D"],
+        ["W", "1W"],
+        ["1W", "1W"],
         ["M", "1M"],
         ["1M", "1M"],
     ];
@@ -38,8 +38,8 @@ describe("intervalToPineTimeframe", () => {
         ["5m", "5"],
         ["1h", "60"],
         ["4h", "240"],
-        ["1d", "D"],
-        ["1w", "W"],
+        ["1D", "D"],
+        ["1W", "W"],
         ["1M", "M"],
     ];
 
@@ -57,5 +57,15 @@ describe("intervalToPineTimeframe", () => {
 
     it("returns null for an unknown interval", () => {
         expect(intervalToPineTimeframe("3y")).toBeNull();
+    });
+
+    // The pre-0.9.2 spellings. They are not chartlang intervals — core's
+    // `intervalToSeconds` grammar has no lowercase day / week suffix — so the
+    // reverse table must not accept them back either, or a round trip through
+    // an old emitted value would silently look healthy.
+    it("rejects the retired lowercase day / week spellings", () => {
+        expect(intervalToPineTimeframe("1d")).toBeNull();
+
+        expect(intervalToPineTimeframe("1w")).toBeNull();
     });
 });
