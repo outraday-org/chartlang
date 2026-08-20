@@ -17,8 +17,8 @@ export default defineIndicator({
             sym: input.enum("AMEX:SPY", ["AMEX:SPY", "NASDAQ:QQQ"], { title: "Compare" }),
         },
         compute({ bar, plot, inputs, request }) {
-            let comp = request.security({ symbol: inputs.sym as string, interval: "1d" }).close.current;
-            let earn = request.security({ symbol: "ESD:AAPL", interval: "1d" }).open.current;
+            let comp = request.security({ symbol: inputs.sym as string, interval: "1D" }).close.current;
+            let earn = request.security({ symbol: "ESD:AAPL", interval: "1D" }).open.current;
             plot(comp);
             plot(earn);
         },

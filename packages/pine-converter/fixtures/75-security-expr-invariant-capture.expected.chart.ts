@@ -23,9 +23,9 @@ export default defineIndicator({
             switch ((inputs.preset as string)) { case "Fast": { preset_len = 8; break; } case "Slow": { preset_len = 21; break; } }
             let eff_len = (inputs.base_len as number) + preset_len;
             let atr_len = Math.round(eff_len * 1.5);
-            let htf_atr = request.security({ interval: "1d" }, (bar) => { let preset_len = NaN; switch ((inputs.preset as string)) { case "Fast": { preset_len = 8; break; } case "Slow": { preset_len = 21; break; } } let eff_len = (inputs.base_len as number) + preset_len; let atr_len = Math.round(eff_len * 1.5); return ta.atr(atr_len); }).current;
-            const htf_hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1d" }).high.current;
-            const htf_sma = request.security({ symbol: "NASDAQ:QQQ", interval: "1d" }, (bar) => { let preset_len = NaN; switch ((inputs.preset as string)) { case "Fast": { preset_len = 8; break; } case "Slow": { preset_len = 21; break; } } let eff_len = (inputs.base_len as number) + preset_len; let atr_len = Math.round(eff_len * 1.5); return ta.sma(bar.close.current, atr_len); }).current;
+            let htf_atr = request.security({ interval: "1D" }, (bar) => { let preset_len = NaN; switch ((inputs.preset as string)) { case "Fast": { preset_len = 8; break; } case "Slow": { preset_len = 21; break; } } let eff_len = (inputs.base_len as number) + preset_len; let atr_len = Math.round(eff_len * 1.5); return ta.atr(atr_len); }).current;
+            const htf_hi = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" }).high.current;
+            const htf_sma = request.security({ symbol: "NASDAQ:QQQ", interval: "1D" }, (bar) => { let preset_len = NaN; switch ((inputs.preset as string)) { case "Fast": { preset_len = 8; break; } case "Slow": { preset_len = 21; break; } } let eff_len = (inputs.base_len as number) + preset_len; let atr_len = Math.round(eff_len * 1.5); return ta.sma(bar.close.current, atr_len); }).current;
             plot(htf_atr, { title: "HTF ATR" });
             plot(htf_hi, { title: "HTF High" });
             plot(htf_sma, { title: "HTF SMA" });

@@ -220,7 +220,7 @@ export type SecurityTupleElement =
  * @example
  *     const a: SecurityTupleAnnotation = {
  *         kind: "securityTuple",
- *         feed: { interval: "1d" },
+ *         feed: { interval: "1D" },
  *         elements: [{ kind: "ohlcv", field: "high" }],
  *     };
  *     void a;

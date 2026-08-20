@@ -77,7 +77,7 @@ export function securityField(node: ExpressionNode): string | null {
 
 /**
  * A resolved higher-timeframe feed as chartlang **emit-source expressions**:
- * `interval` is the opts `interval` value source (`'"1d"'` for a literal,
+ * `interval` is the opts `interval` value source (`'"1D"'` for a literal,
  * `'inputs.tf'` for an input-bound timeframe) and `symbol` is the opts `symbol`
  * value source (`'"NASDAQ:AAPL"'` / `'inputs.sym'`) or `null` for the chart's
  * own symbol (`syminfo.tickerid` — the opts omit `symbol`, byte-identical to the
@@ -89,7 +89,7 @@ export function securityField(node: ExpressionNode): string | null {
  * @stable
  * @example
  *     import type { SecurityFeed } from "./securityShape.js";
- *     const feed: SecurityFeed = { symbol: '"NASDAQ:AAPL"', interval: '"1d"' };
+ *     const feed: SecurityFeed = { symbol: '"NASDAQ:AAPL"', interval: '"1D"' };
  *     void feed;
  */
 export type SecurityFeed = Readonly<{ symbol: string | null; interval: string }>;
@@ -272,7 +272,7 @@ function resolveIntervalSource(
  *         value: '"D"',
  *         span,
  *     } as const;
- *     resolveSecurityFeed(tickerid, interval, new Map()); // { symbol: null, interval: '"1d"' }
+ *     resolveSecurityFeed(tickerid, interval, new Map()); // { symbol: null, interval: '"1D"' }
  */
 export function resolveSecurityFeed(
     symbol: ExpressionNode,
@@ -303,8 +303,8 @@ export function resolveSecurityFeed(
  * @stable
  * @example
  *     import { securityOpts } from "./securityShape.js";
- *     securityOpts(null, '"1d"'); // '{ interval: "1d" }'
- *     securityOpts('"NASDAQ:QQQ"', '"1d"'); // '{ symbol: "NASDAQ:QQQ", interval: "1d" }'
+ *     securityOpts(null, '"1D"'); // '{ interval: "1D" }'
+ *     securityOpts('"NASDAQ:QQQ"', '"1D"'); // '{ symbol: "NASDAQ:QQQ", interval: "1D" }'
  *     securityOpts("inputs.sym", "inputs.tf"); // '{ symbol: inputs.sym, interval: inputs.tf }'
  */
 export function securityOpts(symbol: string | null, interval: string): string {
@@ -326,7 +326,7 @@ export function securityOpts(symbol: string | null, interval: string): string {
  * @stable
  * @example
  *     import { securityDataRead } from "./securityShape.js";
- *     securityDataRead('{ interval: "1d" }', "high"); // 'request.security({ interval: "1d" }).high.current'
+ *     securityDataRead('{ interval: "1D" }', "high"); // 'request.security({ interval: "1D" }).high.current'
  */
 export function securityDataRead(opts: string, field: string): string {
     return `request.security(${opts}).${field}.current`;
@@ -344,8 +344,8 @@ export function securityDataRead(opts: string, field: string): string {
  * @stable
  * @example
  *     import { securityCallbackRead } from "./securityShape.js";
- *     securityCallbackRead('{ interval: "1d" }', "ta.ema(bar.close, 9)");
- *     // 'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close, 9)).current'
+ *     securityCallbackRead('{ interval: "1D" }', "ta.ema(bar.close, 9)");
+ *     // 'request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, 9)).current'
  */
 export function securityCallbackRead(opts: string, body: string): string {
     return `request.security(${opts}, (bar) => ${body}).current`;
@@ -366,8 +366,8 @@ export function securityCallbackRead(opts: string, body: string): string {
  * @stable
  * @example
  *     import { securityCallbackReadBlock } from "./securityShape.js";
- *     securityCallbackReadBlock('{ interval: "1d" }', ["let a = ta.atr(14).current;"], "(a / bar.close) * 100");
- *     // 'request.security({ interval: "1d" }, (bar) => { let a = ta.atr(14).current; return (a / bar.close) * 100; }).current'
+ *     securityCallbackReadBlock('{ interval: "1D" }', ["let a = ta.atr(14).current;"], "(a / bar.close) * 100");
+ *     // 'request.security({ interval: "1D" }, (bar) => { let a = ta.atr(14).current; return (a / bar.close) * 100; }).current'
  */
 export function securityCallbackReadBlock(
     opts: string,

@@ -65,7 +65,7 @@ describe("emitRequestSecurity", () => {
 
     it("lowers the single-symbol intraday MTF case", () => {
         expect(emit('request.security(syminfo.tickerid, "1D", close)').source).toBe(
-            'request.security({ interval: "1d" }).close.current',
+            'request.security({ interval: "1D" }).close.current',
         );
     });
 
@@ -74,14 +74,14 @@ describe("emitRequestSecurity", () => {
             'request.security({ interval: "1h" }).high.current',
         );
         expect(emit('request.security(syminfo.tickerid, "D", hl2)').source).toBe(
-            'request.security({ interval: "1d" }).hl2.current',
+            'request.security({ interval: "1D" }).hl2.current',
         );
     });
 
     it("carries a literal different symbol into the opts (multi-symbol)", () => {
         const { source, codes } = emit('request.security("NASDAQ:AAPL", "D", close)');
         expect(source).toBe(
-            'request.security({ symbol: "NASDAQ:AAPL", interval: "1d" }).close.current',
+            'request.security({ symbol: "NASDAQ:AAPL", interval: "1D" }).close.current',
         );
         expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
     });
@@ -89,7 +89,7 @@ describe("emitRequestSecurity", () => {
     it("lowers a literal different symbol with a ta.* source to the callback form", () => {
         const { source, codes } = emit('request.security("AMEX:SPY", "1W", ta.ema(close, 9))');
         expect(source).toBe(
-            'request.security({ symbol: "AMEX:SPY", interval: "1w" }, (bar) => ta.ema(bar.close.current, 9)).current',
+            'request.security({ symbol: "AMEX:SPY", interval: "1W" }, (bar) => ta.ema(bar.close.current, 9)).current',
         );
         expect(codes).toContain("pine-converter/transform/request-security-different-symbol");
     });
@@ -112,13 +112,13 @@ describe("emitRequestSecurity", () => {
 
     it("lowers a ta.* source to the higher-timeframe callback form", () => {
         expect(emit('request.security(syminfo.tickerid, "D", ta.ema(close, 9))').source).toBe(
-            'request.security({ interval: "1d" }, (bar) => ta.ema(bar.close.current, 9)).current',
+            'request.security({ interval: "1D" }, (bar) => ta.ema(bar.close.current, 9)).current',
         );
     });
 
     it("rewrites OHLCV source fields inside the callback body", () => {
         expect(emit('request.security(syminfo.tickerid, "1W", ta.sma(hl2, 20))').source).toBe(
-            'request.security({ interval: "1w" }, (bar) => ta.sma(bar.hl2.current, 20)).current',
+            'request.security({ interval: "1W" }, (bar) => ta.sma(bar.hl2.current, 20)).current',
         );
     });
 
@@ -144,7 +144,7 @@ describe("emitRequestSecurity", () => {
         const { source, codes } = emit(
             'request.security(syminfo.tickerid, "D", close, gaps=barmerge.gaps_off)',
         );
-        expect(source).toBe('request.security({ interval: "1d" }).close.current');
+        expect(source).toBe('request.security({ interval: "1D" }).close.current');
         expect(codes).toContain("pine-converter/transform/request-security-gaps-dropped");
         expect(codes).not.toContain("pine-converter/transform/request-security-not-mapped");
     });

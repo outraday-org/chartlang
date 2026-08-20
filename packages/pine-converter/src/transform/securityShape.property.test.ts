@@ -54,7 +54,7 @@ type IntervalShape = Readonly<{
 }>;
 
 const INTERVAL_SHAPES: readonly IntervalShape[] = [
-    { src: '"D"', expected: '"1d"' },
+    { src: '"D"', expected: '"1D"' },
     { src: '""', expected: '""' },
     { src: "tf", input: ["tf", "interval"], expected: "inputs.tf as string" },
     { src: "tf", input: ["tf", "symbol"], expected: null },

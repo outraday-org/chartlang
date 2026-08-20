@@ -76,6 +76,13 @@ plot hashes, alert counts, and diagnostic codes.
 
 ## Phase-2 invariants
 
+- **A `pineConverterRoundTrip*` scenario converts at MODULE LOAD through the
+  converter's BUILT `dist`, not its `src`.** `@invinite-org/chartlang-pine-converter`
+  resolves via its `main`/`exports`, so an edit to the converter's SOURCE is
+  invisible here until `pnpm --filter @invinite-org/chartlang-pine-converter
+  build`. A stale dist does not fail — it silently pins the OLD emitted program,
+  so a green conformance run is not evidence that a converter change was
+  exercised. Rebuild first, then read the numbers.
 - **`Scenario` carries either `scriptPath` or `inlineSource`, never
   both, never neither.** `runConformanceSuite`'s `resolveSource`
   enforces the mutual-exclusion contract; both-set throws "cannot

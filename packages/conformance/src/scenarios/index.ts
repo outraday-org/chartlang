@@ -122,6 +122,7 @@ import { ORDER_POSITION_READS_SCENARIO } from "./orderPositionReads.scenario.js"
 import { ORDERS_GATED_SCENARIO } from "./ordersGated.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
+import { PINE_CONVERTER_ROUND_TRIP_ORDER_CROSSOVER_SCENARIO } from "./pineConverterRoundTripOrderCrossover.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
 import { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
@@ -411,6 +412,7 @@ export { PLOT_KIND_SHAPE_SCENARIO } from "./plotKindShape.scenario.js";
 export { PLOT_KIND_SHAPE_GATED_SCENARIO } from "./plotKindShapeGated.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO } from "./pineConverterRoundTripCampA.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO } from "./pineConverterRoundTripCampB.scenario.js";
+export { PINE_CONVERTER_ROUND_TRIP_ORDER_CROSSOVER_SCENARIO } from "./pineConverterRoundTripOrderCrossover.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO } from "./pineConverterRoundTripTable.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO } from "./pineConverterRoundTripVarArray.scenario.js";
 export { PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO } from "./pineConverterRoundTripVarSeries.scenario.js";
@@ -911,6 +913,7 @@ export const ALL_SCENARIOS: ReadonlyArray<Scenario> = Object.freeze([
     // Pine → convert → compile → runtime → emit proof.
     PINE_CONVERTER_ROUND_TRIP_CAMP_A_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_CAMP_B_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_ORDER_CROSSOVER_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_TABLE_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_VAR_SERIES_SCENARIO,
     PINE_CONVERTER_ROUND_TRIP_VAR_ARRAY_SCENARIO,

@@ -665,7 +665,7 @@ describe("analyze — tuple request.security", () => {
         );
         expect(annotation).toEqual({
             kind: "securityTuple",
-            feed: { interval: '"1d"' },
+            feed: { interval: '"1D"' },
             elements: [
                 { kind: "ohlcv", field: "high" },
                 { kind: "ohlcv", field: "low" },

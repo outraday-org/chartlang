@@ -1,7 +1,7 @@
 {
     "adapterName": "Canvas 2D Reference Adapter (default)",
     "generatedBy": "@invinite-org/chartlang-conformance@1.6.0",
-    "passed": 266,
+    "passed": 267,
     "failed": 0,
     "scenarios": [
         {
@@ -715,6 +715,12 @@
         {
             "id": "pine-converter-round-trip-camp-b",
             "title": "Pine converter round-trip Camp B",
+            "status": "pass",
+            "failures": []
+        },
+        {
+            "id": "pine-converter-round-trip-order-crossover",
+            "title": "Pine converter round-trip crossover orders are event-driven",
             "status": "pass",
             "failures": []
         },

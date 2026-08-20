@@ -801,15 +801,15 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         code: "pine-converter/transform/nested-ta-lowered",
         severity: "info",
         defaultMessage:
-            "A nested `ta.*` call in a scalar position (an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding arithmetic type-checks.",
+            "A `ta.*` call in a scalar position (a branch predicate, an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding expression reads the current bar's value instead of the `Series` object.",
         defaultSuggestion:
-            "No action needed — the `.current` projection is the per-bar number Pine uses; the `ta.*` series keeps its own per-call-site history.",
+            "No action needed — the `.current` projection is the per-bar value Pine uses; the `ta.*` series keeps its own per-call-site history.",
     },
     "nested-ta-not-lowered": {
         code: "pine-converter/transform/nested-ta-not-lowered",
         severity: "warning",
         defaultMessage:
-            "A `ta.*` call was left as a `Series` in a scalar position because its name is unmapped or rejected; the generated arithmetic may not type-check (a `Series<number>` where a `number` is required).",
+            "A `ta.*` call was left as a `Series` in a scalar position (a branch predicate, an operator operand, a ternary arm, or a `math.*` argument) because its name is unmapped or rejected; the generated code may not type-check (a `Series` where a scalar is required) and a predicate would be truthy on every bar.",
         defaultSuggestion:
             "Map the `ta.*` name (or rewrite the expression by hand), then read its `.current` scalar before the surrounding arithmetic.",
     },
