@@ -1,7 +1,15 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { InputKind } from "@invinite-org/chartlang-core";
 import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
+
+/**
+ * The one declared kind. Named + typed like `PHASE_3_DRAWINGS` in
+ * `drawTableGated.scenario.ts`, because a bare `new Set(["interval"])`
+ * infers `Set<string>` and does not satisfy `ReadonlySet<InputKind>`.
+ */
+const DECLARED_INPUTS: ReadonlySet<InputKind> = new Set<InputKind>(["interval"]);
 
 const INLINE_SOURCE = `import { defineIndicator, input } from "@invinite-org/chartlang-core";
 export default defineIndicator({
@@ -71,7 +79,7 @@ export const INPUTS_GATED_SCENARIO: Scenario = Object.freeze({
     inlineSource: INLINE_SOURCE,
     intervalCount: 1,
     candleLimit: 5,
-    capabilitiesOverride: { inputs: new Set(["interval"]) },
+    capabilitiesOverride: { inputs: DECLARED_INPUTS },
     historyReseed: { bars: 5, reseedFeeds: {} },
     assertions: ASSERTIONS,
 });

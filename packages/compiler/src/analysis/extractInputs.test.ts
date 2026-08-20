@@ -654,7 +654,7 @@ export default defineIndicator({
     // `unknown-input-kind` (not a builder at all) short-circuits before the
     // capability check, so the two input codes never double-report.
     it("does not add the capability diagnostic on top of unknown-input-kind", () => {
-        const result = runGated(`bogus: input.nope(1),`, []);
+        const result = runGated("bogus: input.nope(1),", []);
         expect(result.diagnostics.map((d) => d.code)).toEqual(["unknown-input-kind"]);
     });
 });
