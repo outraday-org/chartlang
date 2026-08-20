@@ -1,5 +1,14 @@
 # chartlang-react-starter
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [8fb0338]
+  - @invinite-org/chartlang-adapter-kit@1.11.0
+  - @invinite-org/chartlang-language-service@1.6.1
+  - @invinite-org/chartlang-editor@2.5.2
+
 ## 0.0.15
 
 ### Patch Changes
