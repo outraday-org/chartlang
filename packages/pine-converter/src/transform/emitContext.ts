@@ -867,10 +867,21 @@ export function emitWithContext(node: ExpressionNode, ctx: EmitContext): string 
 
 /**
  * Lower a Pine expression to a chartlang TS source string in a **scalar**
- * (number-required) root position — a `ta.*` call at the root lowers to its
+ * (value-required) root position — a `ta.*` call at the root lowers to its
  * `(...).current` projection. Same `EmitContext` rewrites as
- * {@link emitWithContext}; the only difference is the root position. Used for
- * scalar-typed call arguments (`math.*` / `Math.*`).
+ * {@link emitWithContext}; the only difference is the root position, and ONLY a
+ * root `ta.*` call differs (a comparison, literal, input read or boolean local
+ * emits byte-identically).
+ *
+ * Used for scalar-typed call arguments (`math.*` / `Math.*`) AND for every
+ * position the converter lowers into a JS truthiness test or a scalar boolean
+ * option, where the difference is semantic rather than typing: chartlang's
+ * `ta.crossover` / `ta.crossunder` return a `Series<boolean>` and a Series
+ * OBJECT is truthy on every bar, so a series-rooted predicate runs its branch
+ * unconditionally. Those callers are `emitIf` / `emitSwitch` /
+ * `emitSubjectlessSwitch` (`controlFlow.ts`), the `strategy.*` `when =` guard
+ * (`strategySignals.ts`), and the `plotshape`/`plotchar`/`plotarrow` condition,
+ * conditional-colour ternary test and `display =` toggle (`plotFamily.ts`).
  *
  * @since 1.5
  * @stable

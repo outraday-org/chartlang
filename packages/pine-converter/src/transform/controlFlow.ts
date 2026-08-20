@@ -5,7 +5,7 @@ import type { ExpressionNode, LiteralExpression } from "../ast/index.js";
 import type { ForStatement, IfStatement, Statement, SwitchStatement } from "../ast/statements.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitWithContext } from "./emitContext.js";
+import { emitScalar } from "./emitContext.js";
 import { expressionHasStatefulPrimitive } from "./statefulNames.js";
 
 /**
@@ -401,7 +401,9 @@ function substituteParamsBlock(
 export function emitIf(stmt: IfStatement, ctx: EmitContext, emitBody: BodyEmitter): string | null {
     const thenBody = emitBody(stmt.thenBody.body, ctx).join(" ");
     const clauses = stmt.elseIfClauses.map((clause) => ({
-        condition: emitWithContext(clause.condition, ctx),
+        // A branch predicate is a SCALAR position — see the `emitScalar` call
+        // for the initial `if` below.
+        condition: emitScalar(clause.condition, ctx),
         body: emitBody(clause.body.body, ctx).join(" "),
     }));
     const elseBody = stmt.elseBody === null ? null : emitBody(stmt.elseBody.body, ctx).join(" ");
@@ -411,7 +413,15 @@ export function emitIf(stmt: IfStatement, ctx: EmitContext, emitBody: BodyEmitte
     if (thenBody === "" && clauses.every((c) => c.body === "") && (elseBody ?? "") === "") {
         return null;
     }
-    const parts: string[] = [`if (${emitWithContext(stmt.condition, ctx)}) { ${thenBody} }`];
+    // A branch predicate is a JS truthiness test, i.e. a SCALAR position: a
+    // `ta.*` boolean (`ta.crossover`) is a `Series<boolean>` in chartlang, and a
+    // Series OBJECT is truthy on every bar, so a series-rooted predicate would
+    // run the branch unconditionally. `emitScalar` routes the root through the
+    // same `lowerTaToCurrent` seam every other scalar position uses, projecting
+    // the current-bar value (`ta.crossover(fast, slow).current`). Only a root
+    // `ta.*` call is affected — a comparison, literal, input read or boolean
+    // local emits byte-identically to the series-rooted emitter.
+    const parts: string[] = [`if (${emitScalar(stmt.condition, ctx)}) { ${thenBody} }`];
     for (const clause of clauses) {
         parts.push(`else if (${clause.condition}) { ${clause.body} }`);
     }
@@ -729,14 +739,17 @@ export function emitSwitch(stmt: SwitchStatement, ctx: EmitContext, emitBody: Bo
     if (stmt.subject === null) {
         return emitSubjectlessSwitch(stmt, ctx, emitBody);
     }
-    const subject = emitWithContext(stmt.subject, ctx);
+    // The subject and each `case` test are compared with `===`, a SCALAR
+    // position: a `Series` object never equals a case value, so a root `ta.*`
+    // lowers to its per-bar `.current` value (see `emitIf`).
+    const subject = emitScalar(stmt.subject, ctx);
     const arms: string[] = [];
     for (const arm of stmt.cases) {
         const body = emitBody(arm.body, ctx).join(" ");
         if (arm.test === null) {
             arms.push(`default: { ${body} break; }`);
         } else {
-            arms.push(`case ${emitWithContext(arm.test, ctx)}: { ${body} break; }`);
+            arms.push(`case ${emitScalar(arm.test, ctx)}: { ${body} break; }`);
         }
     }
     return `switch (${subject}) { ${arms.join(" ")} }`;
@@ -758,7 +771,9 @@ function emitSubjectlessSwitch(
             continue;
         }
         const keyword = conditionalCount === 0 ? "if" : "else if";
-        parts.push(`${keyword} (${emitWithContext(arm.test, ctx)}) { ${body} }`);
+        // The subjectless `switch` lowers each arm test to an `if`/`else if`
+        // predicate, so it is the same SCALAR position `emitIf` documents.
+        parts.push(`${keyword} (${emitScalar(arm.test, ctx)}) { ${body} }`);
         conditionalCount += 1;
     }
     return parts.join(" ");

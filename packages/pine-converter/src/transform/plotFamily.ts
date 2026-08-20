@@ -7,7 +7,7 @@ import { dottedCallee } from "./callArgs.js";
 import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitWithContext } from "./emitContext.js";
+import { emitScalar, emitWithContext } from "./emitContext.js";
 import type { FillBetweenEdge } from "./polylineLinefill.js";
 import { emitFillBetweenBand } from "./polylineLinefill.js";
 
@@ -37,7 +37,8 @@ function styleValue(
         return `(${styleValue(node.expression, ctx, diagnostics)})`;
     }
     if (node.kind === "ternary-expression") {
-        const cond = emitWithContext(node.condition, ctx);
+        // A ternary test is the same SCALAR position `emitIf` documents.
+        const cond = emitScalar(node.condition, ctx);
         const yes = styleValue(node.consequent, ctx, diagnostics);
         const no = styleValue(node.alternate, ctx, diagnostics);
         return `${cond} ? ${yes} : ${no}`;
@@ -436,11 +437,14 @@ function displayOption(
     if (node.kind === "ternary-expression") {
         const yes = displayMemberKind(node.consequent);
         const no = displayMemberKind(node.alternate);
+        // `visible` is a scalar `boolean`, so the ternary's condition is the
+        // same SCALAR position `emitIf` documents — a root `ta.*` boolean
+        // lowers to its per-bar `.current` value.
         if (yes === "all" && no === "none") {
-            return emitWithContext(node.condition, ctx);
+            return emitScalar(node.condition, ctx);
         }
         if (yes === "none" && no === "all") {
-            return `!(${emitWithContext(node.condition, ctx)})`;
+            return `!(${emitScalar(node.condition, ctx)})`;
         }
         diagnostics.pushCode("plot-display-approximated", node.span);
         return null;
@@ -498,15 +502,14 @@ function emitConditional(
         return null;
     }
     // A `ta.*` boolean (e.g. `ta.crossover`) is a `Series<boolean>` in
-    // chartlang, not a scalar — the same shape `emitTa` projects to a per-bar
-    // value with `.current`. As a bare ternary condition the Series object is
-    // always truthy, so the shape would plot on every bar; project the
-    // current-bar scalar boolean so the gate fires only on the event.
-    const cond =
-        condition.kind === "call-expression" &&
-        (dottedCallee(condition)?.startsWith("ta.") ?? false)
-            ? `${emitWithContext(condition, ctx)}.current`
-            : emitWithContext(condition, ctx);
+    // chartlang, not a scalar. As a bare ternary condition the Series object is
+    // always truthy, so the shape would plot on every bar. `emitScalar` — the
+    // ONE rule every truthiness position uses (see `emitIf`) — projects the
+    // current-bar boolean so the gate fires only on the event. It replaced a
+    // name-shaped `.current` append here, which missed a PARENTHESISED
+    // predicate (a `paren-expression` fails a `kind === "call-expression"`
+    // test) and never resolved a signature-divergent / pivot `ta.*` name.
+    const cond = emitScalar(condition, ctx);
     const location = enumArg(args, "location");
     const locPart = location === null ? "" : `, location: "${location}"`;
     let style: string;

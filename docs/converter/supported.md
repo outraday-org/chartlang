@@ -595,16 +595,29 @@ differ in signature (e.g. Pine `ta.rma` → chartlang `ta.smma`) and emit a
 `ta-signature-divergence` warning so you can check the arguments.
 
 A `ta.*` call may appear **anywhere in an expression**, not only as the whole
-right-hand side of an assignment. A `ta.*` in a **scalar** position — an
-operator operand, a ternary arm, or a `math.*` / `Math.*` argument — is
-projected to its per-bar `.current` scalar so the surrounding arithmetic
-type-checks, and a `nested-ta-lowered` **info** marks the projection (deduped
-to one per script):
+right-hand side of an assignment. A `ta.*` in a **scalar** position — a branch
+predicate, an operator operand, a ternary arm, or a `math.*` / `Math.*`
+argument — is projected to its per-bar `.current` scalar so the surrounding
+expression reads the current bar's value, and a `nested-ta-lowered` **info**
+marks the projection (deduped to one per script):
 
 ```pine
 r = ta.rsi(close, 14) * scale            // → ta.rsi(bar.close, 14).current * (inputs.scale as number)
 s = close > open ? ta.ema(close, 8) : ta.sma(close, 8)
+if ta.crossover(fast, slow)              // → if (ta.crossover(fast, slow).current) { … }
+    strategy.entry("Long", strategy.long)
 ```
+
+The **branch-predicate** case is the one that changes behaviour rather than
+just types: a chartlang `ta.crossover` / `ta.crossunder` returns a
+`Series<boolean>`, and a Series OBJECT is truthy on every bar, so a
+series-rooted predicate would run its branch unconditionally. Every position
+the converter lowers into a JS truthiness test or a scalar boolean gets the
+projection — the initial `if`, every `else if` (parenthesised or not), each arm
+of the subjectless `switch`, a `strategy.*` `when =` guard (which becomes the
+enclosing `if`), a `plotshape` / `plotchar` / `plotarrow` condition, a
+conditional-colour ternary test, and a `display = cond ? display.all :
+display.none` toggle.
 
 A `ta.*` in a **series** position stays a `Series` (no `.current`): a source
 argument to another `ta.*` (`ta.sma(ta.atr(14), 5)` keeps the inner `ta.atr`
@@ -612,7 +625,8 @@ bare — chartlang `ta.*` sources are `Series<number>`), a direct `plot` / `hlin
 value, a `request.security` callback body, or a history-access receiver
 (`ta.sma(close, 20)[1]`). If an **unmapped** `ta.*` lands in a scalar position
 it cannot be projected and stays a bare `Series`; a `nested-ta-not-lowered`
-**warning** flags that the generated arithmetic may not type-check.
+**warning** flags that the generated code may not type-check and that a
+predicate built from it would be truthy on every bar.
 
 A `ta.*` / `math.*` / `str.*` member with no chartlang analogue is **left
 as-is** and flagged:

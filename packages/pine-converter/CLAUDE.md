@@ -1496,9 +1496,10 @@ that has no byte-identical chartlang analogue.
   declaration/assignment and raises the `ta-not-mapped` /
   `ta-signature-divergence` diagnostics; the recursive `rewriteTree`
   (`emitContext.ts`) applies the SAME helper to a `ta.*` in a **scalar
-  position** — an operand of a binary/unary operator, a ternary arm, or a
-  `math.*` / `Math.*` argument (`emitScalar`) — so `ta.rsi(close,14) * 0.1` →
-  `ta.rsi(bar.close, 14).current * 0.1`. The lowering is **position-aware**: a
+  position** — an operand of a binary/unary operator, a ternary arm, a
+  `math.*` / `Math.*` argument, or a CONTROL-FLOW PREDICATE (`emitScalar`) — so
+  `ta.rsi(close,14) * 0.1` → `ta.rsi(bar.close, 14).current * 0.1`. The lowering
+  is **position-aware**: a
   `ta.*` in a **series position** stays a `Series` (chartlang `ta.*` sources are
   `Series<number>`) — a source arg to another `ta.*`, a direct `plot`/`hline`
   value, a `request.security` callback body, or a history-access receiver
@@ -1517,16 +1518,39 @@ that has no byte-identical chartlang analogue.
   `diagnostics.has(DIAGNOSTIC_CODE_ENTRIES[code].code)`), and an unmapped /
   REJECT `ta.*` left as a `Series` in a scalar position raises
   `nested-ta-not-lowered` (warning, the residual-series safety net) — so a
-  nested `ta.*` is NEVER a silent output. Other `EmitContext` constructions
-  (plot/table/…) leave `taWarn` absent, so those positions stay silent, exactly
-  as the array/map sinks do. Fixture `41-nested-ta-arith` proves the clean nested
-  arithmetic round-trips through the compiler. An input read lowers as
+  nested `ta.*` is NEVER a silent output. The DRAWING `EmitContext`
+  (`buildDrawingEmitContext` — tables, setters, draw options) leaves `taWarn`
+  absent, so those positions stay silent, exactly as the array/map sinks do;
+  the plot family runs on the `transformOther` context and DOES report. Fixture `41-nested-ta-arith` proves the clean nested
+  arithmetic round-trips through the compiler. Fixture `97-strategy-orders`
+  proves the branch-predicate half (see the next bullet). An input read lowers as
   `inputs.<name> as <type>`: `inputCastType` (`emitContext.ts`, shared by
   `transformOther` AND the drawing transforms via `buildDrawingEmitContext`) →
   `number`/`boolean`/`string` from the `input.*` factory drives the
   `inputs.len as number` cast (`EmitContext.inputCasts`). `input.color` casts as
   `string` (a `#RRGGBB[AA]` colour string), so a bare `color=lineColor` draw
   option assigns to the `string` colour field.
+
+- **Every position the converter lowers into a JS TRUTHINESS TEST (or a scalar
+  boolean option) emits through `emitScalar`, never `emitWithContext`.** A
+  chartlang `ta.crossover` / `ta.crossunder` returns a `Series<boolean>`, and a
+  Series OBJECT is truthy on EVERY bar — so a series-rooted predicate does not
+  merely mis-typecheck, it runs the branch unconditionally (the shipped 0.9.1
+  defect: an imported EMA-crossover strategy fired both order branches on every
+  bar). The sites, all of which pass the ROOT node to `emitScalar`: the initial
+  `if` and every `else if` (`emitIf`), each arm test of the subjectless
+  `switch` plus the subject/`case` tests of the subject form (`controlFlow.ts`),
+  the `strategy.*` `when =` guard that BECOMES the enclosing `if`
+  (`strategySignals.ts`), and — in `plotFamily.ts` — the `plotshape`/`plotchar`/
+  `plotarrow` condition, a conditional-colour ternary test (`styleValue`), and
+  the `display = cond ? display.all : display.none` → `visible` toggle. Do NOT
+  re-introduce a name-shaped `crossover`/`crossunder` substitution or a textual
+  `.current` append (`emitConditional` carried one until this rule replaced it —
+  it silently missed a PARENTHESISED predicate, because a `paren-expression`
+  fails a `kind === "call-expression"` test). `emitScalar` only ever rewrites a
+  ROOT `ta.*` call, so a comparison, literal, input read, boolean local or an
+  already-lowered compound predicate emits byte-identically; that is what makes
+  the rule safe to apply at every one of these sites.
 - **Native Pine enum member reads are compile-time string values in expression
   emission.** `emitExpr` receives `SemanticResult.enumTypes` through
   `EmitContext.enumTypes` and lowers a resolved bare `EnumType.member` access to

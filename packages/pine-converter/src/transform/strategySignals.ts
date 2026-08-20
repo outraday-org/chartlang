@@ -5,7 +5,7 @@ import type { CallArgument, CallExpression, ExpressionNode } from "../ast/index.
 import { namedArg, positionalArgs } from "./callArgs.js";
 import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
-import { emitScalar, emitWithContext } from "./emitContext.js";
+import { emitScalar } from "./emitContext.js";
 
 // The registry's own `strategy-signal-only` message, restated here as the
 // prefix of the per-call override that names what an individual call lost.
@@ -348,7 +348,10 @@ export function emitStrategySignal(
     let guard: string | null = null;
     if (whenArg !== null) {
         consumed.add(whenArg);
-        guard = emitWithContext(whenArg.value, ctx);
+        // The guard becomes the enclosing `if`, so it is the same SCALAR
+        // truthiness position `emitIf` documents — a series-rooted `ta.*`
+        // predicate (`when=ta.crossover(f, s)`) would fire on every bar.
+        guard = emitScalar(whenArg.value, ctx);
     }
 
     const dropped = droppedArgNames(call, spec, consumed);

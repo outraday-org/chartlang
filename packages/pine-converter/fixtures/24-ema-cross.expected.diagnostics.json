@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "code": "pine-converter/transform/nested-ta-lowered",
+        "severity": "info",
+        "message": "A `ta.*` call in a scalar position (a branch predicate, an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding expression reads the current bar's value instead of the `Series` object.",
+        "span": {
+            "startLine": 7,
+            "startColumn": 11,
+            "endLine": 7,
+            "endColumn": 35
+        },
+        "suggestion": "No action needed — the `.current` projection is the per-bar value Pine uses; the `ta.*` series keeps its own per-call-site history."
+    }
+]
