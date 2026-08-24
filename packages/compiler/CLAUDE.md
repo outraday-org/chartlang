@@ -82,10 +82,16 @@
   a string literal, an `input.enum` (cartesian), or an `input.interval`
   **default** (`getInputDefault(..., "interval")`) — **reversed from the
   previous "`interval` never uses the input default" rule (Task 3)**. An empty
-  (`""`) interval is the **chart timeframe**: a chart-symbol + chart-tf pair
-  collapses onto the **primary stream** (no feed, no `requestedIntervals`
-  entry — Pine's empty `request.security` tf), while a present-symbol + chart-tf
-  pair stays a distinct feed keyed `feedKey(symbol, "")` (= `"<symbol>@"`).
+  (`""`) interval is the **chart timeframe**: a fixed literal / enum blank on
+  the chart symbol collapses onto the **primary stream** (no feed, no
+  `requestedIntervals` entry — Pine's empty `request.security` tf), while a
+  blank `input.interval` default retains `{ interval: "" }` in
+  `requestedFeeds` so an input-aware host can resolve an override. Empty never
+  enters `requestedIntervals` or an expression clock. A present-symbol +
+  chart-tf pair stays a distinct feed keyed `feedKey(symbol, "")` (=
+  `"<symbol>@"`). The retained declaration is compile-time discovery only: the
+  raw runtime does not create an arbitrary override stream unless the host
+  resolves and registers the active roster.
   `readLiteralInterval` accepts the same literal + `input.interval`-default
   anchor for the expression descriptor (empty → no expression unit, since the
   chart timeframe is the main clock, not an HTF clock). A dynamic symbol emits

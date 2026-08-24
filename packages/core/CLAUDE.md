@@ -73,13 +73,17 @@
   **Chart timeframe = empty interval (Task 3).** An `interval` of `""` is the
   chart's own timeframe (Pine's empty `request.security` tf; the compiler
   accepts a literal `""`, an `input.interval("")` default, and an
-  `input.interval("1D")`-style non-empty default). A chart-symbol + chart-tf
-  pair is the **primary stream** — `feedKey(undefined, "") === ""` collapses it,
-  so the compiler emits NO feed and NO `requestedIntervals` entry for it. A
-  present-symbol + chart-tf pair stays a distinct feed `{ symbol, interval: "" }`
-  (keyed `"<symbol>@"`); its **runtime** resolution against an adapter is
-  deferred (README → Deferred/Follow-Up "truly runtime-arbitrary feeds"), the
-  manifest entry exists for compile-time correctness.
+  `input.interval("1D")`-style non-empty default). A fixed blank on the chart
+  symbol is the **primary stream**, so the compiler emits no feed. A blank
+  `input.interval` default is primary at defaults but retains
+  `{ interval: "" }` in `requestedFeeds` so an input-aware host can resolve an
+  override. Neither blank enters `requestedIntervals` or an expression clock;
+  the declaration alone does not make the raw runtime register an arbitrary
+  override stream. A present-symbol + chart-tf pair stays a distinct feed
+  `{ symbol, interval: "" }` (keyed `"<symbol>@"`); its **runtime** resolution
+  against an adapter is deferred (README → Deferred/Follow-Up
+  "truly runtime-arbitrary feeds"), the manifest entry exists for compile-time
+  correctness.
 
 - **`ScriptManifest.compilerVersion?` is OPTIONAL and absent means UNKNOWN,
   never a version.** It must never become required: `defineAlertCondition`

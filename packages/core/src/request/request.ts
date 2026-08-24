@@ -37,9 +37,12 @@ export type RequestSecurityOpts = Readonly<{
      * string literal, an `input.interval` default, or an `input.enum` value;
      * the compiler's literal-only pass rejects a dynamic expression with
      * `request-security-interval-not-literal`. An empty interval (`""`) is the
-     * chart's own timeframe (Pine's empty `request.security` tf): combined with
-     * the chart symbol it resolves to the main stream (no secondary feed); with
-     * a different `symbol` it is that instrument on the chart's own clock.
+     * chart's own timeframe (Pine's empty `request.security` tf). A literal
+     * blank on the chart symbol is fixed to the main stream and emits no feed.
+     * A blank `input.interval` default is primary at defaults but retains a feed
+     * declaration so an input-aware host can resolve and register an override;
+     * it still emits no requested interval or expression clock. With a
+     * different `symbol`, blank means that instrument on the chart's own clock.
      *
      * @since 0.4
      */
@@ -140,7 +143,13 @@ const sentinel = (name: string): never => {
  * literal, an `input.symbol` / `input.interval` default, or an `input.enum`
  * value — and, for `interval`, empty `""` = the chart timeframe); the compiler
  * walks every call to populate `manifest.requestedFeeds` (and the main-symbol
- * projection `manifest.requestedIntervals`). `symbol` is **optional** —
+ * projection `manifest.requestedIntervals`). A literal blank on the chart
+ * symbol is fixed to the primary stream and emits no feed. A blank
+ * `input.interval` default is primary at defaults but retains a feed declaration
+ * so an input-aware host can resolve and register an override; empty remains
+ * absent from requested intervals and expression clocks. This is discovery
+ * only — the raw runtime does not create an arbitrary override stream from the
+ * declaration. `symbol` is **optional** —
  * omitting it reads the chart's own symbol (the higher-timeframe-only case).
  * When the adapter does not advertise `Capabilities.multiTimeframe`, the
  * series degrades to all-NaN rather than erroring; a non-chart `symbol`

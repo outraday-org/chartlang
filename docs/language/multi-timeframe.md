@@ -142,6 +142,15 @@ distinct `(symbol?, interval)` feeds) and `manifest.requestedIntervals` (the
 main-symbol projection, retained for back-compat), which is how the host knows
 which secondary streams to feed.
 
+The empty interval `""` means the chart timeframe. A literal blank on the chart
+symbol is fixed to the primary stream, so it emits no feed. A blank
+`input.interval` default also uses the primary stream at its default, but the
+compiler retains `{ interval: "" }` in `requestedFeeds` so an input-aware host
+can resolve and register an override. Empty remains absent from
+`requestedIntervals` and from expression clocks. The declaration supplies
+discovery only; the raw runtime does not automatically create an arbitrary
+override stream.
+
 ## Interval format
 
 Intervals are an integer count plus a unit: `"30s"`, `"1m"`, `"1h"`,

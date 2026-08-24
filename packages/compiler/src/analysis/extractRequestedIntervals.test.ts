@@ -478,7 +478,8 @@ export default defineIndicator({
 
     it("records no expression unit for an empty (chart-timeframe) input.interval default", () => {
         // The chart timeframe is the main clock, not a higher-timeframe
-        // expression clock — so no descriptor (and no feed, no diagnostic).
+        // expression clock. The mutable input still needs a feed declaration
+        // for input-aware host discovery, but it creates no descriptor.
         const result = analyse(
             `import { defineIndicator, input } from "@invinite-org/chartlang-core";
 export default defineIndicator({
@@ -491,7 +492,8 @@ export default defineIndicator({
 });`,
         );
         expect(result.securityExpressions).toEqual([]);
-        expect(result.feeds).toEqual([]);
+        expect(result.feeds).toEqual([{ interval: "" }]);
+        expect(result.intervals).toEqual([]);
         expect(result.diagnostics).toEqual([]);
     });
 
@@ -658,10 +660,26 @@ export default defineIndicator({
         expect(result.diagnostics).toEqual([]);
     });
 
-    it("collapses a chart-symbol + chart-timeframe (empty default) onto the primary stream", () => {
-        // `input.interval("")` is Pine's empty = chart timeframe; with the chart
-        // symbol (omitted) it IS the primary stream — no secondary feed and no
-        // higher-timeframe entry in the main-symbol projection.
+    it("collapses a literal chart-symbol + chart-timeframe onto the primary stream", () => {
+        const result = runFeeds(`
+import { defineIndicator, request } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "x",
+    apiVersion: 1,
+    compute: ({ request }) => {
+        request.security({ interval: "" });
+    },
+});
+`);
+        expect(result.feeds).toEqual([]);
+        expect(result.intervals).toEqual([]);
+        expect(result.diagnostics).toEqual([]);
+    });
+
+    it("retains a blank input.interval declaration for the chart symbol", () => {
+        // The default runs on the chart timeframe, but the mutable input may
+        // resolve to a secondary interval in an input-aware host. Keep the feed
+        // declaration while excluding the empty token from requestedIntervals.
         const result = runFeeds(`
 import { defineIndicator, input } from "@invinite-org/chartlang-core";
 export default defineIndicator({
@@ -673,7 +691,7 @@ export default defineIndicator({
     },
 });
 `);
-        expect(result.feeds).toEqual([]);
+        expect(result.feeds).toEqual([{ interval: "" }]);
         expect(result.intervals).toEqual([]);
         expect(result.diagnostics).toEqual([]);
     });
