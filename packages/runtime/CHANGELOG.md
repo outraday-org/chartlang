@@ -1,5 +1,13 @@
 # @invinite-org/chartlang-runtime
 
+## 1.12.1
+
+### Patch Changes
+
+- 3dd7b4e: Preserve Pine plot-family chart-pane visibility across `display` placement targets, including real horizontal-line visibility support.
+- Updated dependencies [3dd7b4e]
+  - @invinite-org/chartlang-core@1.12.1
+
 ## 1.12.0
 
 ### Minor Changes

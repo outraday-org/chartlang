@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.9.3
+
+### Patch Changes
+
+- 3dd7b4e: Preserve Pine plot-family chart-pane visibility across `display` placement targets, including real horizontal-line visibility support.
+
 ## 0.9.2
 
 ### Patch Changes
