@@ -47,12 +47,8 @@
     --vp-c-brand-soft: var(--brand-indigo-900);
 }
 
-/* Match apps/site's Logo mark: the shared brand/chartlang_logo.svg is a
- * square that the marketing site renders with a 22% rounded corner
- * (see apps/site/.../brand/Logo.tsx). VitePress draws the nav logo with
- * sharp corners, so round it here to keep the two sites visually one. */
+/* Render the supplied full icon-and-wordmark lockup in the docs header. */
 .VPNavBarTitle .logo {
-    width: 30px;
+    width: auto;
     height: 30px;
-    border-radius: 22%;
 }

@@ -19,13 +19,15 @@ into one site silently drifts the two apart.
 
 ## Logo
 
-The brand mark ships as one source set — **switch the logo by replacing
+The brand identity ships as one source set — **switch the logo by replacing
 these files** (keep the names), there are no other copies to keep in
 sync:
 
 | File | Used as |
 |---|---|
-| `chartlang_logo.svg` | Primary favicon + nav logo (both sites) |
+| `chartlang_logo_full.png` | Full icon-and-wordmark lockup for both site navs |
+| `chartlang_logo_square.png` | High-resolution standalone mark source |
+| `chartlang_logo_wordmark.png` | High-resolution standalone wordmark source |
 | `chartlang_logo.ico` | Legacy favicon fallback (both sites) |
 | `chartlang_logo_48.png` | Small PNG favicon |
 | `chartlang_logo_256.png` | PNG favicon |
@@ -34,19 +36,19 @@ sync:
 
 - `apps/site/` imports them through Vite (`?url`) in
   `src/routes/__root.tsx` (favicons + `og:image`) and
-  `src/components/brand/Logo.tsx` (nav mark). Small assets inline as
+  `src/components/brand/Logo.tsx` (full nav lockup + mark variant). Small assets inline as
   data URIs; larger ones emit as hashed files. No copy lives in
   `apps/site/public/`.
-- `docs/` needs the mark served at its site root for VitePress's
+- `docs/` needs the lockup and favicon served at its site root for VitePress's
   `themeConfig.logo` + favicon `<link>`s. `pnpm brand:sync`
   (`scripts/sync-brand-assets.ts`, run automatically by `docs:dev` and
-  `docs:build`) copies `chartlang_logo.svg` → `docs/public/logo.svg` and
-  `chartlang_logo.ico` → `docs/public/logo.ico`, both **git-ignored** —
-  never commit or hand-edit those copies.
+  `docs:build`) copies `chartlang_logo_full.png`, `chartlang_logo_48.png`,
+  and `chartlang_logo.ico` to stable names under `docs/public/`. Those
+  copies are **git-ignored** — never commit or hand-edit them.
 
-`apps/site/src/components/brand/Logo.tsx` renders `chartlang_logo.svg`
-(same file as the favicon) next to the wordmark, so the nav logo and the
-tab icon are always identical.
+`apps/site/src/components/brand/Logo.tsx` renders the supplied full lockup
+directly instead of reconstructing it from a mark and text. Favicons and
+touch icons are resized square-canvas derivatives of the standalone mark.
 
 This is a plain shared-assets directory — **not** a workspace package
 (no `package.json`). Both sites' build graphs reference it by relative

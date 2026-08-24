@@ -12,7 +12,8 @@ coverage/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 # Synced from brand/ by scripts/sync-brand-assets.ts (do not edit/commit)
-docs/public/logo.svg
+docs/public/logo-full.png
+docs/public/logo-48.png
 docs/public/logo.ico
 # pi runtime/session data — but keep committed config (.pi/settings.json, .pi/agents/)
 .pi/sessions/

@@ -8,7 +8,6 @@ import { TanStackDevtools } from "@tanstack/react-devtools"
 import { Logo } from "@/components/brand/Logo"
 import { ThemeToggle } from "@/components/brand/ThemeToggle"
 import appCss from "../styles.css?url"
-import faviconSvg from "../../../../brand/chartlang_logo.svg?url"
 import faviconIco from "../../../../brand/chartlang_logo.ico?url"
 import iconPng48 from "../../../../brand/chartlang_logo_48.png?url"
 import iconPng256 from "../../../../brand/chartlang_logo_256.png?url"
@@ -57,7 +56,6 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/svg+xml", href: faviconSvg },
       { rel: "icon", type: "image/x-icon", href: faviconIco },
       { rel: "icon", type: "image/png", sizes: "48x48", href: iconPng48 },
       { rel: "icon", type: "image/png", sizes: "256x256", href: iconPng256 },

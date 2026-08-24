@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
-// Copies the single-source brand mark into the VitePress served root.
+// Copies the single-source brand assets into the VitePress served root.
 //
 // `apps/site/` imports brand assets straight through Vite (`?url`), but
 // VitePress's `themeConfig.logo` + favicon `<link>` need files served at
 // the site root. Rather than check duplicates into `docs/public/`, this
-// script copies `brand/chartlang_logo.{svg,ico}` there on every
+// script copies the nav lockup and favicon assets there on every
 // `docs:dev` / `docs:build`. The generated copies are git-ignored —
-// `brand/` is the only place you edit to switch the logo.
+// `brand/` is the only place to edit when switching the logo.
 
 import { copyFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -18,10 +18,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = resolve(root, "docs/public");
 
 // brand/ source file -> served filename under docs/public/. The served
-// names stay stable (logo.svg / logo.ico) so docs config never churns;
+// names stay stable so docs config never churns;
 // only brand/ is the single source you edit to switch the logo.
 const assets: ReadonlyArray<readonly [string, string]> = [
-    ["brand/chartlang_logo.svg", "logo.svg"],
+    ["brand/chartlang_logo_full.png", "logo-full.png"],
+    ["brand/chartlang_logo_48.png", "logo-48.png"],
     ["brand/chartlang_logo.ico", "logo.ico"],
 ];
 

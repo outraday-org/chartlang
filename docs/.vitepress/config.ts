@@ -28,7 +28,7 @@ export default defineConfig({
     // env fallback stays for local flexibility and is harmless.
     base: process.env.DOCS_BASE ?? "/",
     head: [
-        ["link", { rel: "icon", type: "image/svg+xml", href: "/logo.svg" }],
+        ["link", { rel: "icon", type: "image/png", sizes: "48x48", href: "/logo-48.png" }],
         ["link", { rel: "icon", type: "image/x-icon", href: "/logo.ico" }],
     ],
     ignoreDeadLinks: false,
@@ -75,8 +75,8 @@ export default defineConfig({
     },
     srcExclude: ["**/CLAUDE.md"],
     themeConfig: {
-        logo: { src: "/logo.svg", alt: "chartlang" },
-        siteTitle: "chartlang",
+        logo: { src: "/logo-full.png", alt: "chartlang" },
+        siteTitle: false,
         nav: [
             { text: "Getting Started", link: "/getting-started/write-your-first-script" },
             { text: "Examples", link: "/examples/" },

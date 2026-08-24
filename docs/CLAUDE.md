@@ -87,10 +87,11 @@ the repo-root `DEPLOYMENT.md`).
   and remaps VitePress's `--vp-*` variables onto the brand tokens so the
   default theme's components inherit the indigo + slate + emerald look —
   do not add per-component overrides. The nav logo + favicons are wired
-  to `/logo.svg` and `/logo.ico`, which are **not committed** here —
+  to `/logo-full.png`, `/logo-48.png`, and `/logo.ico`, which are **not
+  committed** here —
   `pnpm brand:sync` (run by `docs:dev` / `docs:build`) copies them from
-  the single source `brand/chartlang_logo.{svg,ico}` into the
-  git-ignored `docs/public/logo.{svg,ico}`. Never hand-edit or commit
+  the single-source full lockup and favicon set in `brand/` into
+  git-ignored stable paths under `docs/public/`. Never hand-edit or commit
   those copies; swap the logo in `brand/` (see `brand/README.md`). The
   fonts (`@fontsource-variable/*`) match `apps/site/` so the two sites
   read as one product. The Shiki code-block theme is **dual**

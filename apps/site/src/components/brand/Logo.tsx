@@ -2,7 +2,8 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { ReactElement } from "react"
-import markUrl from "../../../../../brand/chartlang_logo.svg?url"
+import fullLogoUrl from "../../../../../brand/chartlang_logo_full.png?url"
+import markUrl from "../../../../../brand/chartlang_logo_256.png?url"
 
 export type LogoProps = Readonly<{
   variant?: "mark" | "full"
@@ -10,49 +11,31 @@ export type LogoProps = Readonly<{
   size?: number
 }>
 
-function Mark({ size }: { size: number }): ReactElement {
-  return (
-    <img
-      src={markUrl}
-      width={size}
-      height={size}
-      alt="chartlang"
-      style={{ borderRadius: "22%", display: "block" }}
-    />
-  )
-}
+const FULL_LOGO_ASPECT_RATIO = 2018 / 361
 
 /**
- * The chartlang logo: the brand mark (`mark`) or the mark plus the
- * `chartlang` wordmark (`full`). The mark renders the single-source
- * `brand/chartlang_logo.svg` (same file as the favicon); the wordmark
- * text recolors with the `--foreground` token for dark/light mode.
+ * The chartlang logo: the supplied square mark (`mark`) or the complete
+ * icon-and-wordmark lockup (`full`). Both variants render their canonical
+ * PNG from `brand/`; the full variant never reconstructs the lockup with
+ * live text.
  */
 export function Logo({ variant = "full", className, size = 24 }: LogoProps): ReactElement {
   if (variant === "mark") {
     return (
       <span className={className} style={{ display: "inline-flex" }}>
-        <Mark size={size} />
+        <img src={markUrl} width={size} height={size} alt="chartlang" style={{ display: "block" }} />
       </span>
     )
   }
   return (
-    <span
-      className={className}
-      style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
-    >
-      <Mark size={size} />
-      <span
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontWeight: 800,
-          fontSize: `${size * 0.72}px`,
-          letterSpacing: "-0.02em",
-          color: "var(--foreground)",
-        }}
-      >
-        chartlang
-      </span>
+    <span className={className} style={{ display: "inline-flex" }}>
+      <img
+        src={fullLogoUrl}
+        width={Math.round(size * FULL_LOGO_ASPECT_RATIO)}
+        height={size}
+        alt="chartlang"
+        style={{ display: "block" }}
+      />
     </span>
   )
 }
