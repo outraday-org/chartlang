@@ -8324,7 +8324,8 @@ function hlineImpl(ctx, slotId, price, opts) {
     value: Number.isFinite(price) ? price : null,
     color: opts.color ?? null,
     meta: {},
-    pane
+    pane,
+    ...opts.visible === false ? { visible: false } : {}
   };
   pushPlot(ctx.emissions, applyPlotOverride(emission, ctx.plotOverrides[slotId]));
 }

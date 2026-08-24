@@ -107,6 +107,20 @@ describe("hline — happy path", () => {
         expect(e.style.lineStyle).toBe("dashed");
     });
 
+    it("carries author visibility only when false", () => {
+        const { ctx, emissions } = makeCtx();
+        ACTIVE_RUNTIME_CONTEXT.current = ctx;
+
+        hline("a:1:1#0", 70, { visible: false });
+        hline("a:1:2#0", 30, { visible: true });
+        hline("a:1:3#0", 20);
+
+        expect(emissions.plots[0].visible).toBe(false);
+        expect(emissions.plots[0].value).toBe(70);
+        expect(emissions.plots[1]).not.toHaveProperty("visible");
+        expect(emissions.plots[2]).not.toHaveProperty("visible");
+    });
+
     it("applies a matching slot override from the context", () => {
         const { ctx, emissions } = makeCtx({
             plotOverrides: {

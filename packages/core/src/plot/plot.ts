@@ -322,6 +322,14 @@ export type HLineOpts = Readonly<{
      * @since 0.2
      */
     pane?: "overlay" | "new" | string;
+    /**
+     * Whether this horizontal line is drawn. Mirrors {@link PlotOpts.visible}:
+     * `false` suppresses the mark while preserving its slot and numeric value;
+     * omitted or `true` draws it and is omitted from the wire emission.
+     *
+     * @since 1.12.1
+     */
+    visible?: boolean;
 }>;
 
 /**
@@ -478,6 +486,11 @@ export function plot(_value: number | Series<number>, _opts?: PlotOpts): void {
 /**
  * Compile-time callable hole for `hline(price, opts?)`. Same semantics as
  * `plot` but pinned to a fixed price across all bars.
+ *
+ * `HLineOpts.visible` controls presentation without changing the numeric
+ * value. When it is `false` the runtime emits the line with `visible: false`;
+ * adapters must exclude it from rendering and autoscale while keeping its slot
+ * available.
  *
  * @since 0.1
  * @stable

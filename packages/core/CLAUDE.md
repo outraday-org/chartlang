@@ -286,7 +286,7 @@
   addition in core; validation, omit-when-`0` emission, and the global
   render sort live in `adapter-kit` / `runtime` / the reference adapter.
 
-- **`PlotOpts.visible` is the AUTHORING opt that feeds the PRE-EXISTING
+- **`PlotOpts.visible` / `HLineOpts.visible` are the AUTHORING opts that feed the PRE-EXISTING
   `PlotEmission.visible` wire field — it is NOT a new wire field.** `visible?:
   boolean` (`plot/plot.ts`) is the script-facing toggle (`plot(x, { visible:
   showRsi })`, mapping Pine `display = display.all | display.none`). The wire
@@ -301,8 +301,9 @@
   `Series<boolean>` channel is deferred. Like `z`, it is a type/contract
   addition in core; the runtime resolve (omit-when-`true`), the
   already-present `validateEmission` check, and the adapter render-skip live
-  downstream. `HLineOpts` deliberately carries NO `visible` (hlines are
-  constant guides). The `program.ts` shim mirrors `PlotOpts.visible` in
+  downstream. Hlines use the same real visibility channel: never substitute
+  `NaN`, because an accumulated horizontal-line slot could otherwise retain a
+  stale visible emission. The `program.ts` shim mirrors both option bags in
   lockstep.
 
 - **`input.enum` / `EnumDescriptor` admit `T extends string | number`.** A

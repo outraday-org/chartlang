@@ -23,6 +23,6 @@ export default defineIndicator({
             plot(ta.ema(bar.close, 20), { visible: !((inputs.hide as boolean)) });
             plot(bar.close, { visible: false });
             plot(bar.open);
-            plot(bar.volume);
+            plot(bar.volume, { visible: false });
         },
 });

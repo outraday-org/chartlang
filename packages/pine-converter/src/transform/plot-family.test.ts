@@ -398,17 +398,33 @@ describe("emitPlotFamily — display visibility", () => {
         expect(source).toBe('plot(bar.close, { title: "MA", color: "#FF5252", visible: false });');
     });
 
-    it("approximates an unsupported `display.*` target and leaves the plot visible", () => {
+    it("preserves the pane-hidden truth of a data-window-only target while diagnosing placement", () => {
         const { source, codes } = emit("plot(close, display = display.data_window)");
+        expect(source).toBe("plot(bar.close, { visible: false });");
+        expect(codes).toContain(APPROX);
+    });
+
+    it("preserves pane visibility for `display.pane` / `display.none` and diagnoses placement", () => {
+        const direct = emit("plot(close, display = show ? display.pane : display.none)");
+        expect(direct.source).toBe("plot(bar.close, { visible: show });");
+        expect(direct.codes).toContain(APPROX);
+
+        const inverted = emit("plot(close, display = hide ? display.none : display.pane)");
+        expect(inverted.source).toBe("plot(bar.close, { visible: !(hide) });");
+        expect(inverted.codes).toContain(APPROX);
+    });
+
+    it("keeps a constant pane target visible while diagnosing discarded placement", () => {
+        const { source, codes } = emit("plot(close, display = display.pane)");
         expect(source).toBe("plot(bar.close);");
         expect(codes).toContain(APPROX);
     });
 
-    it("approximates a ternary whose arms are not the all/none pair", () => {
+    it("preserves a mixed target ternary's pane-visible branch", () => {
         const { source, codes } = emit(
             "plot(close, display = show ? display.all : display.status_line)",
         );
-        expect(source).toBe("plot(bar.close);");
+        expect(source).toBe("plot(bar.close, { visible: show });");
         expect(codes).toContain(APPROX);
     });
 
@@ -416,6 +432,88 @@ describe("emitPlotFamily — display visibility", () => {
         const { source, codes } = emit("plot(close, display = show)");
         expect(source).toBe("plot(bar.close);");
         expect(codes).toContain(APPROX);
+    });
+
+    it("preserves the pane bit through display mask arithmetic", () => {
+        const withoutPane = emit("plot(close, display = display.all - display.pane)");
+        expect(withoutPane.source).toBe("plot(bar.close, { visible: false });");
+        expect(withoutPane.codes).toContain(APPROX);
+
+        const placementsOnly = emit(
+            "plot(close, display = display.price_scale + display.status_line)",
+        );
+        expect(placementsOnly.source).toBe("plot(bar.close, { visible: false });");
+        expect(placementsOnly.codes).toContain(APPROX);
+
+        const withPane = emit("plot(close, display = display.pane + display.data_window)");
+        expect(withPane.source).toBe("plot(bar.close);");
+        expect(withPane.codes).toContain(APPROX);
+    });
+
+    it("threads visibility through hline without replacing the numeric value", () => {
+        const hidden = emit("hline(50, display = display.none)");
+        expect(hidden.source).toBe("hline(50, { visible: false });");
+        expect(hidden.codes).toEqual([]);
+
+        const toggled = emit("hline(50, display = show ? display.all : display.none)");
+        expect(toggled.source).toBe("hline(50, { visible: show });");
+        expect(toggled.codes).toEqual([]);
+    });
+
+    it("threads visibility through candle and bar overrides", () => {
+        expect(emit("plotcandle(open, high, low, close, display = display.none)").source).toBe(
+            'plot(bar.close, { visible: false, style: { kind: "candle-override" } });',
+        );
+        expect(emit("plotbar(open, high, low, close, display = display.none)").source).toBe(
+            'plot(Number.NaN, { visible: false, style: { kind: "bar-override" } });',
+        );
+    });
+
+    it("threads visibility through shape, character, and arrow plots", () => {
+        expect(emit("plotshape(close > open, display = display.none)").source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { visible: false, style: { kind: "shape", shape: "circle", size: 8 } });',
+        );
+        expect(emit('plotchar(close > open, char="X", display = display.none)').source).toBe(
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { visible: false, style: { kind: "character", char: "X", size: 12 } });',
+        );
+        expect(emit("plotarrow(close, display = display.none)").source).toBe(
+            'plot(bar.close ? bar.close : Number.NaN, { visible: false, style: { kind: "arrow", direction: "up", size: 10 } });',
+        );
+    });
+
+    it("reads each plot-family positional display slot", () => {
+        expect(
+            emit(
+                'plot(close, "", color.red, 1, plot.style_line, false, 0, 0, false, true, 10, display.none)',
+            ).source,
+        ).toContain("visible: false");
+        expect(
+            emit('hline(50, "", color.red, hline.style_dashed, 1, true, display.none)').source,
+        ).toBe(
+            'hline(50, { title: "", color: "#FF5252", lineWidth: 1, lineStyle: "dashed", visible: false });',
+        );
+        expect(
+            emit(
+                'plotcandle(open, high, low, close, "", color.red, color.red, true, 10, color.red, display.none)',
+            ).source,
+        ).toContain("visible: false");
+        expect(
+            emit('plotbar(open, high, low, close, "", color.red, true, 10, display.none)').source,
+        ).toContain("visible: false");
+        expect(
+            emit(
+                'plotshape(close > open, "", shape.circle, location.abovebar, color.red, 0, "", color.red, true, size.tiny, 10, display.none)',
+            ).source,
+        ).toContain("visible: false");
+        expect(
+            emit(
+                'plotchar(close > open, "", "X", location.abovebar, color.red, 0, "", color.red, true, size.tiny, 10, display.none)',
+            ).source,
+        ).toContain("visible: false");
+        expect(
+            emit('plotarrow(close, "", color.green, color.red, 0, 5, 100, true, 10, display.none)')
+                .source,
+        ).toContain("visible: false");
     });
 });
 

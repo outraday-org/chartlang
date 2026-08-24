@@ -139,7 +139,8 @@ function options(pairs: ReadonlyArray<readonly [string, string | null]>): string
 
 // The title / color / lineWidth option pairs shared by `plot` and `hline`.
 // `title` falls back to the second positional; `color` routes through the enum
-// resolver; `lineWidth` takes the named arg or the fourth positional. Returned
+// resolver; `lineWidth` takes the named arg or the caller-supplied positional
+// slot (`plot`: 3, `hline`: 4). Returned
 // as a pair list so `emitPlot` can append its plot-only `visible` pair before
 // rendering, while `hline` renders the pairs as-is.
 function commonOptionPairs(
@@ -147,10 +148,11 @@ function commonOptionPairs(
     pos: readonly ExpressionNode[],
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
+    widthPosition = 3,
 ): ReadonlyArray<readonly [string, string | null]> {
     const titleNode = named(args, "title") ?? pos[1] ?? null;
     const colorNode = named(args, "color") ?? pos[2] ?? null;
-    const widthNode = named(args, "linewidth") ?? pos[3] ?? null;
+    const widthNode = named(args, "linewidth") ?? pos[widthPosition] ?? null;
     return [
         ["title", titleNode === null ? null : emitWithContext(titleNode, ctx)],
         ["color", colorNode === null ? null : styleValue(colorNode, ctx, diagnostics)],
@@ -224,9 +226,9 @@ export function emitPlotFamily(
         case "plotarrow":
             return emitConditional(name, call.args, pos, ctx, diagnostics);
         case "plotcandle":
-            return emitCandle(pos, ctx);
+            return emitCandle(call.args, pos, ctx, diagnostics);
         case "plotbar":
-            return emitBar(call.args, ctx, diagnostics);
+            return emitBar(call.args, pos, ctx, diagnostics);
         case "hline":
             return emitHline(call.args, pos, ctx, diagnostics);
         case "bgcolor":
@@ -398,65 +400,107 @@ function emitPlotValue(
     return emitWithContext(value, ctx);
 }
 
-// The visibility verdict a `display.*` member maps to: `"all"` (shown) /
-// `"none"` (hidden) for the two toggle-mappable members, or `null` for an
-// unsupported `display.*` target (or any non-member node). Routes through the
-// `DISPLAY_MAP` table (the repo's mapping-not-inline invariant); `displayLookup`
-// returns only the `all`/`none` entries, so the `=== "all"` test fully
-// partitions its result.
-function displayMemberKind(node: ExpressionNode): "all" | "none" | null {
+type DisplayMemberVerdict = Readonly<{
+    kind: "all" | "none";
+    approximated: boolean;
+}>;
+
+// Resolve one `display.*` member to its chart-pane visibility truth. The
+// mapping row's `notes` bit is the single source for whether placement details
+// were discarded and therefore need `plot-display-approximated`.
+function displayMemberVerdict(node: ExpressionNode): DisplayMemberVerdict | null {
     if (node.kind !== "member-access-expression" || node.head !== null) {
         return null;
     }
     const mapping = displayLookup(node.chain.join("."));
-    if (mapping === null) {
+    if (mapping === null || (mapping.chartlang !== "all" && mapping.chartlang !== "none")) {
         return null;
     }
-    return mapping.chartlang === "all" ? "all" : "none";
+    return { kind: mapping.chartlang, approximated: mapping.notes !== undefined };
 }
 
-// Lower a Pine `plot(..., display=<value>)` named arg onto the chartlang
-// `{ visible }` channel. Returns the rendered `visible` value source, or `null`
-// when no `visible` key should be emitted (the field is omitted for an absent
-// `display=`, a constant `display.all`, and any approximated target — the last
-// of which also raises `plot-display-approximated`). The runtime treats omitted
-// and `visible: true` identically, so a fully-shown plot stays byte-clean.
+// Pine's `display` values are bitmasks and may be combined with `+` or have
+// placements removed with `-`. Chartlang only needs the pane bit, so fold that
+// bit recursively while retaining whether any placement detail was discarded.
+function displayVerdict(node: ExpressionNode): DisplayMemberVerdict | null {
+    if (node.kind === "paren-expression") {
+        return displayVerdict(node.expression);
+    }
+    const member = displayMemberVerdict(node);
+    if (member !== null) {
+        return member;
+    }
+    if (node.kind !== "binary-expression" || (node.operator !== "+" && node.operator !== "-")) {
+        return null;
+    }
+    const left = displayVerdict(node.left);
+    const right = displayVerdict(node.right);
+    if (left === null || right === null) {
+        return null;
+    }
+    const leftHasPane = left.kind === "all";
+    const rightHasPane = right.kind === "all";
+    const hasPane =
+        node.operator === "+" ? leftHasPane || rightHasPane : leftHasPane && !rightHasPane;
+    return {
+        kind: hasPane ? "all" : "none",
+        approximated: left.approximated || right.approximated,
+    };
+}
+
+// Lower a Pine plot-family `display` argument onto chartlang's `{ visible }`
+// channel. The named arg wins; otherwise `displayPosition` addresses the
+// function's documented positional signature. Placement-only targets preserve
+// their pane truth while raising `plot-display-approximated`:
 //   - `<cond> ? display.all : display.none` → `<emit(cond)>`
 //   - `<cond> ? display.none : display.all` → `!(<emit(cond)>)`
+//   - `<cond> ? display.pane : display.none` → `<emit(cond)>` + diagnostic
+//   - `display.status_line` / `price_scale` / `data_window` → `false` + diagnostic
 //   - `display.none` → `"false"`; `display.all` → omit (`null`)
-//   - anything else → `plot-display-approximated` + omit (`null`)
+//   - anything unknown → `plot-display-approximated` + omit (`null`)
 function displayOption(
     args: readonly CallArgument[],
+    pos: readonly ExpressionNode[],
+    displayPosition: number,
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): string | null {
-    const node = named(args, "display");
+    const node = named(args, "display") ?? pos[displayPosition] ?? null;
     if (node === null) {
         return null;
     }
     if (node.kind === "ternary-expression") {
-        const yes = displayMemberKind(node.consequent);
-        const no = displayMemberKind(node.alternate);
+        const yes = displayVerdict(node.consequent);
+        const no = displayVerdict(node.alternate);
+        if (yes === null || no === null) {
+            diagnostics.pushCode("plot-display-approximated", node.span);
+            return null;
+        }
+        if (yes.approximated || no.approximated) {
+            diagnostics.pushCode("plot-display-approximated", node.span);
+        }
         // `visible` is a scalar `boolean`, so the ternary's condition is the
         // same SCALAR position `emitIf` documents — a root `ta.*` boolean
         // lowers to its per-bar `.current` value.
-        if (yes === "all" && no === "none") {
+        if (yes.kind === "all" && no.kind === "none") {
             return emitScalar(node.condition, ctx);
         }
-        if (yes === "none" && no === "all") {
+        if (yes.kind === "none" && no.kind === "all") {
             return `!(${emitScalar(node.condition, ctx)})`;
         }
+        return yes.kind === "none" ? "false" : null;
+    }
+    const verdict = displayVerdict(node);
+    if (verdict === null) {
         diagnostics.pushCode("plot-display-approximated", node.span);
         return null;
     }
-    const kind = displayMemberKind(node);
-    if (kind === "none") {
+    if (verdict.approximated) {
+        diagnostics.pushCode("plot-display-approximated", node.span);
+    }
+    if (verdict.kind === "none") {
         return "false";
     }
-    if (kind === "all") {
-        return null;
-    }
-    diagnostics.pushCode("plot-display-approximated", node.span);
     return null;
 }
 
@@ -472,7 +516,7 @@ function emitPlot(
     }
     const visiblePair: readonly [string, string | null] = [
         "visible",
-        displayOption(args, ctx, diagnostics),
+        displayOption(args, pos, 11, ctx, diagnostics),
     ];
     const opts = options([...commonOptionPairs(args, pos, ctx, diagnostics), visiblePair]);
     const valueSource = emitPlotValue(value, args, ctx, diagnostics);
@@ -482,8 +526,16 @@ function emitPlot(
 // The chartlang enum string a named member-enum arg maps to (`location=
 // location.abovebar` → `"above"`), or `null` when absent / unmapped.
 function enumArg(args: readonly CallArgument[], key: string): string | null {
-    const node = named(args, key);
-    if (node === null || node.kind !== "member-access-expression" || node.head !== null) {
+    return enumValue(named(args, key));
+}
+
+function enumValue(node: ExpressionNode | null | undefined): string | null {
+    if (
+        node === null ||
+        node === undefined ||
+        node.kind !== "member-access-expression" ||
+        node.head !== null
+    ) {
         return null;
     }
     const mapping = enumLookup(node.chain.join("."));
@@ -510,6 +562,8 @@ function emitConditional(
     // predicate (a `paren-expression` fails a `kind === "call-expression"`
     // test) and never resolved a signature-divergent / pivot `ta.*` name.
     const cond = emitScalar(condition, ctx);
+    const displayPosition = name === "plotarrow" ? 9 : 11;
+    const visible = displayOption(args, pos, displayPosition, ctx, diagnostics);
     const location = enumArg(args, "location");
     const locPart = location === null ? "" : `, location: "${location}"`;
     let style: string;
@@ -531,10 +585,16 @@ function emitConditional(
     const colorNode = named(args, "color");
     const colorPart =
         colorNode === null ? "" : `color: ${styleValue(colorNode, ctx, diagnostics)}, `;
-    return `plot(${cond} ? bar.close : Number.NaN, { ${colorPart}style: ${style} });`;
+    const visiblePart = visible === null ? "" : `visible: ${visible}, `;
+    return `plot(${cond} ? bar.close : Number.NaN, { ${colorPart}${visiblePart}style: ${style} });`;
 }
 
-function emitCandle(pos: readonly ExpressionNode[], ctx: EmitContext): string | null {
+function emitCandle(
+    args: readonly CallArgument[],
+    pos: readonly ExpressionNode[],
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
     const open = pos[0];
     const high = pos[1];
     const low = pos[2];
@@ -542,18 +602,23 @@ function emitCandle(pos: readonly ExpressionNode[], ctx: EmitContext): string | 
     if (open === undefined || high === undefined || low === undefined || close === undefined) {
         return null;
     }
-    return `plot(${emitWithContext(close, ctx)}, { style: { kind: "candle-override" } });`;
+    const visible = displayOption(args, pos, 10, ctx, diagnostics);
+    const visiblePart = visible === null ? "" : `visible: ${visible}, `;
+    return `plot(${emitWithContext(close, ctx)}, { ${visiblePart}style: { kind: "candle-override" } });`;
 }
 
 function emitBar(
     args: readonly CallArgument[],
+    pos: readonly ExpressionNode[],
     ctx: EmitContext,
     diagnostics: DiagnosticCollector,
 ): string | null {
     const colorNode = named(args, "color");
     const colorPart =
         colorNode === null ? "" : `, color: ${styleValue(colorNode, ctx, diagnostics)}`;
-    return `plot(Number.NaN, { style: { kind: "bar-override"${colorPart} } });`;
+    const visible = displayOption(args, pos, 8, ctx, diagnostics);
+    const visiblePart = visible === null ? "" : `visible: ${visible}, `;
+    return `plot(Number.NaN, { ${visiblePart}style: { kind: "bar-override"${colorPart} } });`;
 }
 
 // Render an `hline(price, { ... })` chartlang call STRING (no trailing
@@ -573,10 +638,11 @@ function hlineCallString(
     if (price === undefined) {
         return null;
     }
-    const styleStr = enumArg(args, "linestyle");
+    const styleStr = enumArg(args, "linestyle") ?? enumValue(pos[3]);
     const opts = options([
-        ...commonOptionPairs(args, pos, ctx, diagnostics),
+        ...commonOptionPairs(args, pos, ctx, diagnostics, 4),
         ["lineStyle", styleStr === null ? null : JSON.stringify(styleStr)],
+        ["visible", displayOption(args, pos, 6, ctx, diagnostics)],
     ]);
     const priceSource = emitWithContext(price, ctx);
     return opts === "" ? `hline(${priceSource})` : `hline(${priceSource}, ${opts})`;

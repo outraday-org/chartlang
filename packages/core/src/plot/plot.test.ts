@@ -253,3 +253,13 @@ describe("HLineOpts.pane", () => {
         void named;
     });
 });
+
+describe("HLineOpts.visible", () => {
+    it("accepts the same authoring visibility toggle as PlotOpts", () => {
+        const hidden: HLineOpts = { visible: false };
+        const shown: HLineOpts = { visible: true };
+
+        expect(hidden.visible).toBe(false);
+        expect(shown.visible).toBe(true);
+    });
+});

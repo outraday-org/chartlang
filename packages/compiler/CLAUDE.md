@@ -462,16 +462,16 @@
   manifest only** (mirrors how `outputs?` scopes; per-export plot
   partitioning is deferred).
 - **`manifest.plots[*].defaultVisible` is a boolean-literal-only static
-  visibility hint, gated to `plot`.** `injectCallsiteIds` reads a `visible`
+  visibility hint for `plot` and `hline`.** `injectCallsiteIds` reads a `visible`
   opt via `readLiteralVisible` (sibling of `readLiteralTitle`) and records
   `defaultVisible: true|false` ONLY for a **direct boolean-literal**
-  `plot(x, { visible: false })` — a compile-time hint a host can use to
+  `plot(x, { visible: false })` or `hline(x, { visible: false })` — a compile-time hint a host can use to
   pre-toggle a legend entry before the first emission. A dynamic / input-driven
   `{ visible: showRsi }`, a ternary, or any non-literal records **nothing**
   (resolved per run at runtime — Task 3's `PlotEmission.visible`), keeping the
-  conservative computed-title posture (no constant-folding). `visible` is a
-  `PlotOpts`-only opt, so the read is gated to `calleeName === "plot"` —
-  `hline`/`bgcolor`/`barcolor` descriptors never carry `defaultVisible`.
+  conservative computed-title posture (no constant-folding). The read is gated
+  to `calleeName === "plot" || calleeName === "hline"`; bgcolor/barcolor
+  descriptors never carry `defaultVisible`.
   Omitted ⇒ "no static hint, defaults to visible"; the field is dropped from
   the descriptor when unset so apiVersion:1 manifests stay byte-identical when
   visibility is unused. `PlotSlotDescriptor` is a **core** type
