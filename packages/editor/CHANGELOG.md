@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-editor
 
+## 2.5.3
+
+### Patch Changes
+
+- @invinite-org/chartlang-language-service@1.6.2
+
 ## 2.5.2
 
 ### Patch Changes

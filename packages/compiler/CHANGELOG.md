@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-compiler
 
+## 1.14.1
+
+### Patch Changes
+
+- 3dd22f5: Retain blank-defaulted input-interval security declarations in compiled manifests so input-aware hosts can discover and resolve overridden feeds.
+
 ## 1.14.0
 
 ### Minor Changes
