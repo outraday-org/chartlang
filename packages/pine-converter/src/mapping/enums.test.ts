@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import { describe, expect, it } from "vitest";
-import { ENUM_VALUE_MAP, INPUT_DISPLAY_MAP, enumLookup } from "./enums.js";
+import { ENUM_VALUE_MAP, INPUT_DISPLAY_MAP, displayLookup, enumLookup } from "./enums.js";
 
 describe("ENUM_VALUE_MAP", () => {
     it("maps the three core line styles to chartlang LineStyle literals", () => {
@@ -100,5 +100,23 @@ describe("INPUT_DISPLAY_MAP", () => {
         expect(INPUT_DISPLAY_MAP.get("none")).toBe("none");
         expect(INPUT_DISPLAY_MAP.get("status_line")).toBe("status-line");
         expect(INPUT_DISPLAY_MAP.get("data_window")).toBe("data-window");
+    });
+});
+
+describe("DISPLAY_MAP", () => {
+    it("maps each display target to its chart-pane visibility truth", () => {
+        expect(displayLookup("display.all")?.chartlang).toBe("all");
+        expect(displayLookup("display.pane")?.chartlang).toBe("all");
+        expect(displayLookup("display.none")?.chartlang).toBe("none");
+        expect(displayLookup("display.status_line")?.chartlang).toBe("none");
+        expect(displayLookup("display.price_scale")?.chartlang).toBe("none");
+        expect(displayLookup("display.data_window")?.chartlang).toBe("none");
+    });
+
+    it("marks placement-specific verdicts for approximation diagnostics", () => {
+        expect(displayLookup("display.pane")?.notes).toBeDefined();
+        expect(displayLookup("display.status_line")?.notes).toBeDefined();
+        expect(displayLookup("display.all")?.notes).toBeUndefined();
+        expect(displayLookup("display.none")?.notes).toBeUndefined();
     });
 });

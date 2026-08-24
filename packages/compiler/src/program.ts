@@ -860,6 +860,7 @@ declare module "@invinite-org/chartlang-core" {
         lineWidth?: number;
         lineStyle?: LineStyle;
         pane?: "overlay" | "new" | string;
+        visible?: boolean;
     }>;
     export type BgColorOpts = Readonly<{
         transp?: number;

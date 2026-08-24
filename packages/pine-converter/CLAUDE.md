@@ -2241,24 +2241,25 @@ that has no byte-identical chartlang analogue.
   callee) has no representable chartlang offset target (chartlang has no plot-
   level offset — deferred follow-up), so the offset is DROPPED with
   `plot-offset-needs-ta-call` (warning).
-- **Pine `plot(<value>, display=<v>)` lowers onto the `{ visible }` plot opt
-  (`plotFamily.ts` `displayOption`/`displayMemberKind` → `emitPlot`).** The
-  `display` named arg threads as a `["visible", …]` pair appended AFTER the
-  shared title/color/lineWidth pairs (the common pairs are extracted into
-  `commonOptionPairs`; `commonOptions`/`emitHline` still render them alone — only
-  `plot` gets `visible`). Mapping (routed through the `src/mapping/enums.ts`
-  `DISPLAY_MAP`/`displayLookup` table, NOT an inline compare): `<cond> ?
-  display.all : display.none` → `visible: <emit(cond)>`; the inverted `<cond> ?
-  display.none : display.all` → `visible: !(<emit(cond)>)`; a bare `display.none`
-  → `visible: false`; a bare `display.all` → OMIT the key (byte-clean — the
-  runtime treats omitted and `visible: true` identically, and the task mandates
-  omit, never `visible: true`). Any OTHER `display.*` target (the `DISPLAY_MAP`
-  REJECT rows `status_line`/`price_scale`/`pane`/`data_window`, an unknown
-  member, a non-all/none ternary pair, or a non-`display.*` value) → the
-  append-only `plot-display-approximated` (warning) + OMIT the key (plot left
-  visible). `displayLookup` returns ONLY the `all`/`none` entries, so
-  `displayMemberKind`'s `=== "all" ? "all" : "none"` fully partitions a non-null
-  lookup (no dead arm). `display=` is NEVER silently dropped.
+- **Every render-producing Pine plot-family `display` argument lowers through
+  ONE pane-visibility seam (`plotFamily.ts` `displayOption`).** `plot`, `hline`,
+  `plotcandle`, `plotbar`, `plotshape`, `plotchar`, and `plotarrow` all pass
+  their named or documented positional `display` argument through the same
+  helper and emit `{ visible }` on the chartlang plot/hline opts. The positional
+  indexes mirror Pine v6 exactly: plot/shape/char 11, candle 10, arrow 9, bar 8,
+  hline 6. `DISPLAY_MAP`/`displayLookup` is the sole visibility truth table:
+  `display.all` and `display.pane` are pane-visible (`"all"`), while
+  `display.none`, `status_line`, `price_scale`, and `data_window` are pane-hidden
+  (`"none"`). Placement-specific rows carry `notes`; the helper preserves their
+  pane truth AND raises `plot-display-approximated`, because chartlang cannot
+  retain non-pane placement. Thus `<cond> ? display.pane : display.none` emits
+  `visible: <cond>` plus the diagnostic, the inverted form emits `!(<cond>)`, a
+  placement-only constant emits `visible: false` plus the diagnostic, and a
+  constant `display.pane` stays byte-clean visible plus the diagnostic. Pure
+  `all`/`none` toggles need no warning. Unknown or compound display expressions
+  diagnose and omit rather than inventing a truth value. `display=` is NEVER
+  silently dropped, and hline uses the real `HLineOpts.visible` channel — never
+  a `NaN` substitute that could leave an accumulated slot stale.
 - **`bgcolor`/`barcolor` lower to the chartlang Pine-ergonomic SUGAR
   (`plotFamily.ts` `emitBackground`), NOT `plot(NaN, { style })`.** Since
   Deliverable 2 of the `bgcolor`/`barcolor` ergonomics feature, `emitBackground`

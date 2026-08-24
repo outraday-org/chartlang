@@ -6,6 +6,11 @@
 Compile-time callable hole for `hline(price, opts?)`. Same semantics as
 `plot` but pinned to a fixed price across all bars.
 
+`HLineOpts.visible` controls presentation without changing the numeric
+value. When it is `false` the runtime emits the line with `visible: false`;
+adapters must exclude it from rendering and autoscale while keeping its slot
+available.
+
 ## Signature
 
 ```ts

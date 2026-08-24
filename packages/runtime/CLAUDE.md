@@ -688,13 +688,13 @@
   a no-override or visible-override run is byte-identical to the
   pre-feature baseline. Dep / sibling runners default `plotOverrides` to
   `{}` — overrides target the primary script's slots only in v1.
-- **`opts.visible` is `plotImpl`'s AUTHORING visibility channel, resolved
+- **`opts.visible` is the `plotImpl` / `hlineImpl` AUTHORING visibility channel, resolved
   onto the same `PlotEmission.visible` wire field the host-override path
   writes — carried as `false` only, dropped for `true`/`undefined`.**
-  `plotImpl` (`emit/plot.ts`) reads `opts.visible` and appends
+  Both emitters (`emit/plot.ts`, `emit/hline.ts`) read `opts.visible` and append
   `...(visible === false ? { visible: false } : {})` to the emission with the
   SAME omit-when-default idiom as `z` / `colorValue`, so an omitted-or-`true`
-  plot is byte-identical to the pre-feature wire (every pinned plot golden /
+  plot or hline is byte-identical to the pre-feature wire (every pinned plot golden /
   conformance `plot-hash` (`{ bar, value }` only) holds; `apiVersion: 1`
   snapshots do not move). It composes with `applyPlotOverride`, which runs
   AFTER and also only ever writes `false` — so either source (author or host)

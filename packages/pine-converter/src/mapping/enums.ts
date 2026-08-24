@@ -271,13 +271,13 @@ export const ENUM_VALUE_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, 
 export const enumLookup = (key: string): EnumMapping | null => lookup(ENUM_VALUE_MAP, key);
 
 /**
- * Pine `display.*` member → the per-plot visibility toggle the converter
- * understands. Only `display.all` / `display.none` have a chartlang analogue
- * (the `plot(value, { visible })` channel): `"all"` means "shown" and `"none"`
- * means "hidden". Every other `display.*` target (`status_line`, `price_scale`,
- * `pane`, `data_window`, or a bitmask combination) is a REJECT row — it has no
- * chartlang analogue, so the transform leaves the plot visible and raises
- * `plot-display-approximated`. Kept separate from {@link ENUM_VALUE_MAP} because
+ * Pine `display.*` member → its truth on the chart pane. `"all"` means the mark
+ * is pane-visible; `"none"` means it is not. `display.pane` therefore maps to
+ * `"all"`, while status-line / price-scale / data-window-only targets map to
+ * `"none"`. Those placement-specific rows carry `notes`, which makes the
+ * transform preserve the pane visibility while still raising
+ * `plot-display-approximated` because chartlang cannot retain the other
+ * placement information. Kept separate from {@link ENUM_VALUE_MAP} because
  * the values are visibility verdicts, not style literals.
  *
  * @since 1.5
@@ -290,10 +290,10 @@ export const DISPLAY_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, Enu
     // docs: https://www.tradingview.com/pine-script-reference/v6/#var_display.all
     entry("display.all", "all"),
     entry("display.none", "none"),
-    entry("display.data_window", null, "no chartlang analogue beyond all/none; left visible"),
-    entry("display.price_scale", null, "no chartlang analogue beyond all/none; left visible"),
-    entry("display.status_line", null, "no chartlang analogue beyond all/none; left visible"),
-    entry("display.pane", null, "no chartlang analogue beyond all/none; left visible"),
+    entry("display.data_window", "none", "data-window placement dropped; hidden on pane"),
+    entry("display.price_scale", "none", "price-scale placement dropped; hidden on pane"),
+    entry("display.status_line", "none", "status-line placement dropped; hidden on pane"),
+    entry("display.pane", "all", "pane-only placement approximated as ordinary pane visibility"),
 ]);
 
 /**
@@ -316,9 +316,10 @@ export const INPUT_DISPLAY_MAP: ReadonlyMap<string, string> = new Map([
 ]);
 
 /**
- * Resolve a Pine `display.*` member against {@link DISPLAY_MAP}. Returns the
- * `display.all` / `display.none` entry (the only toggle-mappable members) and
- * `null` for every unsupported `display.*` target or unknown member.
+ * Resolve a Pine `display.*` member against {@link DISPLAY_MAP}. Every known
+ * member returns its pane-visibility verdict; placement-specific entries carry
+ * `notes` so callers can diagnose the approximation. Unknown members return
+ * `null`.
  *
  * @since 1.5
  * @experimental

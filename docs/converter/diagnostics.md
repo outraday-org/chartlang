@@ -616,8 +616,8 @@ hard-rejects and the recommended Pine rewrites.
 
 - **Code:** `pine-converter/transform/plot-display-approximated`
 - **Severity:** warning
-- **Message:** A `plot(..., display=...)` target has no chartlang analogue beyond `display.all`/`display.none`; only the show/hide toggle maps to `{ visible }`, so the `display=` argument was dropped and the plot left visible.
-- **Suggested fix:** Use `display = <cond> ? display.all : display.none` (or a bare `display.none`) for the visibility toggle; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement.
+- **Message:** A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.
+- **Suggested fix:** Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently.
 
 ### plot-offset-needs-ta-call
 

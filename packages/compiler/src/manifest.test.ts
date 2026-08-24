@@ -321,7 +321,7 @@ export default defineIndicator({
 `;
 
 const VISIBLE_SOURCE = `
-import { defineIndicator, input, plot } from "@invinite-org/chartlang-core";
+import { defineIndicator, hline, input, plot } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "Visible",
     apiVersion: 1,
@@ -331,6 +331,9 @@ export default defineIndicator({
         plot(bar.open, { visible: true });
         plot(bar.high, { visible: inputs.showSlope as boolean });
         plot(bar.low);
+        hline(70, { visible: false });
+        hline(30, { visible: true });
+        hline(50, { visible: inputs.showSlope as boolean });
     },
 });
 `;
@@ -440,12 +443,12 @@ describe("manifest.plots (compiled)", () => {
         expect(manifest.plots?.[0].title).toBeUndefined();
     });
 
-    it("records defaultVisible only for a boolean-literal `visible` opt", async () => {
+    it("records defaultVisible for literal plot and hline visibility opts", async () => {
         const { manifest } = await compile(VISIBLE_SOURCE, {
             apiVersion: 1,
             sourcePath: "visible.chart.ts",
         });
-        expect(manifest.plots).toHaveLength(4);
+        expect(manifest.plots).toHaveLength(7);
         // literal false / true ⇒ explicit static hint.
         expect(manifest.plots?.[0].defaultVisible).toBe(false);
         expect(manifest.plots?.[1].defaultVisible).toBe(true);
@@ -456,6 +459,15 @@ describe("manifest.plots (compiled)", () => {
         expect(manifest.plots?.[2].slotId).toMatch(/^visible\.chart\.ts:\d+:\d+#0$/);
         // plain plot ⇒ byte-identical (no defaultVisible key at all).
         expect("defaultVisible" in (manifest.plots?.[3] ?? {})).toBe(false);
+        expect(manifest.plots?.[4]).toMatchObject({
+            kind: "horizontal-line",
+            defaultVisible: false,
+        });
+        expect(manifest.plots?.[5]).toMatchObject({
+            kind: "horizontal-line",
+            defaultVisible: true,
+        });
+        expect("defaultVisible" in (manifest.plots?.[6] ?? {})).toBe(false);
     });
 
     it("survives a JSON round-trip unchanged", async () => {

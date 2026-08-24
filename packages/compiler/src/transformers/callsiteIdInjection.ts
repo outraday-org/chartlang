@@ -155,14 +155,15 @@ export function injectCallsiteIds(
                         // `style` is non-literal is still listed as "line".
                         const kind = plotKindFromCallsite(calleeName, optsArg) ?? "line";
                         const title = readLiteralTitle(optsArg);
-                        // `visible` is a `PlotOpts`-only opt (hline/bgcolor/
-                        // barcolor carry none), so only a `plot` callsite can
-                        // record a static `defaultVisible` hint. A literal
+                        // `visible` is shared by plot/hline; bgcolor/barcolor
+                        // carry none. A literal
                         // `true`/`false` is captured; a dynamic / input-driven
                         // `visible` is resolved per run at runtime (Task 3) and
                         // leaves the field absent.
                         const defaultVisible =
-                            calleeName === "plot" ? readLiteralVisible(optsArg) : undefined;
+                            calleeName === "plot" || calleeName === "hline"
+                                ? readLiteralVisible(optsArg)
+                                : undefined;
                         plotSlots.push(
                             Object.freeze({
                                 slotId,
