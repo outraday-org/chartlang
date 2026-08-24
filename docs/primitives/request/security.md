@@ -23,7 +23,13 @@ Both `symbol` and `interval` must be compile-time resolvable (a string
 literal, an `input.symbol` / `input.interval` default, or an `input.enum`
 value — and, for `interval`, empty `""` = the chart timeframe); the compiler
 walks every call to populate `manifest.requestedFeeds` (and the main-symbol
-projection `manifest.requestedIntervals`). `symbol` is **optional** —
+projection `manifest.requestedIntervals`). A literal blank on the chart
+symbol is fixed to the primary stream and emits no feed. A blank
+`input.interval` default is primary at defaults but retains a feed declaration
+so an input-aware host can resolve and register an override; empty remains
+absent from requested intervals and expression clocks. This is discovery
+only — the raw runtime does not create an arbitrary override stream from the
+declaration. `symbol` is **optional** —
 omitting it reads the chart's own symbol (the higher-timeframe-only case).
 When the adapter does not advertise `Capabilities.multiTimeframe`, the
 series degrades to all-NaN rather than erroring; a non-chart `symbol`

@@ -206,6 +206,27 @@ export default defineIndicator({
         expect(plainResult.manifest.requestedFeeds).toBeUndefined();
     });
 
+    it("retains a blank input-interval feed in the emitted manifest", async () => {
+        const source = `
+import { defineIndicator, input } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "blank input interval",
+    apiVersion: 1,
+    inputs: { tf: input.interval("") },
+    compute({ inputs, request }) {
+        request.security({ interval: inputs.tf });
+    },
+});
+`;
+        const result = await compile(source, {
+            apiVersion: 1,
+            sourcePath: "blank-input.chart.ts",
+        });
+        expect(result.manifest.requestedFeeds).toEqual([{ interval: "" }]);
+        expect(result.manifest.requestedIntervals).toEqual([]);
+        expect(result.manifest.securityExpressions).toBeUndefined();
+    });
+
     it("type-checks direct bar.close indexing and arithmetic through the ambient shim", async () => {
         // `bar.close` (the compute bar) is now a `PriceSeries` — both a scalar
         // (`bar.close * 2`, `plot(bar.close)`) and an indexable series

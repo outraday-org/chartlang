@@ -26,7 +26,11 @@ import { validateSecurityExpr } from "./validateSecurityExpr.js";
  * (chart-symbol) higher-timeframe intervals — so existing manifests stay
  * byte-identical. `feeds` adds the symbol dimension: one entry per distinct
  * `(symbol, interval)` pair, deduped + ordered by the shared
- * `feedKey(symbol, interval)` so the printed manifest is byte-stable.
+ * `feedKey(symbol, interval)` so the printed manifest is byte-stable. A fixed
+ * blank interval on the chart symbol collapses to the primary stream, while a
+ * blank `input.interval` default retains `{ interval: "" }` for an input-aware
+ * host to resolve. Neither blank form enters `intervals` or anchors an
+ * expression clock.
  *
  * @since 0.7
  * @stable
@@ -57,9 +61,11 @@ export type RequestAnalysis = Readonly<{
  * symbols × intervals is deduped into `feeds` via the shared
  * `feedKey(symbol, interval)`. A symbol-omitted (or empty-literal) feed keeps its
  * interval in `intervals` (the main-symbol projection); a present-symbol feed
- * does not. An empty (`""`) interval is the chart timeframe: a chart-symbol +
- * chart-tf pair collapses onto the primary stream (no feed, no `intervals`
- * entry), while a present-symbol + chart-tf pair stays a distinct feed.
+ * does not. An empty (`""`) interval is the chart timeframe: a fixed blank on
+ * the chart symbol collapses onto the primary stream, while a blank
+ * `input.interval` default retains a feed declaration so an input-aware host
+ * can resolve an override. Neither enters `intervals`. A present-symbol +
+ * chart-tf pair stays a distinct feed.
  *
  * Each expression callsite is recorded as a {@link SecurityExpressionDescriptor}
  * keyed by the same `slotId` the callsite-id transformer injects (via the
@@ -307,7 +313,7 @@ function readRequestInterval(
         .find((property) => ts.isIdentifier(property.name) && property.name.text === "interval");
     if (intervalProperty === undefined) return;
 
-    const resolvedIntervals = resolveIntervals(intervalProperty.initializer, inputs);
+    const resolvedIntervals = resolveIntervals(opts, inputs);
     if (resolvedIntervals === null) {
         diagnostics.push(
             createDiagnostic({
@@ -328,24 +334,41 @@ function readRequestInterval(
     // (the chart-symbol HTF projection), never `feeds`. Preserve its existing
     // interval-only behavior exactly.
     if (calleeName === "request.lowerTf") {
-        for (const interval of resolvedIntervals ?? []) intervals.add(interval);
+        for (const resolvedInterval of resolvedIntervals ?? []) {
+            intervals.add(resolvedInterval.value);
+        }
         return;
     }
 
     const resolvedSymbols = resolveSymbols(opts, inputs, sourceFile, sourcePath, diagnostics);
+    recordSecurityFeeds(resolvedSymbols, resolvedIntervals ?? [], intervals, feeds);
+}
+
+function recordSecurityFeeds(
+    resolvedSymbols: ReadonlyArray<string | undefined>,
+    resolvedIntervals: ReadonlyArray<ResolvedRequestInterval>,
+    intervals: Set<string>,
+    feeds: Map<string, RequestedFeed>,
+): void {
     for (const symbol of resolvedSymbols) {
-        for (const interval of resolvedIntervals ?? []) {
-            // An empty interval is the chart's own timeframe (Pine's empty
-            // `request.security` tf, here an `input.interval("")` default).
-            // Combined with the chart symbol (symbol omitted) it IS the primary
-            // stream — never a secondary feed, and not a higher-timeframe entry
-            // in the main-symbol projection. A present (different) symbol at the
-            // chart timeframe stays a distinct feed (a different instrument on
-            // the chart's own clock).
-            if (symbol === undefined && interval === "") continue;
+        for (const resolvedInterval of resolvedIntervals) {
+            const { value: interval } = resolvedInterval;
+            // A fixed empty interval is the chart's own timeframe (Pine's empty
+            // `request.security` tf). Combined with the chart symbol it is
+            // statically the primary stream. A blank `input.interval` default,
+            // however, retains a discoverable declaration because an
+            // input-aware host may resolve it to an override at runtime.
+            if (
+                symbol === undefined &&
+                interval === "" &&
+                resolvedInterval.kind !== "input-default"
+            ) {
+                continue;
+            }
             // A symbol-omitted (chart-symbol) feed keeps its interval in the
-            // main-symbol projection; a present-symbol feed does not.
-            if (symbol === undefined) intervals.add(interval);
+            // main-symbol projection; a present-symbol feed does not. The empty
+            // chart-timeframe token never belongs to that HTF projection.
+            if (symbol === undefined && interval !== "") intervals.add(interval);
             feeds.set(feedKey(symbol, interval), {
                 ...(symbol === undefined ? {} : { symbol }),
                 interval,
@@ -355,25 +378,35 @@ function readRequestInterval(
 }
 
 /**
- * Resolve a `request.*` `interval` initializer to its concrete interval list —
- * a single-element list for a string literal, all options for an `inputs.<enum>`
- * access, a single-element list for an `inputs.<name>` `input.interval`
- * **default** (an empty default `""` ⇒ the chart timeframe; the feed loop
- * collapses a chart-symbol + chart-tf pair onto the primary stream) — or `null`
- * for a genuinely-dynamic interval (the caller pushes the appropriate
- * diagnostic). This mirrors the `input.symbol`-default path the `symbol` axis
- * already accepts.
+ * One resolved interval with enough provenance for the feed loop to distinguish
+ * a fixed literal / enum option from an `input.interval` default.
+ */
+type ResolvedRequestInterval = Readonly<{
+    kind: "literal" | "enum" | "input-default";
+    value: string;
+}>;
+
+/**
+ * Resolve a `request.*` interval through the shared option-string resolver,
+ * preserving its origin until feed collapse. Returns one value for a literal
+ * or `input.interval` default, all values for `input.enum`, or `null` for a
+ * genuinely dynamic / absent interval. The caller keeps the existing
+ * diagnostic source node.
  */
 function resolveIntervals(
-    initializer: ts.Expression,
+    opts: ts.ObjectLiteralExpression,
     inputs: Readonly<Record<string, ExtractedDescriptor>>,
-): ReadonlyArray<string> | null {
-    if (ts.isStringLiteral(initializer)) return [initializer.text];
-    const enumOptions = getInputsEnumOptions(initializer, inputs);
-    if (enumOptions !== null) return enumOptions;
-    const intervalDefault = getInputDefault(initializer, inputs, "interval");
-    if (intervalDefault !== null) return [intervalDefault];
-    return null;
+): ReadonlyArray<ResolvedRequestInterval> | null {
+    const resolved = resolveOptString(opts, "interval", inputs);
+    switch (resolved.kind) {
+        case "literal":
+        case "input-default":
+            return [{ kind: resolved.kind, value: resolved.value }];
+        case "enum":
+            return resolved.values.map((value) => ({ kind: "enum", value }));
+        default:
+            return null;
+    }
 }
 
 /**

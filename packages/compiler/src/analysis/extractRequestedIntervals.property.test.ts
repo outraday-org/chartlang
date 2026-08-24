@@ -38,7 +38,7 @@ const INTERVAL = fc.constantFrom("1D", "5m", "1W", "");
 const SYMBOL = fc.constantFrom("AMEX:SPY", "NASDAQ:QQQ");
 
 describe("extractRequestAnalysis — feed-resolution properties", () => {
-    it("resolves an input default identically to the same string literal (both axes)", () => {
+    it("resolves input defaults like literals except for mutable chart-symbol blanks", () => {
         fc.assert(
             fc.property(INTERVAL, SYMBOL, fc.boolean(), (interval, symbol, symbolPresent) => {
                 const litSym = symbolPresent ? `symbol: ${JSON.stringify(symbol)}, ` : "";
@@ -68,15 +68,20 @@ export default defineIndicator({
 });
 `);
 
-                // An input default is just a compile-time-resolvable literal:
-                // the two provision methods must produce byte-identical analysis.
-                expect(viaDefault.feeds).toEqual(literal.feeds);
+                // A blank chart-symbol input retains a mutable declaration; all
+                // other defaults remain byte-identical to their literal form.
+                if (!symbolPresent && interval === "") {
+                    expect(literal.feeds).toEqual([]);
+                    expect(viaDefault.feeds).toEqual([{ interval: "" }]);
+                } else {
+                    expect(viaDefault.feeds).toEqual(literal.feeds);
+                }
                 expect(viaDefault.intervals).toEqual(literal.intervals);
                 expect(literal.diagnostics).toEqual([]);
                 expect(viaDefault.diagnostics).toEqual([]);
 
-                // A chart-symbol + chart-timeframe ("") pair is the primary
-                // stream (no feed); every other combination is exactly one feed.
+                // A fixed chart-symbol + chart-timeframe pair is the primary
+                // stream (no feed); every other literal combination is one feed.
                 const expectedFeeds = !symbolPresent && interval === "" ? 0 : 1;
                 expect(literal.feeds.length).toBe(expectedFeeds);
             }),
