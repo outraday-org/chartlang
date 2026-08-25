@@ -1,5 +1,17 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.7.5
+
+### Patch Changes
+
+- 72208bc: Regenerate the QuickJS dispatcher bundle so the guest runtime resolves `time.timeClose` against the host-supplied `Bar.closeTime`. The bundle inlines the built runtime, so this is required for the fix to reach a QuickJS host; the JSON boundary itself needed no change.
+- Updated dependencies [72208bc]
+- Updated dependencies [72208bc]
+- Updated dependencies [72208bc]
+  - @invinite-org/chartlang-runtime@1.13.0
+  - @invinite-org/chartlang-core@1.13.0
+  - @invinite-org/chartlang-host-worker@1.7.0
+
 ## 1.7.4
 
 ### Patch Changes

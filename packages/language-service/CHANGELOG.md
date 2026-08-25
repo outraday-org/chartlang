@@ -1,5 +1,15 @@
 # @invinite-org/chartlang-language-service
 
+## 1.6.4
+
+### Patch Changes
+
+- 72208bc: Regenerate the hover registry so `time.timeClose`'s hover text states the host-supplied bar close and its `t + interval` fallback.
+- Updated dependencies [72208bc]
+- Updated dependencies [72208bc]
+  - @invinite-org/chartlang-core@1.13.0
+  - @invinite-org/chartlang-compiler@1.15.0
+
 ## 1.6.3
 
 ### Patch Changes
