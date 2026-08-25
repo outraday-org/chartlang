@@ -1,5 +1,16 @@
 # @invinite-org/chartlang-compiler
 
+## 1.15.0
+
+### Minor Changes
+
+- 72208bc: Mirror `Bar.closeTime` in the ambient core shim, so a script may read the host's real bar-close instant (and so `BarSeries` / `ComputeContext.bar` carry it) instead of the shim drifting out of lockstep with `packages/core/src/`.
+
+### Patch Changes
+
+- Updated dependencies [72208bc]
+  - @invinite-org/chartlang-core@1.13.0
+
 ## 1.14.2
 
 ### Patch Changes

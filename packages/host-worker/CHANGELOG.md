@@ -1,5 +1,18 @@
 # @invinite-org/chartlang-host-worker
 
+## 1.7.0
+
+### Minor Changes
+
+- 72208bc: Expose structured, workload-aware step overshoots through `onStepOvershoot`, including the history replay bar count, while reserving `onWorkerError` for fatal and browser Worker errors.
+
+### Patch Changes
+
+- Updated dependencies [72208bc]
+- Updated dependencies [72208bc]
+  - @invinite-org/chartlang-runtime@1.13.0
+  - @invinite-org/chartlang-core@1.13.0
+
 ## 1.6.2
 
 ### Patch Changes
