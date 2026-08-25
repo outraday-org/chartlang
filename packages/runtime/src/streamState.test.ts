@@ -1,9 +1,16 @@
 // Copyright (c) 2026 Invinite. Licensed under the MIT License.
 // See the LICENSE file in the repo root for full license text.
 
+import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
-import { createStreamState, updateFallbackViewport } from "./streamState.js";
+import {
+    appendBarToStream,
+    createStreamState,
+    replaceStreamHead,
+    replaceTickHead,
+    updateFallbackViewport,
+} from "./streamState.js";
 
 describe("createStreamState", () => {
     it("constructs the full per-stream shape with the supplied symbol/interval", () => {
@@ -221,6 +228,11 @@ describe("createStreamState", () => {
         expect(restored.seriesViews.hl2.current).toBeNaN();
     });
 
+    it("starts with no host-supplied close fact", () => {
+        const stream = createStreamState({ interval: "1D", capacity: 2, symbol: "AAPL" });
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
     it("falls back to toTime when fallback viewport fromTime is not finite", () => {
         const stream = createStreamState({ interval: "1m", capacity: 2, symbol: "AAPL" });
         stream.ohlcv.time.append(Number.NaN);
@@ -229,5 +241,107 @@ describe("createStreamState", () => {
         updateFallbackViewport(stream, 2);
 
         expect(stream.bar.viewport).toEqual({ fromTime: 10, toTime: 10 });
+    });
+});
+
+// A 1D NASDAQ bar bucketed on the UTC day boundary, whose venue close is
+// 16:00 America/New_York (21:00Z) rather than `time + 1D`.
+const DAY_START = Date.UTC(2024, 10, 27);
+const REGULAR_CLOSE = Date.UTC(2024, 10, 27, 21);
+
+function dailyBar(closeTime?: number): Bar {
+    const base = {
+        time: DAY_START,
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1_000,
+        symbol: "TQQQ",
+        interval: "1D",
+    };
+    return closeTime === undefined ? base : { ...base, closeTime };
+}
+
+describe("streamState — host-supplied bar close", () => {
+    function daily() {
+        return createStreamState({ interval: "1D", capacity: 4, symbol: "TQQQ" });
+    }
+
+    it("appendBarToStream stores a finite forward close", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(REGULAR_CLOSE));
+        expect(stream.bar.closeTime).toBe(REGULAR_CLOSE);
+    });
+
+    it("appendBarToStream leaves it undefined when the host supplies none", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar());
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
+    it("appendBarToStream ignores non-finite close values", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(Number.NaN));
+        expect(stream.bar.closeTime).toBeUndefined();
+        appendBarToStream(stream, dailyBar(Number.POSITIVE_INFINITY));
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
+    it("appendBarToStream ignores a close at or before the bar start", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(DAY_START));
+        expect(stream.bar.closeTime).toBeUndefined();
+        appendBarToStream(stream, dailyBar(DAY_START - 1));
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
+    it("a later bar without a close fact clears the previous one", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(REGULAR_CLOSE));
+        appendBarToStream(stream, {
+            ...dailyBar(),
+            time: DAY_START + 86_400_000,
+        });
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
+    it("replaceStreamHead stores the close fact", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar());
+        replaceStreamHead(stream, dailyBar(REGULAR_CLOSE));
+        expect(stream.bar.closeTime).toBe(REGULAR_CLOSE);
+    });
+
+    it("replaceTickHead revises the fact without moving time or open", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(REGULAR_CLOSE));
+        const early = Date.UTC(2024, 10, 27, 18);
+        replaceTickHead(stream, { ...dailyBar(early), close: 101, high: 102 });
+        expect(stream.bar.closeTime).toBe(early);
+        expect(stream.bar.time).toBe(DAY_START);
+        expect(stream.bar.open.current).toBe(100);
+        expect(stream.ohlcv.close.length).toBe(1);
+    });
+
+    it("replaceTickHead validates against the live bar start, not the tick payload", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(REGULAR_CLOSE));
+        // A tick that restates the bar with a close at the bar start is not
+        // forward, so the fact is dropped rather than trusted.
+        replaceTickHead(stream, { ...dailyBar(DAY_START), close: 101 });
+        expect(stream.bar.closeTime).toBeUndefined();
+    });
+
+    it("restoreFromSnapshot clears the fact — it is not persisted state", () => {
+        const stream = daily();
+        appendBarToStream(stream, dailyBar(REGULAR_CLOSE));
+        const snapshot = stream.serialiseSnapshot();
+        expect(snapshot).not.toHaveProperty("closeTime");
+
+        const restored = daily();
+        appendBarToStream(restored, dailyBar(REGULAR_CLOSE));
+        restored.restoreFromSnapshot(snapshot);
+        expect(restored.bar.closeTime).toBeUndefined();
     });
 });

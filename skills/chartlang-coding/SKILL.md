@@ -358,7 +358,8 @@ Highlights of the surface:
   `bar.time`, the UTC ms epoch). `time.year/month/dayofmonth/dayofweek/
   hour/minute/second(t, tz?)` return the calendar field; `time.timestamp(
   y, mo, d, hh?, mm?, ss?, tz?)` builds an epoch; `time.timeClose(t, tz?)`
-  is the bar-close instant (Pine `time_close()` = bar start + interval);
+  is the bar-close instant (Pine `time_close()`) — the host's real close for
+  the current bar when it stated one, else bar start + interval;
   `time.now()` is the explicit host-injected wall-clock epoch; `session.isOpen(
   t, spec, tz?)` tests membership in an `"HH:MM-HH:MM"` window.
   **`dayofweek` is Pine's `1=Sun .. 7=Sat`** (Mon–Fri is `dow >= 2

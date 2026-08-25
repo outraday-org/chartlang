@@ -128,8 +128,14 @@ pattern for Worker boot files.
   production omit it and the host constructs a real `Worker`.
 - `limits` — partial `HostLimits` overrides. Missing fields fall through
   to `DEFAULT_LIMITS`.
-- `onWorkerError` — called when the worker posts `step-overshoot` or
-  `fatal`. Use it to surface diagnostics in the host UI.
+- `onStepOvershoot` — called with the worker's structured `step-overshoot`
+  record when a single compute step exceeds `maxCpuMsPerStep`. Every record
+  carries `eventKind`; a bulk `history` replay additionally carries the
+  `barCount` it processed, so a slow replay is distinguishable from a slow
+  live bar.
+- `onWorkerError` — called when the worker posts `fatal`, and on browser
+  `Worker` `error` events. Use it to surface diagnostics in the host UI.
+  Overshoots have their own callback and never arrive here.
 
 ## Session calendar
 

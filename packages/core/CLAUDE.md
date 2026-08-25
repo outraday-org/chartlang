@@ -204,9 +204,11 @@
   fixed clock. Their registry entries are `slot: false` like `ta.nz` — no
   callsite-id injection, but still flagged by `stateful-call-inside-loop`.
   `time.timeClose(t, tz?)` (Pine's no-arg `time_close()`) closes over
-  per-bar mount data: it returns `t + timeframe.inSeconds` (the runtime reads
-  the current bar's interval internally). The `program.ts` shim mirrors both
-  namespaces in lockstep.
+  per-bar mount data: for the CURRENT bar it returns the host's real close
+  (`Bar.closeTime`) when one was supplied, and otherwise — including for every
+  historical `t` — `t + timeframe.inSeconds` (the runtime reads the current
+  bar's interval internally). The `program.ts` shim mirrors both namespaces in
+  lockstep.
 
 - **`order` is a frozen namespace whose TYPE IS DERIVED, and `order.position` is
   the one `slot: false` member.** `order/order.ts` exports `OrderAction` /
@@ -267,7 +269,13 @@
   `interval` stay scalar on both. `request.security`'s HTF bar is the
   separate `SecurityBar`. The compiler's `program.ts` ambient shim mirrors
   all four types in lockstep, and `ComputeContext.bar` is `BarSeries`
-  there too.
+  there too. `Bar.closeTime?` is the host's ABSOLUTE close instant for THAT
+  bar (venue session, half days included) — the one fact that keeps timezone /
+  DST maths out of the deterministic runtime. It is optional and typed
+  `Time | undefined` because `exactOptionalPropertyTypes` is on and the
+  runtime's `BarView` always carries the key; **absent means absent**, there is
+  no sentinel, and the runtime IGNORES a non-finite or non-forward value rather
+  than trusting it.
 
 - **`z` (render-order key) is a presentation-only option declared once on
   the `ZOrdered` mixin.** `ZOrdered { readonly z?: number }`

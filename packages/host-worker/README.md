@@ -26,7 +26,7 @@ pnpm add @invinite-org/chartlang-host-worker
 - `@invinite-org/chartlang-host-worker/worker-boot` — bundled worker entry
   for Vite / bundler `new Worker(new URL(...))` patterns. Side-effect only.
 - Types: `ScriptHost`, `HostLimits`, `WorkerLike`, `HostCompiledScript`,
-  `HostToWorker`, `WorkerToHost`, `CreateWorkerHostOpts`.
+  `StepOvershoot`, `HostToWorker`, `WorkerToHost`, `CreateWorkerHostOpts`.
 
 ## Minimum-viable API call
 
@@ -49,7 +49,10 @@ const host = createWorkerHost({ capabilities, workerLike: worker });
 ## Stability
 
 Phase 1 ships the postMessage wire protocol + a measurement-based CPU
-watchdog (`step-overshoot` reports observed elapsed ms; no preemption).
+watchdog (`step-overshoot` reports observed elapsed ms plus `eventKind`; a
+history replay also reports `barCount`; no preemption). `createWorkerHost`
+delivers those records through `onStepOvershoot`, separate from fatal
+`onWorkerError` strings.
 Deferred to Phase 5 (per PLAN §19):
 
 - Worker-side CSP enforcement.

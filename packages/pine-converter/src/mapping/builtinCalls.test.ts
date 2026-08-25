@@ -5,6 +5,7 @@ import { type TimeNamespace, time } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
 import { BUILTIN_CALL_MAP, lowerBuiltinCall } from "./builtinCalls.js";
+import { BUILTIN_IDENTIFIER_MAP } from "./builtinIdentifiers.js";
 
 describe("BUILTIN_CALL_MAP", () => {
     it("lowers time() to the bare bar.time epoch", () => {
@@ -21,6 +22,19 @@ describe("BUILTIN_CALL_MAP", () => {
 
     it("rejects time_close with an explicit timeframe arg", () => {
         expect(BUILTIN_CALL_MAP.get("time_close")?.(["tf"])).toBeNull();
+    });
+
+    it("anchors BOTH time_close forms on bar.time so the runtime override applies", () => {
+        // The runtime resolves the venue's real close instant (`Bar.closeTime`)
+        // only for the CURRENT bar, and it recognises the current bar by
+        // comparing the argument against `bar.time`. Lowering `time_close`
+        // anywhere other than `time.timeClose(bar.time)` — a captured local, a
+        // recomputed epoch — would silently take the `start + interval`
+        // fallback forever. Both forms are pinned here; the converter itself is
+        // deliberately unchanged.
+        const lowered = "time.timeClose(bar.time)";
+        expect(BUILTIN_CALL_MAP.get("time_close")?.([])).toBe(lowered);
+        expect(BUILTIN_IDENTIFIER_MAP.get("time_close")).toBe(lowered);
     });
 
     it("lowers numeric-first timestamp arities to time.timestamp(...)", () => {

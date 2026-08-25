@@ -258,10 +258,15 @@ export default {
             code: "malformed-emission",
             slotId: "sandbox.clone:1:1#0",
         });
-        // `bar` carries the `bar.point(...)` method, so the membrane rejects
-        // the first function it reaches (`bar.point`) before the bare `fn`.
-        // Either way a host-object capture through a function is blocked.
-        expect(result.emissions.diagnostics[0]?.message).toContain("alert.meta.bar.point");
+        // `bar` is a host object, not JSON: it carries the `bar.point(...)`
+        // method and — when the host supplied no venue close for this bar — an
+        // `undefined` `bar.closeTime`. The membrane rejects whichever it walks
+        // into first, before it ever reaches the bare `fn`. The offending FIELD
+        // is incidental; that a host-object capture is blocked, named by path,
+        // is the contract.
+        expect(result.emissions.diagnostics[0]?.message).toMatch(
+            /^alert\.meta\.bar\.(closeTime|point)\b/,
+        );
     });
 
     it("blocks infinite-loop DoS", async () => {

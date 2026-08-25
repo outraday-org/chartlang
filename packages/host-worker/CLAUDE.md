@@ -39,7 +39,11 @@ same `ScriptHost` shape with real preemption + hard heap caps.
   round-trips carry a nonce. Overshoots happen inside `candleEvent`
   dispatch which is fire-and-forget by design. Adding a nonce
   to overshoot would require a synchronous reply contract per
-  push, which Phase 1 explicitly avoids.
+  push, which Phase 1 explicitly avoids. Every overshoot carries
+  `eventKind`; a bulk `history` replay additionally carries `barCount`, while
+  `close` / `tick` carry no invented count. `createWorkerHost` forwards the
+  frame unchanged through `onStepOvershoot`; it must never collapse back into
+  the fatal `onWorkerError` string channel.
 - **Module load delegates to the shared runtime loader
   `buildBundleFromModule`.** `createWorkerBoot` imports
   `buildBundleFromModule` (+ `CompiledModuleExport`) from

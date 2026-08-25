@@ -160,10 +160,16 @@ export const time = Object.freeze({
 
     /**
      * Close timestamp of the bar that starts at `t` — Pine's no-arg
-     * `time_close()`. Equals `t + interval`, where the interval is the active
-     * bar's `timeframe.inSeconds` the runtime reads internally (so this mirrors
-     * Pine's "current bar's interval" without an explicit interval argument).
-     * `tz` is accepted for surface symmetry with the other `time.*` accessors.
+     * `time_close()`. When `t` identifies the CURRENT bar and the host supplied
+     * that bar's real close instant (`Bar.closeTime`), this returns that
+     * instant, so a `1D` NASDAQ bar reports its 16:00 America/New_York close
+     * and an early-close day reports 13:00. Otherwise it falls back to
+     * `t + interval`, where the interval is the active bar's
+     * `timeframe.inSeconds` the runtime reads internally (mirroring Pine's
+     * "current bar's interval" without an explicit interval argument). A
+     * historical `t`, an absent close fact and a malformed one all take that
+     * fallback. `tz` is accepted for surface symmetry with the other `time.*`
+     * accessors.
      *
      * @since 1.5
      * @stable

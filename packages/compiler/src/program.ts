@@ -81,6 +81,8 @@ declare module "@invinite-org/chartlang-core" {
         readonly ohlc4: Price;
         readonly hlcc4: Price;
         readonly viewport?: BarViewport;
+        /** The host's real close instant for THIS bar; absent means absent. */
+        readonly closeTime?: Time | undefined;
         point(offset: number, price: Price): WorldPoint;
     };
     export type Series<T> = {

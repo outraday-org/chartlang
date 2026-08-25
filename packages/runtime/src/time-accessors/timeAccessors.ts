@@ -37,6 +37,14 @@ function isInt(value: number): boolean {
  * host clock (for {@link TimeNamespace.now}), and a `tz-dst-unsupported`
  * reporter; the calendar accessor bodies themselves are stateless.
  *
+ * `getBarCloseTime` is the single hole through which the host's real bar-close
+ * fact reaches {@link TimeNamespace.timeClose}: it answers "what is the actual
+ * close instant of the bar that starts at `t`?" and returns `undefined` for
+ * every `t` that is not the current bar or that carries no usable fact, which
+ * is when `timeClose` takes its `t + interval` fallback. It defaults to a
+ * getter that always answers `undefined`, so a four-argument call is
+ * byte-identical to the pre-1.13 behaviour.
+ *
  * v1 honours UTC + fixed-offset zones only. A DST-bearing IANA zone resolves to
  * UTC and invokes `onDstUnsupported(tz)` (once-per-tz dedup lives in the
  * caller). Non-finite / out-of-range inputs yield `NaN`; the accessors never
@@ -54,6 +62,7 @@ export function createTimeNamespace(
     getIntervalMs: () => number,
     getNow: () => number,
     onDstUnsupported: (tz: string) => void,
+    getBarCloseTime: (t: Time) => number | undefined = () => undefined,
 ): TimeNamespace {
     function offsetFor(tz: string | undefined): number {
         const resolved = resolveTz(tz, getDefaultTz);
@@ -118,12 +127,13 @@ export function createTimeNamespace(
         },
         now: () => getNow(),
         timeClose: (t, tz) => {
-            // `tz` is accepted for surface symmetry; the close instant is
-            // tz-invariant (start + interval). A DST tz still flags for
-            // consistency with the other accessors.
+            // `tz` is accepted for surface symmetry; the close instant is an
+            // absolute epoch either way. A DST tz still flags for consistency
+            // with the other accessors.
             offsetFor(tz);
             if (!Number.isFinite(t)) return Number.NaN;
-            return t + getIntervalMs();
+            const hostClose = getBarCloseTime(t);
+            return hostClose === undefined ? t + getIntervalMs() : hostClose;
         },
     });
 }
@@ -153,5 +163,10 @@ export function buildTimeNamespace(ctx: RuntimeContext, getNow: () => number): T
         () => ctx.views.timeframe.inSeconds * 1000,
         getNow,
         buildTzDstReporter(ctx),
+        // "Does `t` identify the current bar?" is decided HERE, the one place
+        // that can see both the live bar start and the host's close fact. Any
+        // other `t` — a lookback timestamp, a fabricated one — gets `undefined`
+        // and therefore the interval fallback.
+        (t) => (t === ctx.stream.bar.time ? ctx.stream.bar.closeTime : undefined),
     );
 }

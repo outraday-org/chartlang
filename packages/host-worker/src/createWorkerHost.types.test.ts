@@ -11,7 +11,13 @@ import type {
 import { describe, expectTypeOf, it } from "vitest";
 
 import { createWorkerHost, type CreateWorkerHostOpts } from "./createWorkerHost.js";
-import type { HostCompiledScript, HostLimits, ScriptHost, WorkerLike } from "./types.js";
+import type {
+    HostCompiledScript,
+    HostLimits,
+    ScriptHost,
+    StepOvershoot,
+    WorkerLike,
+} from "./types.js";
 
 describe("createWorkerHost", () => {
     it("returns a ScriptHost", () => {
@@ -34,6 +40,9 @@ describe("createWorkerHost", () => {
         >();
         expectTypeOf<CreateWorkerHostOpts["onWorkerError"]>().toEqualTypeOf<
             ((message: string) => void) | undefined
+        >();
+        expectTypeOf<CreateWorkerHostOpts["onStepOvershoot"]>().toEqualTypeOf<
+            ((overshoot: StepOvershoot) => void) | undefined
         >();
     });
 });

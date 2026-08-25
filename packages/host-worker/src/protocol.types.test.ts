@@ -140,12 +140,21 @@ describe("WorkerToHost", () => {
         expectTypeOf<Frame["emissions"]>().toEqualTypeOf<RunnerEmissions>();
     });
 
-    it("step-overshoot does not carry a nonce", () => {
+    it("step-overshoot is workload-aware and does not carry a nonce", () => {
         type Frame = Extract<WorkerToHost, { kind: "step-overshoot" }>;
-        expectTypeOf<Frame>().toEqualTypeOf<{
-            readonly kind: "step-overshoot";
-            readonly observedMs: number;
-        }>();
+        expectTypeOf<Frame>().toEqualTypeOf<
+            | {
+                  readonly kind: "step-overshoot";
+                  readonly eventKind: "history";
+                  readonly observedMs: number;
+                  readonly barCount: number;
+              }
+            | {
+                  readonly kind: "step-overshoot";
+                  readonly eventKind: "close" | "tick";
+                  readonly observedMs: number;
+              }
+        >();
     });
 });
 

@@ -16,7 +16,7 @@ import type {
     StateStoreKey,
 } from "@invinite-org/chartlang-core";
 
-import type { HostCompiledScript, HostLimits, WorkerPersistence } from "./types.js";
+import type { HostCompiledScript, HostLimits, StepOvershoot, WorkerPersistence } from "./types.js";
 
 /**
  * Messages the main thread posts into the worker. JSON-clean by construction
@@ -92,8 +92,8 @@ export type HostToWorker =
  * - `loaded` / `loadError` close the `load` round-trip.
  * - `emissions` carries the matching `nonce` from the `drain` request.
  * - `step-overshoot` is fire-and-forget — Phase-1 enforcement is
- *   measurement, not preemption. The host surfaces overshoots via
- *   `onWorkerError`; Phase 5's QuickJS host adds real interrupt-based
+ *   measurement, not preemption. The host surfaces the structured record via
+ *   `onStepOvershoot`; Phase 5's QuickJS host adds real interrupt-based
  *   preemption.
  * - `snapshot` answers `exportSnapshot`; its payload is `null` when the
  *   capture failed validation, and `key` echoes the identity the worker was
@@ -129,5 +129,5 @@ export type WorkerToHost =
       }
     | { readonly kind: "snapshotImported"; readonly nonce: number; readonly barIndex: number }
     | { readonly kind: "snapshotError"; readonly nonce: number; readonly message: string }
-    | { readonly kind: "step-overshoot"; readonly observedMs: number }
+    | StepOvershoot
     | { readonly kind: "fatal"; readonly message: string };

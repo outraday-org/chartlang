@@ -32,8 +32,12 @@ compute({ bar, time, session }) {
 
 `time.timestamp(year, month, day, hour?, minute?, second?, tz?)` builds an
 epoch from calendar fields, and `time.timeClose(t)` returns the **close**
-timestamp of the bar that opens at `t` (Pine's no-arg `time_close()` =
-`t + the current bar's interval`). `time.now()` returns the host-injected
+timestamp of the bar that opens at `t` (Pine's no-arg `time_close()`). When `t`
+is the **current** bar and the host stated that bar's real close instant on
+`Bar.closeTime`, that instant is returned — so a `1D` NASDAQ bar reports its
+16:00 America/New_York close and a half day reports 13:00, with no timezone or
+DST maths inside the runtime. Otherwise, and for any historical `t`, it falls
+back to `t + the current bar's interval`. `time.now()` returns the host-injected
 wall-clock epoch at call time; tests and deterministic replays should inject a
 fixed clock when they depend on it.
 

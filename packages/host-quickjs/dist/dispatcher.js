@@ -814,10 +814,16 @@ var time = Object.freeze({
   },
   /**
    * Close timestamp of the bar that starts at `t` — Pine's no-arg
-   * `time_close()`. Equals `t + interval`, where the interval is the active
-   * bar's `timeframe.inSeconds` the runtime reads internally (so this mirrors
-   * Pine's "current bar's interval" without an explicit interval argument).
-   * `tz` is accepted for surface symmetry with the other `time.*` accessors.
+   * `time_close()`. When `t` identifies the CURRENT bar and the host supplied
+   * that bar's real close instant (`Bar.closeTime`), this returns that
+   * instant, so a `1D` NASDAQ bar reports its 16:00 America/New_York close
+   * and an early-close day reports 13:00. Otherwise it falls back to
+   * `t + interval`, where the interval is the active bar's
+   * `timeframe.inSeconds` the runtime reads internally (mirroring Pine's
+   * "current bar's interval" without an explicit interval argument). A
+   * historical `t`, an absent close fact and a malformed one all take that
+   * fallback. `tz` is accepted for surface symmetry with the other `time.*`
+   * accessors.
    *
    * @since 1.5
    * @stable
@@ -1774,6 +1780,14 @@ function deriveBarSources(rawBar) {
     hlcc4: (rawBar.high + rawBar.low + rawBar.close + rawBar.close) / 4
   };
 }
+function resolveHostCloseTime(rawBar, barTime) {
+  const { closeTime } = rawBar;
+  if (closeTime === void 0)
+    return void 0;
+  if (!Number.isFinite(closeTime))
+    return void 0;
+  return closeTime > barTime ? closeTime : void 0;
+}
 var rawBufferKeys = ["time", "open", "high", "low", "close", "volume"];
 function rawBuffers(ohlcv) {
   return {
@@ -1852,6 +1866,7 @@ function createStreamState(args) {
     hlcc4: seriesViews.hlcc4,
     symbol,
     interval,
+    closeTime: void 0,
     viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
     // Closes over the stream's time history + the live scalar `bar.time` /
     // `bar.interval` so offset-anchored drawings resolve against the real /
@@ -1895,6 +1910,7 @@ function createStreamState(args) {
       const current = snapshot6.headIndex;
       bar.time = snapshot6.filled === 0 || current < 0 ? 0 : valueAt(snapshot6.buffers.time, current);
       bar.interval = snapshot6.interval;
+      bar.closeTime = void 0;
     }
   };
   return stream;
@@ -1915,6 +1931,7 @@ function appendBarToStream(stream, rawBar) {
   bar.time = rawBar.time;
   bar.symbol = rawBar.symbol;
   bar.interval = rawBar.interval;
+  bar.closeTime = resolveHostCloseTime(rawBar, rawBar.time);
 }
 function replaceStreamHead(stream, rawBar) {
   if (stream.ohlcv.close.length === 0) {
@@ -1936,10 +1953,11 @@ function replaceStreamHead(stream, rawBar) {
   bar.time = rawBar.time;
   bar.symbol = rawBar.symbol;
   bar.interval = rawBar.interval;
+  bar.closeTime = resolveHostCloseTime(rawBar, rawBar.time);
 }
 function replaceTickHead(stream, rawBar) {
   const values = deriveBarSources(rawBar);
-  const { ohlcv } = stream;
+  const { ohlcv, bar } = stream;
   ohlcv.close.replaceHead(rawBar.close);
   ohlcv.high.replaceHead(rawBar.high);
   ohlcv.low.replaceHead(rawBar.low);
@@ -1948,6 +1966,7 @@ function replaceTickHead(stream, rawBar) {
   ohlcv.hlc3.replaceHead(values.hlc3);
   ohlcv.ohlc4.replaceHead(values.ohlc4);
   ohlcv.hlcc4.replaceHead(values.hlcc4);
+  bar.closeTime = resolveHostCloseTime(rawBar, bar.time);
 }
 function updateFallbackViewport(stream, limit = 100) {
   const length = stream.ohlcv.time.length;
@@ -16867,7 +16886,7 @@ function resolveTz(tz, getDefaultTz) {
 function isInt(value) {
   return Number.isInteger(value);
 }
-function createTimeNamespace(getDefaultTz, getIntervalMs, getNow, onDstUnsupported) {
+function createTimeNamespace(getDefaultTz, getIntervalMs, getNow, onDstUnsupported, getBarCloseTime = () => void 0) {
   function offsetFor(tz) {
     const resolved = resolveTz(tz, getDefaultTz);
     const { offsetMin, dstUnsupported } = resolveOffsetMinutes(resolved);
@@ -16909,12 +16928,23 @@ function createTimeNamespace(getDefaultTz, getIntervalMs, getNow, onDstUnsupport
       offsetFor(tz);
       if (!Number.isFinite(t))
         return Number.NaN;
-      return t + getIntervalMs();
+      const hostClose = getBarCloseTime(t);
+      return hostClose === void 0 ? t + getIntervalMs() : hostClose;
     }
   });
 }
 function buildTimeNamespace(ctx, getNow) {
-  return createTimeNamespace(() => ctx.views.syminfo.timezone, () => ctx.views.timeframe.inSeconds * 1e3, getNow, buildTzDstReporter(ctx));
+  return createTimeNamespace(
+    () => ctx.views.syminfo.timezone,
+    () => ctx.views.timeframe.inSeconds * 1e3,
+    getNow,
+    buildTzDstReporter(ctx),
+    // "Does `t` identify the current bar?" is decided HERE, the one place
+    // that can see both the live bar start and the host's close fact. Any
+    // other `t` — a lookback timestamp, a fabricated one — gets `undefined`
+    // and therefore the interval fallback.
+    (t) => t === ctx.stream.bar.time ? ctx.stream.bar.closeTime : void 0
+  );
 }
 
 // ../runtime/dist/time-accessors/sessionAccessors.js

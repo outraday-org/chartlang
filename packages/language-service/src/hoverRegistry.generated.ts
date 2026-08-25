@@ -8491,7 +8491,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "time.timeClose",
         "kind": "function",
         "title": "time.timeClose(_t, _tz?)",
-        "summary": "Close timestamp of the bar that starts at `t` — Pine's no-arg\n`time_close()`. Equals `t + interval`, where the interval is the active\nbar's `timeframe.inSeconds` the runtime reads internally (so this mirrors\nPine's \"current bar's interval\" without an explicit interval argument).\n`tz` is accepted for surface symmetry with the other `time.*` accessors.",
+        "summary": "Close timestamp of the bar that starts at `t` — Pine's no-arg\n`time_close()`. When `t` identifies the CURRENT bar and the host supplied\nthat bar's real close instant (`Bar.closeTime`), this returns that\ninstant, so a `1D` NASDAQ bar reports its 16:00 America/New_York close\nand an early-close day reports 13:00. Otherwise it falls back to\n`t + interval`, where the interval is the active bar's\n`timeframe.inSeconds` the runtime reads internally (mirroring Pine's\n\"current bar's interval\" without an explicit interval argument). A\nhistorical `t`, an absent close fact and a malformed one all take that\nfallback. `tz` is accepted for surface symmetry with the other `time.*`\naccessors.",
         "paramTable": [
             {
                 "name": "_t",

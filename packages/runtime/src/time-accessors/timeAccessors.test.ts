@@ -151,6 +151,57 @@ describe("createTimeNamespace — timeClose", () => {
     });
 });
 
+describe("createTimeNamespace — timeClose with a host-supplied bar close", () => {
+    // A 1D NASDAQ bar bucketed on the UTC day boundary. `+ interval` puts its
+    // close at midnight UTC; the venue really closes 16:00 America/New_York.
+    const DAY_START = Date.UTC(2024, 10, 27);
+    const DAY_MS = 86_400_000;
+    const REGULAR_CLOSE = Date.UTC(2024, 10, 27, 21); // 16:00 ET
+    const EARLY_CLOSE = Date.UTC(2024, 10, 29, 18); // 13:00 ET half day
+
+    function daily(getBarCloseTime?: (t: number) => number | undefined) {
+        return getBarCloseTime === undefined
+            ? createTimeNamespace(
+                  () => "UTC",
+                  () => DAY_MS,
+                  () => 0,
+                  () => {},
+              )
+            : createTimeNamespace(
+                  () => "UTC",
+                  () => DAY_MS,
+                  () => 0,
+                  () => {},
+                  getBarCloseTime,
+              );
+    }
+
+    it("falls back to bar start + interval when no getter is supplied", () => {
+        expect(daily().timeClose(DAY_START)).toBe(DAY_START + DAY_MS);
+    });
+
+    it("falls back when the getter answers undefined", () => {
+        expect(daily(() => undefined).timeClose(DAY_START)).toBe(DAY_START + DAY_MS);
+    });
+
+    it("returns the host close for a regular 1D session", () => {
+        expect(daily(() => REGULAR_CLOSE).timeClose(DAY_START)).toBe(REGULAR_CLOSE);
+    });
+
+    it("returns the host close for an early-close session", () => {
+        const half = Date.UTC(2024, 10, 29);
+        expect(daily((t) => (t === half ? EARLY_CLOSE : undefined)).timeClose(half)).toBe(
+            EARLY_CLOSE,
+        );
+    });
+
+    it("still answers NaN for a non-finite t without consulting the getter", () => {
+        const getter = vi.fn(() => REGULAR_CLOSE);
+        expect(daily(getter).timeClose(Number.NaN)).toBeNaN();
+        expect(getter).not.toHaveBeenCalled();
+    });
+});
+
 describe("createTimeNamespace — now", () => {
     it("reads the host clock getter at call time", () => {
         let current = 123_456;
@@ -214,6 +265,36 @@ describe("buildTimeNamespace — install + diagnostic dedup", () => {
             return time.timeClose(FIXTURE);
         });
         expect(out[0]).toBe(FIXTURE + 5 * 60 * 1000);
+    });
+
+    it("prefers the current bar's host close over the interval fallback", () => {
+        const out = harness([oneBar(FIXTURE)], 8, (_bar, ctx) => {
+            ctx.views.timeframe = makeTimeframeView("5m", {
+                value: "5m",
+                label: "5 minutes",
+                group: "minute",
+            });
+            ctx.stream.bar.closeTime = FIXTURE + 999;
+            const time = buildTimeNamespace(ctx, () => 0);
+            return time.timeClose(FIXTURE);
+        });
+        expect(out[0]).toBe(FIXTURE + 999);
+    });
+
+    it("falls back for a timestamp that is not the current bar", () => {
+        const out = harness([oneBar(FIXTURE)], 8, (_bar, ctx) => {
+            ctx.views.timeframe = makeTimeframeView("5m", {
+                value: "5m",
+                label: "5 minutes",
+                group: "minute",
+            });
+            ctx.stream.bar.closeTime = FIXTURE + 999;
+            const time = buildTimeNamespace(ctx, () => 0);
+            // A historical bar start — the close fact belongs to the head bar
+            // only, so this must take the interval fallback.
+            return time.timeClose(FIXTURE - 5 * 60 * 1000);
+        });
+        expect(out[0]).toBe(FIXTURE);
     });
 
     it("reads now from the injected runner clock", () => {

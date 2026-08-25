@@ -285,7 +285,10 @@
   hand-rolled `.d.ts` for `@invinite-org/chartlang-core` so the compiler
   is host-machine independent and deterministic. The shim must stay in
   lockstep with `packages/core/src/` — every new core export needs a
-  matching declaration here. In particular the shim declares scalar `Bar`,
+  matching declaration here, and so does every new FIELD on a mirrored type
+  (`Bar.closeTime` is the current example: it is optional and typed
+  `Time | undefined` exactly as core spells it). In particular the shim
+  declares scalar `Bar`,
   the indexable `BarSeries` (OHLCV + derived fields as
   `PriceSeries`/`VolumeSeries` = `number & Series<number>`), and
   `ComputeContext.bar: BarSeries` — this is what makes a compiled script's
