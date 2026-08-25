@@ -11,6 +11,7 @@ export type {
     HostLimits,
     HostSnapshot,
     ScriptHost,
+    StepOvershoot,
     WorkerLike,
     WorkerPersistence,
 } from "./types.js";

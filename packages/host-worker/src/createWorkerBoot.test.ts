@@ -592,7 +592,7 @@ describe("createWorkerBoot", () => {
         await waitFor("emissions");
     });
 
-    it("posts 'step-overshoot' when a step exceeds maxCpuMsPerStep", async () => {
+    it("posts a structured close overshoot when a live step exceeds maxCpuMsPerStep", async () => {
         const { scope, deliver, waitFor } = makeScope();
         createWorkerBoot(scope);
         await deliver({
@@ -606,6 +606,30 @@ describe("createWorkerBoot", () => {
         const reply = await waitFor("step-overshoot");
         if (reply.kind !== "step-overshoot") throw new Error("expected step-overshoot");
         expect(reply.observedMs).toBeGreaterThan(1);
+        expect(reply.eventKind).toBe("close");
+        expect("barCount" in reply).toBe(false);
+    });
+
+    it("posts the replay bar count with a history overshoot", async () => {
+        const { scope, deliver, waitFor } = makeScope();
+        createWorkerBoot(scope);
+        await deliver({
+            kind: "load",
+            compiled: { moduleSource: SLOW_MODULE_SOURCE, manifest: manifest() },
+            capabilities: makeCapabilities(),
+            limits: { ...LIMITS, maxCpuMsPerStep: 1 },
+        });
+        await waitFor("loaded");
+        await deliver({
+            kind: "candleEvent",
+            event: { kind: "history", bars: [bar(1, 1), bar(2, 2)] },
+        });
+        const reply = await waitFor("step-overshoot");
+        if (reply.kind !== "step-overshoot" || reply.eventKind !== "history") {
+            throw new Error("expected history step-overshoot");
+        }
+        expect(reply.observedMs).toBeGreaterThan(1);
+        expect(reply.barCount).toBe(2);
     });
 
     it("posts a fatal when the inbound frame is null", async () => {

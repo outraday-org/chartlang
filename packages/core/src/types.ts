@@ -111,6 +111,24 @@ export type Bar = {
     /** Visible-range fallback used by viewport-aware primitives. @since 0.5 */
     readonly viewport?: BarViewport;
     /**
+     * The **actual** close instant of THIS bar as an absolute UTC ms epoch,
+     * supplied by the host that knows the venue's session calendar.
+     *
+     * It may differ from `time + interval`: a `1D` NASDAQ bar bucketed on a UTC
+     * boundary really closes at 16:00 America/New_York, and on an early-close
+     * day at 13:00. Encoding the instant here keeps the timezone / DST maths in
+     * the host and out of the deterministic runtime.
+     *
+     * **Absent means absent** — there is no sentinel. When the field is missing
+     * (or is non-finite, or is not strictly after `time`) the runtime ignores it
+     * and `time.timeClose(bar.time)` falls back to `time + interval`, exactly as
+     * it behaved before this field existed. A tick that re-states the current
+     * bar may revise it.
+     *
+     * @since 1.13
+     */
+    readonly closeTime?: Time | undefined;
+    /**
      * Anchor a {@link WorldPoint} by integer bar `offset` instead of an
      * absolute timestamp. The returned `{ time, price }` is the only frame
      * drawings persist (see {@link WorldPoint}), so it composes directly

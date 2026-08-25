@@ -33,6 +33,33 @@ function deriveBarSources(rawBar: Bar): DerivedBarValues {
 }
 
 /**
+ * Runtime boundary for the host's optional absolute bar-close fact
+ * (`Bar.closeTime`). The fact is accepted ONLY when it is finite AND strictly
+ * after the bar it belongs to; anything else — absent, `NaN`, `Infinity`, at or
+ * before the bar start — resolves to `undefined`, which makes
+ * `time.timeClose` take its `t + interval` fallback.
+ *
+ * Ignoring is deliberate: a malformed host value must never be able to turn
+ * `timeClose` into an arbitrary timestamp, and it must never throw inside the
+ * feed path.
+ *
+ * `barTime` is passed separately because the tick path validates against the
+ * LIVE bar start (`onBarTick` does not touch `time`), not against the tick
+ * payload's own `time`.
+ *
+ * @since 1.13
+ * @example
+ *     // resolveHostCloseTime({ ...bar, closeTime: 5 }, 0); // 5
+ *     // resolveHostCloseTime({ ...bar, closeTime: 0 }, 0); // undefined
+ */
+function resolveHostCloseTime(rawBar: Bar, barTime: number): number | undefined {
+    const { closeTime } = rawBar;
+    if (closeTime === undefined) return undefined;
+    if (!Number.isFinite(closeTime)) return undefined;
+    return closeTime > barTime ? closeTime : undefined;
+}
+
+/**
  * The per-stream OHLCV ring-buffer set. Each field is a
  * `Float64RingBuffer` of identical capacity. Derived sources
  * (`hl2`, `hlc3`, `ohlc4`, `hlcc4`) are pre-computed by Task 6's
@@ -102,6 +129,15 @@ export type BarView = {
     hlcc4: PriceSeries;
     symbol: string;
     interval: string;
+    /**
+     * The host's absolute close instant for the bar currently at the head, or
+     * `undefined` when the host supplied none (or supplied a malformed one).
+     * Written by every stream write path, cleared by a snapshot restore, and
+     * deliberately NOT a ring buffer — it is a fact about the live bar, never a
+     * series with lookback.
+     * @since 1.13
+     */
+    closeTime: number | undefined;
     viewport: BarViewport;
     point(offset: number, price: Price): WorldPoint;
 };
@@ -269,6 +305,7 @@ export function createStreamState(args: {
         hlcc4: seriesViews.hlcc4 as PriceSeries,
         symbol,
         interval,
+        closeTime: undefined,
         viewport: Object.freeze({ fromTime: 0, toTime: 0 }),
         // Closes over the stream's time history + the live scalar `bar.time` /
         // `bar.interval` so offset-anchored drawings resolve against the real /
@@ -318,6 +355,10 @@ export function createStreamState(args: {
             bar.time =
                 snapshot.filled === 0 || current < 0 ? 0 : valueAt(snapshot.buffers.time, current);
             bar.interval = snapshot.interval;
+            // The close fact belongs to the LIVE bar, not to the persisted
+            // lookback state (it is absent from `StreamSnapshot` on purpose).
+            // The next feed event re-supplies it.
+            bar.closeTime = undefined;
         },
     };
     return stream;
@@ -352,6 +393,7 @@ export function appendBarToStream(stream: StreamState, rawBar: Bar): void {
     bar.time = rawBar.time;
     bar.symbol = rawBar.symbol;
     bar.interval = rawBar.interval;
+    bar.closeTime = resolveHostCloseTime(rawBar, rawBar.time);
 }
 
 /**
@@ -386,6 +428,7 @@ export function replaceStreamHead(stream: StreamState, rawBar: Bar): void {
     bar.time = rawBar.time;
     bar.symbol = rawBar.symbol;
     bar.interval = rawBar.interval;
+    bar.closeTime = resolveHostCloseTime(rawBar, rawBar.time);
 }
 
 /**
@@ -401,7 +444,7 @@ export function replaceStreamHead(stream: StreamState, rawBar: Bar): void {
  */
 export function replaceTickHead(stream: StreamState, rawBar: Bar): void {
     const values = deriveBarSources(rawBar);
-    const { ohlcv } = stream;
+    const { ohlcv, bar } = stream;
     ohlcv.close.replaceHead(rawBar.close);
     ohlcv.high.replaceHead(rawBar.high);
     ohlcv.low.replaceHead(rawBar.low);
@@ -413,6 +456,10 @@ export function replaceTickHead(stream: StreamState, rawBar: Bar): void {
     // The close-side / derived `bar.*` fields are the series views over these
     // buffers, so replacing the buffer head is the whole update — no scalar
     // copy. `time` / `open` are intentionally untouched (tick invariant).
+    // The close fact is neither, so a tick MAY revise the in-progress bar's
+    // real close — validated against the live bar start, which the tick did not
+    // move.
+    bar.closeTime = resolveHostCloseTime(rawBar, bar.time);
 }
 
 /**

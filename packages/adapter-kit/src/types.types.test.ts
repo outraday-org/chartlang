@@ -287,6 +287,23 @@ describe("type assertions", () => {
         >();
     });
 
+    it("every CandleEvent bar carries the optional host close instant", () => {
+        // `Bar.closeTime` is the venue's real close for THAT bar. It rides both
+        // host membranes as an ordinary optional number (structured clone in
+        // host-worker, JSON in host-quickjs), so the wire type is the whole
+        // contract — there is no separate protocol field.
+        expectTypeOf<Bar["closeTime"]>().toEqualTypeOf<number | undefined>();
+        expectTypeOf<
+            Extract<CandleEvent, { kind: "history" }>["bars"][number]["closeTime"]
+        >().toEqualTypeOf<number | undefined>();
+        expectTypeOf<Extract<CandleEvent, { kind: "close" }>["bar"]["closeTime"]>().toEqualTypeOf<
+            number | undefined
+        >();
+        expectTypeOf<Extract<CandleEvent, { kind: "tick" }>["bar"]["closeTime"]>().toEqualTypeOf<
+            number | undefined
+        >();
+    });
+
     it("CandleEvent accepts a composite feed-key streamKey", () => {
         // The composite `"<symbol>@<interval>"` key built by feedKey is a
         // plain string, so the wire type accepts it unchanged.

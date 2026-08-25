@@ -528,6 +528,103 @@ async function runQuickJsWithOrders(): Promise<string> {
     return JSON.stringify(emissions);
 }
 
+// A 1D NASDAQ bar bucketed on the UTC day boundary. `start + 1D` would put its
+// close at midnight UTC; the venue really closes 16:00 America/New_York, and on
+// the 29th (a half day) at 13:00. The host states the instant on the bar, so
+// both membranes — host-worker's structured clone and host-quickjs's JSON —
+// have to carry the field for `time.timeClose(bar.time)` to see it.
+const CLOSE_TIME_FIXTURE: ScriptFixture = {
+    name: "host close time",
+    manifest: manifest("host close time"),
+    source: source(
+        manifest("host close time"),
+        `({ bar, time, plot }) => {
+            plot("parity.closeTime:1:1#0", time.timeClose(bar.time), {});
+        }`,
+    ),
+};
+
+const CLOSE_TIME_BARS: ReadonlyArray<Bar> = [
+    {
+        time: Date.UTC(2024, 10, 27),
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1_000,
+        symbol: "TQQQ",
+        interval: "1D",
+        closeTime: Date.UTC(2024, 10, 27, 21),
+    },
+    {
+        time: Date.UTC(2024, 10, 29),
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1_000,
+        symbol: "TQQQ",
+        interval: "1D",
+        closeTime: Date.UTC(2024, 10, 29, 18),
+    },
+    // No `closeTime` — proves the pre-existing `start + interval` fallback is
+    // untouched on the very same feed.
+    {
+        time: Date.UTC(2024, 11, 2),
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1_000,
+        symbol: "TQQQ",
+        interval: "1D",
+    },
+];
+
+const EXPECTED_CLOSES: ReadonlyArray<number> = [
+    Date.UTC(2024, 10, 27, 21),
+    Date.UTC(2024, 10, 29, 18),
+    Date.UTC(2024, 11, 2) + 86_400_000,
+];
+
+// The shared `makeCapabilities()` declares no intervals, which leaves
+// `timeframe.inSeconds` unresolved and would make the `start + interval`
+// fallback NaN — hiding the very branch the third bar exists to prove. These
+// runners declare the daily interval so the fallback is a real instant.
+function closeTimeCapabilities(): Capabilities {
+    return {
+        ...makeCapabilities(),
+        intervals: [{ value: "1D", label: "1 day", group: "daily" }],
+    };
+}
+
+async function runWorkerCloseTimes(): Promise<ReadonlyArray<number | null>> {
+    const { worker, scope } = pair();
+    createWorkerBoot(scope);
+    const host = createWorkerHost({ capabilities: closeTimeCapabilities(), workerLike: worker });
+    await host.load({
+        moduleSource: CLOSE_TIME_FIXTURE.source,
+        manifest: CLOSE_TIME_FIXTURE.manifest,
+    });
+    await host.push({ kind: "history", bars: CLOSE_TIME_BARS });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const emissions = await host.drain();
+    host.dispose();
+    return emissions.plots.map((plotEmission) => plotEmission.value);
+}
+
+async function runQuickJsCloseTimes(): Promise<ReadonlyArray<number | null>> {
+    const host = createQuickJsHost({ capabilities: closeTimeCapabilities() });
+    await host.load({
+        moduleSource: CLOSE_TIME_FIXTURE.source,
+        manifest: CLOSE_TIME_FIXTURE.manifest,
+    });
+    await host.push({ kind: "history", bars: CLOSE_TIME_BARS });
+    const emissions = await host.drain();
+    host.dispose();
+    return emissions.plots.map((plotEmission) => plotEmission.value);
+}
+
 describe("host-quickjs integration parity", () => {
     for (const fixture of FIXTURES) {
         it(`matches host-worker emissions for ${fixture.name}`, async () => {
@@ -680,5 +777,18 @@ export const __manifest = ${JSON.stringify([primaryManifest, siblingManifest])};
         );
         expect(exportPrefixed.length).toBeGreaterThan(0);
         expect(exportPrefixed[0]?.value).toBe(42);
+    });
+
+    it("carries Bar.closeTime across both host membranes into time.timeClose", async () => {
+        const [quickjs, worker] = await Promise.all([
+            runQuickJsCloseTimes(),
+            runWorkerCloseTimes(),
+        ]);
+        // host-quickjs serialises the push frame as JSON; host-worker structured-
+        // clones it. Neither rebuilds the bar field-by-field, so the optional
+        // fact must arrive intact on both — and the last bar, which carries no
+        // fact, must still take the `start + interval` fallback.
+        expect(quickjs).toEqual(EXPECTED_CLOSES);
+        expect(worker).toEqual(EXPECTED_CLOSES);
     });
 });

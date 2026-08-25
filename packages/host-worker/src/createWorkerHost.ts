@@ -19,6 +19,7 @@ import type {
     HostLimits,
     HostSnapshot,
     ScriptHost,
+    StepOvershoot,
     WorkerErrorEvent,
     WorkerLike,
     WorkerPersistence,
@@ -53,9 +54,12 @@ import type {
  *   host then constructs a real `Worker` via {@link defaultWorkerFactory}.
  * - `limits` — partial `HostLimits` overrides; missing fields fall through to
  *   {@link DEFAULT_LIMITS}.
- * - `onWorkerError` — called when the worker posts `step-overshoot` or
- *   `fatal`. The host does not synthesize diagnostics into the next
- *   `drain()` — Phase 1 keeps overshoot surfacing on the adapter.
+ * - `onStepOvershoot` — called with the worker's structured, workload-aware
+ *   measurement when a candle dispatch exceeds `maxCpuMsPerStep`. History
+ *   events include their replay bar count; close and tick remain distinct.
+ * - `onWorkerError` — called for `fatal` frames and browser Worker errors.
+ *   Overshoots have their own callback so consumers never need to parse an
+ *   error-message prefix to classify them.
  *
  * @since 0.1
  * @stable
@@ -76,6 +80,7 @@ export type CreateWorkerHostOpts = {
     readonly sessionCalendar?: ReadonlyArray<SessionCalendarDay>;
     readonly workerLike?: WorkerLike;
     readonly limits?: Partial<HostLimits>;
+    readonly onStepOvershoot?: (overshoot: StepOvershoot) => void;
     readonly onWorkerError?: (message: string) => void;
 };
 
@@ -205,7 +210,7 @@ export function createWorkerHost(opts: CreateWorkerHostOpts): ScriptHost {
                 break;
             }
             case "step-overshoot": {
-                opts.onWorkerError?.(`step overshoot ${msg.observedMs.toFixed(2)}ms`);
+                opts.onStepOvershoot?.(msg);
                 break;
             }
             case "fatal": {

@@ -159,7 +159,25 @@
 - **`onBarTick` does NOT touch `time` / `open` on the OHLCV buffers
   or the `BarView`.** Ticks happen within the in-progress bar
   whose `time` / `open` were set by the preceding `onBarClose`.
-  Only close-side and derived sources change.
+  Only close-side and derived sources change — plus `closeTime`, which is
+  neither (see below).
+- **The host's real bar close is a SCALAR on the live `BarView`, never a
+  series.** `Bar.closeTime` enters through the ONE validator
+  `streamState.ts:resolveHostCloseTime`, which accepts it only when it is
+  finite AND strictly after the bar it belongs to and otherwise resolves to
+  `undefined` — malformed host data must never be able to turn `timeClose` into
+  an arbitrary timestamp, and it never throws on the feed path. All three write
+  paths set it (`appendBarToStream` / `replaceStreamHead` validate against
+  `rawBar.time`; `replaceTickHead` validates against the LIVE `bar.time`,
+  because a tick did not move it), so a tick may REVISE the in-progress bar's
+  close without committing a bar. It is deliberately absent from
+  `StreamSnapshot` and `restoreFromSnapshot` CLEARS it: it is a fact about the
+  live bar, not persisted lookback, and the next feed event re-supplies it.
+  `time.timeClose(t)` consumes it through the single getter
+  `buildTimeNamespace` passes to `createTimeNamespace` — which is also the one
+  place that decides whether `t` identifies the current bar; every other `t`
+  gets the `t + interval` fallback. A four-argument `createTimeNamespace` call
+  is byte-identical to the pre-1.13 behaviour.
 - **External-series input feeds are runner-owned rings aligned to the primary
   cursor, not `input.source` fields.** `input.externalSeries(...)` resolves at
   mount to a stable `Series<number>` view backed by an external feed

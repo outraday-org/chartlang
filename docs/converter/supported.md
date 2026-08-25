@@ -695,7 +695,7 @@ Pine's calendar built-ins lower onto chartlang's
 | `dayofweek` (bare) | `time.dayofweek(bar.time)` |
 | `dayofweek(t)` / `dayofweek(t, tz)` | `time.dayofweek(t)` / `time.dayofweek(t, tz)` |
 | `time()` | `bar.time` (the no-arg current-bar open epoch) |
-| `time_close()` | `time.timeClose(bar.time)` (bar start + the current bar's interval) |
+| `time_close()` | `time.timeClose(bar.time)` (the host's real close for the current bar, else bar start + interval) |
 | `timenow` | `time.now()` (host-injected wall-clock epoch) |
 
 `dayofweek` follows Pine's `1=Sunday .. 7=Saturday` convention. The

@@ -41,7 +41,11 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   verbs.
 - **Boundary values are JSON strings.** Do not pass host functions or mutable
   host objects into QuickJS. The dispatcher parses host frames and stringifies
-  reply frames.
+  reply frames. A new plain-data FIELD on `Bar` (e.g. `closeTime`) therefore
+  needs NO protocol work at all — `push` forwards `JSON.parse(frame).event`
+  whole and never rebuilds the bar field-by-field. It still needs the
+  regenerated bundle if the runtime reads it. `integration.test.ts` proves the
+  round trip against a real host-worker pair in the same case.
 - **`load.sessionCalendar` mirrors host-worker: ROWS, never a built
   calendar.** `CreateQuickJsHostOpts.sessionCalendar` rides the existing `load`
   frame (no new frame kind) and the dispatcher forwards it to

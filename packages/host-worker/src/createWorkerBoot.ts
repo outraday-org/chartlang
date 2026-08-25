@@ -205,7 +205,20 @@ export function createWorkerBoot(scope: WorkerBootScope): void {
         pushed = true;
         const { overshoot } = await watchStep(() => r.push(event), limits.maxCpuMsPerStep);
         if (overshoot > 0) {
-            scope.postMessage({ kind: "step-overshoot", observedMs: overshoot });
+            scope.postMessage(
+                event.kind === "history"
+                    ? {
+                          kind: "step-overshoot",
+                          eventKind: "history",
+                          observedMs: overshoot,
+                          barCount: event.bars.length,
+                      }
+                    : {
+                          kind: "step-overshoot",
+                          eventKind: event.kind,
+                          observedMs: overshoot,
+                      },
+            );
         }
     }
 

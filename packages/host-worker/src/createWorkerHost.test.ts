@@ -320,16 +320,25 @@ describe("createWorkerHost", () => {
         expect(race).toBe("pending");
     });
 
-    it("calls onWorkerError on step-overshoot", () => {
+    it("delivers workload-aware overshoots without routing them through onWorkerError", () => {
         const worker = makeFakeWorker();
+        const onStepOvershoot = vi.fn();
         const onWorkerError = vi.fn<(m: string) => void>();
         createWorkerHost({
             capabilities: makeCapabilities(),
             workerLike: worker,
+            onStepOvershoot,
             onWorkerError,
         });
-        worker.deliver({ kind: "step-overshoot", observedMs: 123.456 });
-        expect(onWorkerError).toHaveBeenCalledWith("step overshoot 123.46ms");
+        const overshoot: WorkerToHost = {
+            kind: "step-overshoot",
+            eventKind: "history",
+            observedMs: 123.456,
+            barCount: 5_000,
+        };
+        worker.deliver(overshoot);
+        expect(onStepOvershoot).toHaveBeenCalledWith(overshoot);
+        expect(onWorkerError).not.toHaveBeenCalled();
     });
 
     it("calls onWorkerError on fatal", () => {
@@ -348,7 +357,9 @@ describe("createWorkerHost", () => {
         const worker = makeFakeWorker();
         createWorkerHost({ capabilities: makeCapabilities(), workerLike: worker });
         expect(() => worker.deliver({ kind: "fatal", message: "x" })).not.toThrow();
-        expect(() => worker.deliver({ kind: "step-overshoot", observedMs: 1 })).not.toThrow();
+        expect(() =>
+            worker.deliver({ kind: "step-overshoot", eventKind: "tick", observedMs: 1 }),
+        ).not.toThrow();
     });
 
     it("freezes the returned ScriptHost", () => {

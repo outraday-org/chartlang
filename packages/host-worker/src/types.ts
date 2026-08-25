@@ -44,6 +44,37 @@ export type HostLimits = {
 };
 
 /**
+ * A measured candle-dispatch CPU-budget overrun. History is a bulk replay, so
+ * its event includes the number of bars processed; close and tick events each
+ * represent one live bar and intentionally carry no synthetic bar count.
+ *
+ * The worker watchdog remains observation-only: receiving this event does not
+ * mean the runner was interrupted or disposed.
+ *
+ * @since 1.7
+ * @stable
+ * @example
+ *     const overshoot: StepOvershoot = {
+ *         kind: "step-overshoot",
+ *         eventKind: "history",
+ *         observedMs: 120,
+ *         barCount: 5_000,
+ *     };
+ */
+export type StepOvershoot =
+    | Readonly<{
+          kind: "step-overshoot";
+          eventKind: "history";
+          observedMs: number;
+          barCount: number;
+      }>
+    | Readonly<{
+          kind: "step-overshoot";
+          eventKind: "close" | "tick";
+          observedMs: number;
+      }>;
+
+/**
  * The minimal compiled-script shape the host streams across the postMessage
  * boundary. Mirrors `@invinite-org/chartlang-compiler`'s `CompiledScript`
  * without naming it — keeps `host-worker` free of a compiler dependency while

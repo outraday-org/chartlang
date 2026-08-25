@@ -157,9 +157,10 @@ on `drain()` as defence-in-depth.
 Per-script limits are set on the host:
 
 - **Worker host** — CPU watchdog is measurement-only (the browser
-  cannot preempt a Worker mid-step). A `step-overshoot` warning
-  surfaces through the optional `onWorkerError` callback when a single
-  compute step exceeds the configured budget.
+  cannot preempt a Worker mid-step). A `step-overshoot` record
+  surfaces through the optional `onStepOvershoot` callback when a single
+  compute step exceeds the configured budget; it names the `eventKind`
+  and, for a history replay, the `barCount` involved.
 - **QuickJS host** — real CPU preemption and a hard heap cap. A
   runaway script aborts cleanly without taking the host process with
   it. This is the host to run on a server.

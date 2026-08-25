@@ -110,6 +110,15 @@ are what `request.security` and `request.lowerTf` ask for.
 | `close` | A finalised bar. The runtime advances its bar index after compute. |
 | `tick` | An in-progress update for the current bar's head slot. `compute` runs but the bar index does not advance. |
 
+Every `Bar` may carry an optional `closeTime` — the venue's **actual**
+close instant for that bar as an absolute epoch. Supply it when you know
+the session calendar: a `1D` bar bucketed on the UTC boundary really
+closes 16:00 America/New_York, and 13:00 on a half day, which is what
+`time.timeClose(bar.time)` then reports. Absent means absent — the
+runtime falls back to `bar.time + interval` — and a value that is not
+finite or not strictly after `bar.time` is ignored the same way. A `tick`
+may revise the in-progress bar's `closeTime`.
+
 Multi-timeframe events carry the requested `streamKey`:
 
 ```ts
