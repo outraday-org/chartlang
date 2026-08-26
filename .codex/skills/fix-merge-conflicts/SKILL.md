@@ -1,6 +1,6 @@
 ---
 name: fix-merge-conflicts
-description: Fix merge conflicts thoroughly by merging both sides, then push. Never loses work from either branch.
+description: Fix merge conflicts thoroughly by merging both sides, push, then return the local checkout to an up-to-date origin/main. Never loses work from either branch.
 metadata:
   internal: true
 ---
