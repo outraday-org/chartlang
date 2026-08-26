@@ -52,3 +52,55 @@
     width: auto;
     height: 30px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Nav-bar fold breakpoint: 768px -> 960px.
+ *
+ * VitePress lays the nav bar out as one `white-space: nowrap` flex row and
+ * swaps to the hamburger "screen" menu only below 768px. Between 768px and
+ * ~1150px the row is wider than the content column (which is additionally
+ * inset by the 272px sidebar from 960px up), and the surplus is *clipped*:
+ * no scrollbar, no overflow menu, the trailing entries simply cannot be
+ * reached. See the `nav` comment in ../config.ts for the other half of the
+ * fix (five top-level entries instead of ten).
+ *
+ * 960px is VitePress's own desktop threshold — the width at which the nav
+ * becomes fixed, the sidebar becomes permanent, and the `VPLocalNav` bar
+ * disappears. Folding the menu on the same line keeps one coherent story:
+ * below it the page is in mobile layout and every nav destination lives in
+ * the hamburger screen menu; at and above it the full row fits.
+ *
+ * These are deliberate per-component overrides (the only ones besides the
+ * logo sizing above) because the breakpoint is hard-coded inside VitePress's
+ * scoped component styles and is not exposed as a `--vp-*` variable. The
+ * three-class selectors outrank the scoped `[data-v-*]` rules without
+ * `!important`. See docs/CLAUDE.md.
+ * ------------------------------------------------------------------------ */
+@media (max-width: 959.98px) {
+    /* Keep the desktop row hidden until the layout is actually wide enough. */
+    .VPNav .VPNavBar .VPNavBarMenu {
+        display: none;
+    }
+
+    /* ...and keep the hamburger (plus its screen menu, which holds the same
+     * links, the appearance toggle, and the social links) available instead. */
+    .VPNav .VPNavBar .VPNavBarHamburger {
+        display: flex;
+    }
+
+    header.VPNav .VPNavScreen {
+        display: block;
+    }
+
+    /* The "⋮" extra flyout duplicates what the screen menu already offers
+     * below the fold, and would sit next to the hamburger. */
+    .VPNav .VPNavBar .VPNavBarExtra {
+        display: none;
+    }
+
+    /* VitePress only applies this gap below 768px; the hamburger needs it
+     * across the whole folded range. */
+    .VPNav .VPNavBar .content-body {
+        column-gap: 0.5rem;
+    }
+}

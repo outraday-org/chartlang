@@ -79,6 +79,25 @@ the repo-root `DEPLOYMENT.md`).
   `DOCS_BASE` after the Netlify custom-domain cutover; the env fallback
   stays for local flexibility only. Do not hard-code a sub-path base.
 
+- **`themeConfig.nav` is capped at five top-level entries, and
+  `theme/style.css` folds the row at 960px.** VitePress renders the nav
+  as one `white-space: nowrap` flex row with no wrap, no scroll, and no
+  overflow menu — anything that does not fit is *clipped and
+  unreachable*. Ten flat entries needed ~1150px of row against a content
+  column that is additionally inset by the 272px sidebar from 960px up,
+  so the last two tabs were unreachable from 768px to ~1150px. The fix
+  is two-sided and both halves must hold: `config.ts` groups the
+  sections into five entries (three of them dropdowns carrying an
+  `activeMatch` regex so the whole section still highlights), and
+  `theme/style.css` raises VitePress's 768px hamburger breakpoint to
+  960px — its own desktop threshold, where the nav becomes fixed and the
+  sidebar becomes permanent. **New sections go inside a dropdown group,
+  never next to one.** The breakpoint overrides are the documented
+  exception to the "no per-component overrides" rule below: the 768px
+  value is hard-coded in VitePress's scoped component styles and is not
+  exposed as a `--vp-*` variable, so it can only be reached by
+  out-specifying the scoped `[data-v-*]` selectors.
+
 - **Custom brand theme at `docs/.vitepress/theme/`.** VitePress
   auto-discovers `theme/index.ts`, which `extends` the default theme
   (never replaces it). `theme/style.css`

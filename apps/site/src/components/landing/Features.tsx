@@ -82,7 +82,11 @@ export function Features(): ReactElement {
         {FEATURES.map((feature) => (
           <article
             key={feature.title}
-            className="flex flex-col rounded-lg border border-border bg-muted/20 p-6"
+            // `min-w-0` for the same reason as Hero's snippet column: a grid
+            // item defaults to `min-width: auto`, so the card would floor at
+            // its CodeBlock's intrinsic width and scroll the whole page
+            // sideways on a phone.
+            className="flex min-w-0 flex-col rounded-lg border border-border bg-muted/20 p-6"
           >
             <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
             <p className="mt-2 text-sm text-muted-foreground">{feature.body}</p>

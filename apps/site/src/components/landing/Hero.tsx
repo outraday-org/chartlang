@@ -66,7 +66,12 @@ export function Hero(): ReactElement {
             </a>
           </div>
         </div>
-        <div className="md:justify-self-end md:max-w-md">
+        {/* `min-w-0`: a grid item defaults to `min-width: auto`, so without it
+            the column floors at the snippet's intrinsic width (~590px) and the
+            whole page scrolls sideways on a phone — taking the sticky header
+            with it. With it, CodeBlock's own `overflow-x-auto` scrolls the
+            snippet inside its card instead. */}
+        <div className="min-w-0 md:justify-self-end md:max-w-md">
           <CodeBlock code={EMA_CROSS_SNIPPET} lang="ts" filename="ema-cross.chart.ts" />
         </div>
       </div>

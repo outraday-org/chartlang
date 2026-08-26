@@ -77,17 +77,52 @@ export default defineConfig({
     themeConfig: {
         logo: { src: "/logo-full.png", alt: "chartlang" },
         siteTitle: false,
+        // The nav bar does NOT wrap, scroll, or shrink — VitePress renders it
+        // as a single `white-space: nowrap` flex row, so anything that does
+        // not fit is clipped and becomes unreachable (no scrollbar, no
+        // overflow menu). Ten flat top-level entries needed ~1150px of row,
+        // which the sidebar-offset content column never has: entries 9-10
+        // were unreachable from 768px all the way up to ~1150px viewports.
+        //
+        // Invariant: keep this list at **five or fewer** top-level entries.
+        // New sections go inside one of the dropdown groups below, not next
+        // to them. Groups carry an `activeMatch` regex so the whole section
+        // still highlights while the reader is inside it. `theme/style.css`
+        // folds the whole row into the hamburger screen menu below 960px.
         nav: [
-            { text: "Getting Started", link: "/getting-started/write-your-first-script" },
-            { text: "Examples", link: "/examples/" },
-            { text: "Language", link: "/language/overview" },
-            { text: "Spec", link: "/spec/grammar" },
-            { text: "Primitives", link: "/primitives/ta/" },
-            { text: "Adapters", link: "/adapters/gallery" },
-            { text: "Hosts", link: "/hosts/worker" },
-            { text: "Reference", link: "/reference/glossary" },
-            { text: "Skills", link: "/skills/" },
-            { text: "Converter", link: "/converter/" },
+            {
+                text: "Getting Started",
+                link: "/getting-started/write-your-first-script",
+                activeMatch: "^/getting-started/",
+            },
+            { text: "Examples", link: "/examples/", activeMatch: "^/examples/" },
+            {
+                text: "Language",
+                activeMatch: "^/(language|primitives|spec)/",
+                items: [
+                    { text: "Overview", link: "/language/overview" },
+                    { text: "Primitives", link: "/primitives/ta/" },
+                    { text: "Spec", link: "/spec/grammar" },
+                ],
+            },
+            {
+                text: "Integrate",
+                activeMatch: "^/(adapters|hosts|converter)/",
+                items: [
+                    { text: "Adapters", link: "/adapters/gallery" },
+                    { text: "Hosts", link: "/hosts/worker" },
+                    { text: "Pine converter", link: "/converter/" },
+                ],
+            },
+            {
+                text: "Reference",
+                activeMatch: "^/(reference|skills)/",
+                items: [
+                    { text: "Glossary", link: "/reference/glossary" },
+                    { text: "FAQ", link: "/reference/faq" },
+                    { text: "Skills", link: "/skills/" },
+                ],
+            },
         ],
         sidebar: {
             // Grouped by the shared catalogue taxonomy (CATEGORY_ORDER),

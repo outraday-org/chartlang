@@ -60,6 +60,24 @@ artefacts that ship alongside the published packages).
 - **No changeset.** `apps/site/` is `"private": true`; the §22
   changeset gate is package-scoped. PRs touching only `apps/*` do
   not need a changeset.
+- **The header nav is `apps/site/src/components/brand/SiteNav.tsx`, not
+  `__root.tsx`.** It owns `NAV_LINKS`, `DOCS_URL`, the GitHub icon, and
+  the mobile disclosure state; `__root.tsx` only renders `<SiteNav />`
+  inside the sticky `<header>` (which supplies the positioning context
+  the mobile panel's `absolute top-full` resolves against). The link row
+  does not wrap or scroll, so it collapses behind a hamburger below `md`
+  (768px) — matching the fold the VitePress docs nav does at its own
+  breakpoint (`docs/.vitepress/theme/style.css`), so the two sites behave
+  the same on a phone. Adding a link means checking both the row and the
+  panel still fit; a long label is what broke this before.
+- **Grid/flex items that contain a `CodeBlock` need `min-w-0`.** A grid
+  item defaults to `min-width: auto`, which floors the track at the
+  snippet's intrinsic width (~590px) — `CodeBlock`'s own
+  `overflow-x-auto` never gets a chance to scroll, and the *page* scrolls
+  sideways on a phone instead, dragging the sticky header out of view
+  with it. `landing/Hero.tsx` (snippet column) and `landing/Features.tsx`
+  (feature cards) carry the class for exactly this reason; any new
+  snippet-in-a-grid must too.
 - **Biome ignores `apps/**`.** The shadcn-generated source uses
   2-space indent + no semicolons, which clashes with the repo-wide
   Biome config (4-space + semicolons). The root `biome.json` ignore
