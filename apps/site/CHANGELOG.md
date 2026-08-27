@@ -1,5 +1,12 @@
 # chartlang-site
 
+## 0.0.27
+
+### Patch Changes
+
+- Updated dependencies [198315f]
+  - @invinite-org/chartlang-pine-converter@0.9.4
+
 ## 0.0.26
 
 ### Patch Changes

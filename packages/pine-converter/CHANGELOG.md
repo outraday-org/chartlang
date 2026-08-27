@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.9.4
+
+### Patch Changes
+
+- 198315f: Preserve Pine `ta.cross` as Chartlang's native bidirectional `ta.cross` instead of lowering it to one-way `ta.crossover`.
+
 ## 0.9.3
 
 ### Patch Changes
