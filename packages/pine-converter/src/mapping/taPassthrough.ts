@@ -74,7 +74,7 @@ export const TA_PASSTHROUGH_MAP: ReadonlyMap<string, TaMapping> = new Map<string
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_ta.crossover
     ta("ta.crossover", "ta.crossover"),
     ta("ta.crossunder", "ta.crossunder"),
-    ta("ta.cross", "ta.crossover", "synthesise as crossover || crossunder"),
+    ta("ta.cross", "ta.cross"),
 
     // docs: https://www.tradingview.com/pine-script-reference/v6/#fun_ta.highest
     ta("ta.highest", "ta.highest"),
