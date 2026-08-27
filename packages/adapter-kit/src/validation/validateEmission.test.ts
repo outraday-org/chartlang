@@ -2039,6 +2039,19 @@ describe("validateEmission — drawing dispatch", () => {
         ).toMatchObject({ ok: false, message: expect.stringContaining("time") });
     });
 
+    it("accepts a resolved pane and rejects an empty or non-string pane", () => {
+        expect(validateEmission({ ...validLineDrawing, pane: "script:MASM" })).toEqual({
+            ok: true,
+        });
+        for (const pane of ["", 42]) {
+            expect(validateEmission({ ...validLineDrawing, pane })).toMatchObject({
+                ok: false,
+                code: "malformed-emission",
+                message: expect.stringContaining("pane"),
+            });
+        }
+    });
+
     it("rejects a non-plain-object state", () => {
         expect(validateEmission({ ...validLineDrawing, state: null })).toMatchObject({
             ok: false,

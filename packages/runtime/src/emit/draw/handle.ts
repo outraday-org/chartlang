@@ -67,6 +67,11 @@ function emit(
         state,
         bar: ctx.barIndex(),
         time: ctx.stream.bar.time,
+        // Drawings follow the same script-level pane default as plots and
+        // hlines. In particular, `overlay: false` indicators keep converted
+        // Pine labels/text inside their oscillator pane instead of leaking
+        // onto the main price pane.
+        pane: ctx.defaultPane,
         // `z` is presentation-only and top-level (never inside `state`);
         // omit it when `0` so a no-`z` drawing is byte-identical to the
         // pre-feature baseline — mirrors `PlotEmission.xShift` / `.z`.

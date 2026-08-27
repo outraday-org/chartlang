@@ -228,6 +228,16 @@ layer** every adapter shares.
 
 ## Wire + capability invariants
 
+- **`DrawingEmission.pane?: string` is the resolved target pane; omitted means
+  `"overlay"` for older/custom producers.** Runtime-produced `draw.*`
+  emissions always carry the script's mount-time default pane, derived from
+  `manifest.overlay` exactly like an unqualified `plot()` / `hline()` call.
+  Adapters must route the drawing to that pane before decomposing/painting it;
+  the drawing's `(time, price)` anchors stay unchanged and are interpreted by
+  the target pane's scale. The validator accepts only a non-empty string when
+  present. This field is why `draw.text` emitted by an `overlay: false`
+  indicator remains visible at oscillator-space values instead of being
+  projected onto the main price scale.
 - **`PlotEmission.colorValue?: Color | null` is the per-bar dynamic-color
   channel and is APPENDED (the last field), so an omitted emission is
   byte-identical to the pre-feature wire and every pinned `plot-hash`

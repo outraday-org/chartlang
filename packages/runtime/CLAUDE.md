@@ -146,7 +146,9 @@
   `bar.time` / `bar.interval`, so a `const { bar } = ctx` keeps resolving
   against fresh scalars. The resolution lives in `barPoint.ts`
   (`resolveBarPoint`): `offset === 0` → `{ time: bar.time, price }`;
-  `offset < 0` → `time.at(-offset)` (the real historical timestamp, `NaN`
+  `offset < 0` → the real historical timestamp for integer offsets and a
+  linear interpolation between the two surrounding retained timestamps for
+  fractional offsets (matching Pine labels placed between bar indexes; `NaN`
   past retained history — NEVER throws); `offset > 0` → `lastTime +
   offset * spacing`, where `spacing` is the median of the most recent
   retained time deltas (cap 100) and falls back to
@@ -738,6 +740,15 @@
   tagged). The compiler contributes zero buffer depth for offset (Task 2)
   and the stale `ta/lib/applyOffset.ts` value-shift helper was deleted —
   nothing preserves the old value-read offset semantics.
+- **Every runtime-produced `DrawingEmission` carries `pane:
+  ctx.defaultPane`.** `emit/draw/handle.ts` is the single seam for all
+  `draw.*` handles, so line/box/text/table/group emissions inherit the same
+  mount-time `manifest.overlay` decision as unqualified plots and hlines.
+  `overlay: false` therefore emits the stable `script:<name>` key and adapters
+  project the drawing's unchanged world anchors against that indicator pane.
+  Do not re-derive pane routing per drawing kind and do not force drawings to
+  the price pane in an adapter. The adapter-kit field remains optional only so
+  older/custom wire producers decode as legacy `"overlay"`.
 - **`z` is a presentation-only render-order key carried to
   `PlotEmission.z` / `DrawingEmission.z` with the same omit-when-`0`
   conditional spread as `xShift`.** Unlike `xShift`, `z` is a direct

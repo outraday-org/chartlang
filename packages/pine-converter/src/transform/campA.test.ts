@@ -110,6 +110,19 @@ describe("transformCampA — var label", () => {
         );
     });
 
+    it("maps named label text and text styling options", () => {
+        const { scaffold } = runCampA(
+            [
+                "var label lbl = na",
+                "if barstate.islast",
+                '    lbl := label.new(bar_index, high, text="Hi", style=label.style_none, textcolor=color.green, size=size.small, textalign=text.align_right)',
+            ].join("\n"),
+        );
+        expect(scaffold.computeBody.statements[0]).toContain(
+            'draw.text(bar.point(0, bar.high), "Hi", { color: "#4CAF50", size: "small", halign: "right" })',
+        );
+    });
+
     it("maps a label.style_circle marker", () => {
         const { scaffold } = runCampA(
             [

@@ -4,6 +4,7 @@
 import type { CallArgument, CallExpression, ExpressionNode } from "../ast/index.js";
 import { enumLookup } from "../mapping/index.js";
 import { namedArg, positionalArgs } from "./callArgs.js";
+import { convertColorWith } from "./colorConvert.js";
 import type { ResolvedAnchor } from "./coordinates.js";
 import { anchorToWorldPoint } from "./coordinates.js";
 import type { EmitContext } from "./emitContext.js";
@@ -129,14 +130,41 @@ export type DrawCallContext = Readonly<{
     ) => void;
 }>;
 
-// The chartlang string-literal source for a Pine string-literal node, or
-// `null` when the node is not a plain string literal. The lexeme carries
-// its surrounding quotes, so re-quote through JSON to normalise.
-function stringLiteralSource(node: ExpressionNode): string | null {
-    if (node.kind === "literal-expression" && node.literalKind === "string") {
-        return JSON.stringify(node.value.slice(1, -1));
+function labelTextSource(call: CallExpression, ctx: DrawCallContext): string {
+    const text = namedArg(call.args, "text") ?? positionalArgs(call.args)[2] ?? null;
+    return text === null ? '""' : emitWithContext(text.value, ctx.emit);
+}
+
+function labelStyleIsNone(call: CallExpression): boolean {
+    const style = namedArg(call.args, "style")?.value;
+    return (
+        style?.kind === "member-access-expression" && style.chain.join(".") === "label.style_none"
+    );
+}
+
+function labelTextOpts(call: CallExpression, ctx: DrawCallContext): string | null {
+    const parts: string[] = [];
+    const textColor = namedArg(call.args, "textcolor");
+    if (textColor !== null) {
+        parts.push(
+            `color: ${convertColorWith(textColor.value, (node) => emitWithContext(node, ctx.emit))}`,
+        );
     }
-    return null;
+    const size = namedArg(call.args, "size");
+    if (size !== null) {
+        parts.push(`size: ${styleValueSource(size.value, ctx.emit)}`);
+    }
+    const textAlign = namedArg(call.args, "textalign");
+    if (textAlign !== null) {
+        parts.push(`halign: ${styleValueSource(textAlign.value, ctx.emit)}`);
+    }
+    const background = namedArg(call.args, "color");
+    if (background !== null && !labelStyleIsNone(call)) {
+        parts.push(
+            `bgColor: ${convertColorWith(background.value, (node) => emitWithContext(node, ctx.emit))}`,
+        );
+    }
+    return parts.length === 0 ? null : `{ ${parts.join(", ")} }`;
 }
 
 // Build the `WorldPoint` argument list for a draw call from the resolved
@@ -255,13 +283,15 @@ export function synthesizeDrawCall(
             ctx.warn("yloc-padding-approximated", call);
         }
         const anchors = buildAnchorArgs(kind, positional, ctx, yloc?.priceExpr ?? null);
-        const textArg = positional[2];
-        const body = textArg === undefined ? '""' : (stringLiteralSource(textArg.value) ?? '""');
+        const body = labelTextSource(call, ctx);
         if (kind === "frame") {
             const label = `{ label: ${body} }`;
             return `draw.${method}(${anchors[0]}, ${anchors[0]}, ${label})`;
         }
-        return `draw.${method}(${anchors[0]}, ${body})`;
+        const opts = labelTextOpts(call, ctx);
+        return opts === null
+            ? `draw.${method}(${anchors[0]}, ${body})`
+            : `draw.${method}(${anchors[0]}, ${body}, ${opts})`;
     }
 
     if (kind === "marker" || kind === "arrow-mark-up" || kind === "arrow-mark-down") {
@@ -270,7 +300,10 @@ export function synthesizeDrawCall(
             ctx.warn("yloc-padding-approximated", call);
         }
         const anchors = buildAnchorArgs(kind, positional, ctx, yloc?.priceExpr ?? null);
-        return `draw.${method}(${anchors[0]})`;
+        const opts = labelTextOpts(call, ctx);
+        return opts === null
+            ? `draw.${method}(${anchors[0]})`
+            : `draw.${method}(${anchors[0]}, ${opts})`;
     }
 
     const anchors = buildAnchorArgs(kind, positional, ctx, null);

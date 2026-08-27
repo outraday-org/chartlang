@@ -907,6 +907,20 @@ export type DrawingEmission = {
     readonly bar: number;
     readonly time: number;
     /**
+     * Resolved pane key for the drawing. Runtime-produced drawings inherit
+     * the script's mount-time default (`manifest.overlay`: price overlay when
+     * absent/`true`, the script-owned sub-pane when `false`). Older/custom
+     * producers may omit the field; adapters must treat absence as
+     * `"overlay"`.
+     *
+     * This is presentation routing only. Drawing anchors remain the same
+     * `(time, price)` world coordinates and `state` is unchanged.
+     *
+     * @since 1.12
+     * @stable
+     */
+    readonly pane?: string;
+    /**
      * Presentation-only render-order key (z-index). Omitted (or `0`) ⇒ no
      * explicit order, so the emission is byte-identical to a drawing that
      * never carried the field. Higher `z` renders on top; a **negative**

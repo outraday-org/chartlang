@@ -236,6 +236,41 @@ describe("transformOther — control flow", () => {
     });
 });
 
+describe("transformOther — standalone drawings", () => {
+    it("keeps a MASM-style conditional exit label at its original callsite", () => {
+        const statements = stmts(
+            [
+                "var int dur = 0",
+                'var string exit_text = ""',
+                "var color exit_color = color.red",
+                "label_position = dur / 2",
+                "if close < open",
+                "    label.new(bar_index - label_position, -1.6, text=exit_text, style=label.style_none, size=size.small, color=exit_color, textcolor=exit_color)",
+            ].join("\n"),
+        );
+        expect(statements).toContain(
+            'if (bar.close < bar.open) { draw.text(bar.point(-(label_position), -1.6), exit_text.value, { color: exit_color.value, size: "small" }); }',
+        );
+    });
+
+    it("lowers named text and style args for an entry arrow label", () => {
+        expect(
+            stmts(
+                'if close > open\n    label.new(bar_index, -1.9, text="↑", style=label.style_none, size=size.small, color=color.green, textcolor=color.green)',
+            ),
+        ).toEqual([
+            'if (bar.close > bar.open) { draw.text(bar.point(0, -1.9), "↑", { color: "#4CAF50", size: "small" }); }',
+        ]);
+    });
+
+    it("unrolls standalone labels without losing the cloned drawing call", () => {
+        expect(stmts('for i = 0 to 1\n    label.new(bar_index - i, low, text="x")')).toEqual([
+            'draw.text(bar.point(0, bar.low), "x");',
+            'draw.text(bar.point(-(1), bar.low), "x");',
+        ]);
+    });
+});
+
 describe("transformOther — break / continue loops (no unroll)", () => {
     it("emits a runtime for with break inside it for a literal-bounded non-stateful body", () => {
         const src = "c = 0\nfor i = 0 to 3\n    if close[i] > 0\n        break\n    c += 1";

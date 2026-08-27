@@ -689,6 +689,45 @@ describe("createScriptRunner", () => {
         expect(runner.drain().plots[0].pane).toBe("script:RSI-Cross");
     });
 
+    it("routes drawings to the sanitised script pane on an overlay:false mount", async () => {
+        const compiled = defineIndicator({
+            name: "MASM Strat 2.3 LIVE",
+            apiVersion: 1,
+            overlay: false,
+            compute: ({ bar, draw }) => {
+                draw.text(
+                    "label:1:1#0",
+                    { time: bar.time, price: -1.6 },
+                    "41.5 ma",
+                    { color: "#00e676" },
+                );
+            },
+        });
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: {
+                ...makeCapabilities(),
+                drawings: new Set(["text"]),
+                maxDrawingsPerScript: {
+                    lines: 0,
+                    labels: 32,
+                    boxes: 0,
+                    polylines: 0,
+                    other: 0,
+                },
+                subPanes: 1,
+            },
+        });
+        await runner.onBarClose(makeBar(0));
+        const [drawing] = runner.drain().drawings;
+        expect(drawing.pane).toBe("script:MASM-Strat-2-3-LIVE");
+        expect(drawing.state).toMatchObject({
+            anchor: { price: -1.6 },
+            body: "41.5 ma",
+            kind: "text",
+        });
+    });
+
     it("falls back to script:default when an overlay:false name is empty", async () => {
         const compiled = defineIndicator({
             name: "",

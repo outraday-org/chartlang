@@ -353,6 +353,10 @@ describe("type assertions", () => {
         expectTypeOf<DrawingEmission["state"]>().toEqualTypeOf<DrawingState>();
     });
 
+    it("DrawingEmission.pane is an optional resolved pane key", () => {
+        expectTypeOf<DrawingEmission["pane"]>().toEqualTypeOf<string | undefined>();
+    });
+
     it("DrawingBucket is the 5-bucket string union", () => {
         expectTypeOf<DrawingBucket>().toEqualTypeOf<
             "lines" | "labels" | "boxes" | "polylines" | "other"

@@ -44,8 +44,8 @@ function medianSpacingMs(time: Float64RingBuffer): number {
  * Resolve a `bar.point(offset, price)` call to the time-based
  * {@link WorldPoint} the rest of the drawing pipeline already speaks.
  *
- * `offset === 0` reads the live `bar.time`; `offset < 0` reads the real
- * historical timestamp `|offset|` bars back from the time ring buffer
+ * `offset === 0` reads the live `bar.time`; `offset < 0` reads or linearly
+ * interpolates the real historical timestamps around `|offset|` bars back
  * (`NaN` past retention); `offset > 0` extrapolates `lastTime + offset *
  * spacing`, where `spacing` is the median retained-bar delta and falls back
  * to the parsed bar interval when fewer than two bars are retained. `price`
@@ -69,7 +69,16 @@ export function resolveBarPoint(
     // is always a number, never the view object. `Number(NaN)` stays NaN.
     const p = Number(price);
     if (offset === 0) return { time: currentTime, price: p };
-    if (offset < 0) return { time: time.at(-offset), price: p };
+    if (!Number.isFinite(offset)) return { time: Number.NaN, price: p };
+    if (offset < 0) {
+        const distance = -offset;
+        const newerIndex = Math.floor(distance);
+        const fraction = distance - newerIndex;
+        const newerTime = time.at(newerIndex);
+        if (fraction === 0) return { time: newerTime, price: p };
+        const olderTime = time.at(newerIndex + 1);
+        return { time: newerTime + (olderTime - newerTime) * fraction, price: p };
+    }
     const spacing = (() => {
         const median = medianSpacingMs(time);
         return Number.isFinite(median) ? median : intervalSpacingMs(interval);

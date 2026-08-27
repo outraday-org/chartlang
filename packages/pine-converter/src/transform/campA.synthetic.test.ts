@@ -403,7 +403,7 @@ describe("campA block scanning", () => {
 });
 
 describe("text body fallback", () => {
-    it("uses an empty body when the label text arg is not a string literal", () => {
+    it("preserves a dynamic label text expression", () => {
         const { scaffold } = runCampA(
             [
                 "var label lbl = na",
@@ -412,7 +412,7 @@ describe("text body fallback", () => {
             ].join("\n"),
         );
         expect(scaffold.computeBody.statements[0]).toContain(
-            'draw.text(bar.point(0, bar.high), "")',
+            "draw.text(bar.point(0, bar.high), txt)",
         );
     });
 });

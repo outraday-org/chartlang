@@ -27,10 +27,14 @@ import { collectUdfBodyFacts } from "../semantic/statefulness.js";
 import { emitAlertCall } from "./alertCall.js";
 import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
+import type { ResolvedAnchor } from "./coordinates.js";
+import { resolveCoordinates } from "./coordinates.js";
 import { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { ArraySlotInfo, EmitContext, MapSlotInfo } from "./emitContext.js";
 import { emitScalar, emitWithContext, inputCastType, lowerTaToCurrent } from "./emitContext.js";
 import { forEachHistoryAccess } from "./exprEmit.js";
+import { resolveCampADrawKind } from "./drawKindResolve.js";
+import { synthesizeDrawCall } from "./handleSlot.js";
 import type { ScriptScaffold } from "./ir.js";
 import type { MapScan } from "./mapCollection.js";
 import { scanMaps } from "./mapCollection.js";
@@ -1230,6 +1234,7 @@ type Walk = {
     readonly owned: ReadonlySet<string>;
     readonly arrayNames: ReadonlySet<string>;
     readonly inputInts: ReadonlyMap<string, InputIntMetadata>;
+    readonly drawingAnchors: ReadonlyMap<ExpressionNode, ResolvedAnchor>;
     // Stateful UDFs (`stateful: true`), inline-expanded at each call site so each
     // gets an independent slot. Empty for any script without a stateful helper,
     // which keeps the inline dispatch a no-op (byte-identical to the legacy path).
@@ -1833,6 +1838,7 @@ export function transformOther(
         owned,
         arrayNames: new Set(arraySlots.keys()),
         inputInts,
+        drawingAnchors: resolveCoordinates(analysis, {}).anchors,
         statefulUdfs: collectStatefulUdfs(analysis),
     };
     // Pure UDFs are hoisted to the FRONT of the compute body (callee-before-
@@ -2065,6 +2071,10 @@ function emitExpressionStatementCore(
     if (expr.kind !== "call-expression") {
         return [`${emitWithContext(expr, ctx)};`];
     }
+    const standaloneDrawing = emitStandaloneDrawing(expr, ctx, walk);
+    if (standaloneDrawing !== null) {
+        return [`${standaloneDrawing};`];
+    }
     if (isDrawingOwnedCall(expr, walk.owned, walk.arrayNames)) {
         return [];
     }
@@ -2088,6 +2098,49 @@ function emitExpressionStatementCore(
         return [`${special};`];
     }
     return [`${emitWithContext(expr, ctx)};`];
+}
+
+function emitStandaloneDrawing(
+    call: CallExpression,
+    ctx: EmitContext,
+    walk: Walk,
+): string | null {
+    const camp = walk.analysis.drawingClassifications.get(call);
+    const site = walk.analysis.drawingSites.find(
+        (candidate) =>
+            candidate.camp.kind === "camp-a-standalone" &&
+            (candidate.call === call ||
+                (calleeName(call) === candidate.constructor &&
+                    candidate.span.startLine === call.span.startLine &&
+                    candidate.span.startColumn === call.span.startColumn &&
+                    candidate.span.endLine === call.span.endLine &&
+                    candidate.span.endColumn === call.span.endColumn)),
+    );
+    if (site === undefined || site.constructor === "polyline.new") {
+        return null;
+    }
+    const activeSite = site.call === call ? site : { ...site, call };
+    const kind = resolveCampADrawKind(activeSite, walk.diagnostics);
+    if (kind === null) {
+        return null;
+    }
+    const anchors =
+        camp?.kind === "camp-a-standalone"
+            ? walk.drawingAnchors
+            : resolveCoordinates({ ...walk.analysis, drawingSites: [activeSite] }, {}).anchors;
+    return synthesizeDrawCall(kind, call, {
+        emit: ctx,
+        anchors,
+        warn: (code, node) => {
+            if (
+                code === "yloc-padding-approximated" &&
+                walk.diagnostics.has(DIAGNOSTIC_CODE_ENTRIES[code].code)
+            ) {
+                return;
+            }
+            walk.diagnostics.pushCode(code, node.span);
+        },
+    });
 }
 
 // Lower a `ta.*` / `math.*` / `str.*` / `request.security` call into its

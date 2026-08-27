@@ -55,6 +55,8 @@ function makeCtx(barTime = 1_700_000_000_000, barIndex = 0): RuntimeContext {
         drawingBucketCounters: { lines: 0, labels: 0, boxes: 0, polylines: 0, other: 0 },
         scriptMaxDrawings: null,
         stateSlots: new Map(),
+        defaultPane: "script:MASM",
+        scriptPane: "script:MASM",
     };
 }
 
@@ -106,6 +108,7 @@ describe("createDrawingHandle — create", () => {
         expect(e.op).toBe("create");
         expect(e.handleId).toBe("x.chart.ts:5:13#0#0");
         expect(e.drawingKind).toBe("line");
+        expect(e.pane).toBe("script:MASM");
         expect(ctx.drawingSlots.size).toBe(1);
     });
 });
