@@ -1,5 +1,11 @@
 # @invinite-org/chartlang-pine-converter
 
+## 0.9.6
+
+### Patch Changes
+
+- 5a9642d: Disable unsupported TradingView earnings pseudo-feeds with a stable value and a dedicated warning so converted optional earnings exits stay inactive.
+
 ## 0.9.5
 
 ### Patch Changes
