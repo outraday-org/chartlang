@@ -50,6 +50,38 @@ function stringConcatLiteralValue(node: ExpressionNode): string | null {
     return left === null || right === null ? null : `${left}${right}`;
 }
 
+// The statically knowable string suffix of a `+` chain. Unlike the full
+// literal folder above, this deliberately tolerates a dynamic left prefix:
+// `esdSymbolTemplate + ";EARNINGS"` still has the exact `;EARNINGS` suffix.
+function stringConcatStaticSuffix(node: ExpressionNode): string | null {
+    const literal = stringLiteralValue(node);
+    if (literal !== null) {
+        return literal;
+    }
+    if (node.kind !== "binary-expression" || node.operator !== "+") {
+        return null;
+    }
+    const right = stringConcatLiteralValue(node.right);
+    if (right === null) {
+        return null;
+    }
+    const left = stringConcatStaticSuffix(node.left);
+    return left === null ? right : `${left}${right}`;
+}
+
+/**
+ * Whether a Pine security symbol targets TradingView's FactSet earnings
+ * pseudo-feed (`ESD:<symbol>;EARNINGS`). Chartlang adapters do not expose this
+ * proprietary feed, so the converter uses this shape to disable the optional
+ * earnings signal instead of leaving a rejected NaN series in executable code.
+ *
+ * @since 0.10
+ * @stable
+ */
+export function isUnsupportedEarningsFeed(symbol: ExpressionNode): boolean {
+    return stringConcatStaticSuffix(symbol)?.toUpperCase().endsWith(";EARNINGS") === true;
+}
+
 /**
  * The `SecurityBar` field name a Pine source identifier maps to (a bare
  * `open`/`high`/`low`/`close`/`volume`/`hl2`/`hlc3`/`ohlc4`), or `null` for any

@@ -440,6 +440,14 @@ that has no byte-identical chartlang analogue.
   request.security feed */` placeholder (NOT the verbatim broken call) for an
   out-of-subset symbol/timeframe, keeping the loud `request-security-not-mapped`
   error; it returns `null` ONLY when the call is not a `request.security` at all.
+- **TradingView's proprietary earnings pseudo-feed is disabled explicitly.**
+  `isUnsupportedEarningsFeed` recognizes both a literal
+  `"ESD:...;EARNINGS"` symbol and a dynamic-prefix concat such as
+  `esdSymbolTemplate + ";EARNINGS"`. `emitRequestSecurity` lowers that feed to
+  the stable numeric value `0` and emits the warning
+  `request-security-earnings-feed-disabled`; it does not leave a rejected NaN
+  series whose JavaScript `NaN != NaN` comparison could activate an optional
+  earnings-change exit.
 - **An untyped color-valued decl resolves its `na` arm to the transparent
   color.** `valueIsColor` (`analyze.ts`) gives a `c = cond ? color.x : na` decl /
   assignment the `"color"` na-context even without a `color` type annotation, so

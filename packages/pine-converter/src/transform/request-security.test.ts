@@ -101,6 +101,27 @@ describe("emitRequestSecurity", () => {
         expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
     });
 
+    it("disables a literal TradingView earnings pseudo-feed", () => {
+        const { source, codes } = emit(
+            'request.security("ESD:NASDAQ;AAPL;EARNINGS", "D", open, lookahead=barmerge.lookahead_on)',
+        );
+        expect(source).toBe("0 /* unsupported earnings feed disabled */");
+        expect(codes).toContain("pine-converter/transform/request-security-earnings-feed-disabled");
+        expect(codes).not.toContain("pine-converter/transform/request-security-not-mapped");
+        expect(codes).not.toContain(
+            "pine-converter/transform/request-security-lookahead-not-supported",
+        );
+        expect(codes).not.toContain("pine-converter/transform/request-security-different-symbol");
+    });
+
+    it("disables an earnings pseudo-feed with a dynamic symbol prefix", () => {
+        const { source, codes } = emit(
+            'request.security(esdSymbolTemplate + ";EARNINGS", "D", open)',
+        );
+        expect(source).toBe("0 /* unsupported earnings feed disabled */");
+        expect(codes).toEqual(["pine-converter/transform/request-security-earnings-feed-disabled"]);
+    });
+
     it("warns request-security-lookahead-not-supported", () => {
         const { codes } = emit(
             'request.security(syminfo.tickerid, "D", close, lookahead=barmerge.lookahead_on)',
