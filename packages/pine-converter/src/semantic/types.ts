@@ -289,6 +289,8 @@ export type LifetimeMap = ReadonlyMap<SymbolInfo, LifetimeInfo>;
  * The drawing-handle mode of one `.new()` call-site:
  *
  * - `camp-a` — a single `var`/`varip` handle mutated each bar.
+ * - `camp-a-standalone` — an unbound drawing constructor whose lifetime is
+ *   managed by its lexical callsite (for example a conditional `label.new`).
  * - `camp-b` — a bounded ring buffer with an extracted cap `K`.
  * - `camp-c-bounded` — a collection with an indicator cap but no detected
  *   eviction (attemptable heuristic).
@@ -302,6 +304,7 @@ export type LifetimeMap = ReadonlyMap<SymbolInfo, LifetimeInfo>;
  */
 export type DrawingCamp =
     | Readonly<{ kind: "camp-a"; handleSymbol: SymbolInfo }>
+    | Readonly<{ kind: "camp-a-standalone" }>
     | Readonly<{
           kind: "camp-b";
           collectionSymbol: SymbolInfo;

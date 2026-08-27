@@ -4,12 +4,14 @@
 import type { CallExpression, ExpressionNode, Statement } from "../ast/index.js";
 import type { BlockStatement, FunctionDeclaration } from "../ast/statements.js";
 import type { SourceSpan } from "../index.js";
+import { DRAWING_KIND_MAP, type PineDrawingConstructor } from "../mapping/index.js";
 import type { SymbolInfo } from "./types.js";
 
 // The bare-named stateful primitives (no namespace): each owns one runtime
 // slot keyed by call-site, so the compiler's `stateful-call-inside-loop`
 // gate rejects them inside any loop body. `ta.*`/`draw.*` are matched by
-// their `ta`/`draw` namespace root, not enumerated here.
+// their namespace root. Pine drawing constructors are recognised through the
+// shared mapping because they lower to the same slot-owning `draw.*` calls.
 const BARE_STATEFUL_NAMES: ReadonlySet<string> = new Set(["plot", "hline", "alert"]);
 
 // The dotted member name of a bare-rooted callee (`ta.ema`, `draw.line`), or
@@ -27,7 +29,8 @@ function calleeName(call: CallExpression): string | null {
 
 /**
  * Whether a call invokes a chartlang **stateful primitive** — `plot`,
- * `hline`, `alert`, any `ta.*`, or any `draw.*`. These each own a single
+ * `hline`, `alert`, any Pine drawing constructor, any `ta.*`, or any `draw.*`.
+ * These each own a single
  * runtime slot keyed by their source position, so chartlang's compiler
  * rejects calling one inside a loop body (`stateful-call-inside-loop`). It
  * is the neutral builtin predicate both the semantic UDF classifier and the
@@ -61,7 +64,11 @@ export function callIsStatefulPrimitive(call: CallExpression): boolean {
     if (BARE_STATEFUL_NAMES.has(name)) {
         return true;
     }
-    return name.startsWith("ta.") || name.startsWith("draw.");
+    return (
+        name.startsWith("ta.") ||
+        name.startsWith("draw.") ||
+        DRAWING_KIND_MAP.has(name as PineDrawingConstructor)
+    );
 }
 
 /**

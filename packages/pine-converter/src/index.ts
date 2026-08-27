@@ -271,6 +271,9 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
         if (site.constructor === "table.new" || site.constructor === "polyline.new") {
             continue;
         }
+        if (site.camp.kind === "camp-a-standalone") {
+            continue;
+        }
         if (site.camp.kind === "camp-a") {
             transformCampA(site, analysis, scaffold, diagnostics);
         } else if (site.camp.kind === "camp-b") {

@@ -1762,8 +1762,18 @@ function resolveBarPoint(time2, interval, currentTime, offset, price) {
   const p = Number(price);
   if (offset === 0)
     return { time: currentTime, price: p };
-  if (offset < 0)
-    return { time: time2.at(-offset), price: p };
+  if (!Number.isFinite(offset))
+    return { time: Number.NaN, price: p };
+  if (offset < 0) {
+    const distance = -offset;
+    const newerIndex = Math.floor(distance);
+    const fraction = distance - newerIndex;
+    const newerTime = time2.at(newerIndex);
+    if (fraction === 0)
+      return { time: newerTime, price: p };
+    const olderTime = time2.at(newerIndex + 1);
+    return { time: newerTime + (olderTime - newerTime) * fraction, price: p };
+  }
   const spacing = (() => {
     const median2 = medianSpacingMs(time2);
     return Number.isFinite(median2) ? median2 : intervalSpacingMs(interval);
@@ -5366,6 +5376,9 @@ function validateDrawingEmission(e) {
   if (!isFiniteNumber(e.time)) {
     return bad("drawing.time: must be a finite number");
   }
+  if (e.pane !== void 0 && !isNonEmptyString(e.pane)) {
+    return bad("drawing.pane: must be a non-empty string when provided");
+  }
   const state2 = e.state;
   if (!isPlainObject(state2)) {
     return bad("drawing.state: must be a plain object");
@@ -6969,6 +6982,11 @@ function emit2(ctx, handleId, kind, op, state2, z) {
     state: state2,
     bar: ctx.barIndex(),
     time: ctx.stream.bar.time,
+    // Drawings follow the same script-level pane default as plots and
+    // hlines. In particular, `overlay: false` indicators keep converted
+    // Pine labels/text inside their oscillator pane instead of leaking
+    // onto the main price pane.
+    pane: ctx.defaultPane,
     // `z` is presentation-only and top-level (never inside `state`);
     // omit it when `0` so a no-`z` drawing is byte-identical to the
     // pre-feature baseline — mirrors `PlotEmission.xShift` / `.z`.

@@ -585,6 +585,13 @@ that has no byte-identical chartlang analogue.
   `unbounded-handle-collection`). `camp-c-bounded` emits
   `dynamic-handle-collection` (info); `camp-c-unbounded` emits
   `unbounded-handle-collection` (error).
+- **An unbound `label.new` / `line.new` / `box.new` expression statement is
+  `camp-a-standalone`, never silently dropped.** Its lexical statement owns the
+  lifetime: `transformOther` emits the direct `draw.*` call in the original
+  `if`/loop/block position, so event timing stays source-faithful without a
+  synthetic handle slot. A standalone `polyline.new` shares the classification
+  but remains owned by `transformPolylineLinefill`; tables/linefills still need
+  their named-handle paths.
 - **Handle/collection symbols classify against the ROOT scope.** The camp
   classifier resolves names against the post-walk root `ScopeBuilder`, so a
   handle/collection declared at top level resolves; one declared only inside
@@ -703,7 +710,10 @@ that has no byte-identical chartlang analogue.
   break a would-be `semantic → transform` cycle; `transform/statefulNames.ts`
   imports + re-exports it (so `controlFlow.ts` / `transform/index.ts` keep
   their import path) and still owns the expression-walk `expressionHasStateful
-  Primitive`. One predicate, one source of truth.
+  Primitive`. It recognises Pine drawing constructors through
+  `DRAWING_KIND_MAP` as well as chartlang `draw.*`, so a standalone
+  `label.new` inside a Pine loop forces the same safe unroll as the emitted
+  `draw.text`. One predicate, one source of truth.
 - **`builtins.ts` / `types.ts` carry no branchy logic** and `types.ts` is
   coverage-excluded; every other `semantic/` module holds 100%
   line/branch/function. Defensive switch arms unreachable from real parser
@@ -760,6 +770,10 @@ that has no byte-identical chartlang analogue.
   `bar.point` is authoring sugar, not a new anchor shape. The `barIndex` /
   `barCount` running-count bridge (for `bar_index` VALUE reads; readable + collision-safe, internal `__barIndexBridge` sentinel renamed at codegen) is unrelated
   and stays.
+  Fractional offsets are deliberately preserved: Pine `label.new` accepts a
+  float x-coordinate, and runtime `bar.point` interpolates between surrounding
+  historical timestamps. Never round/truncate a midpoint expression such as
+  `bar_index - duration / 2` in the converter.
 - **`requires-bar-interval` stays as a manifest-intent signal, not a hard
   arithmetic dependency.** A `bar-index-future` anchor still carries
   `requiresBarInterval: true` and, when `opts.barInterval` is null AND any
@@ -1063,6 +1077,13 @@ that has no byte-identical chartlang analogue.
   `label.new`→`text` by default or `marker`/`frame`/`arrow-mark-up|down`/
   `rectangle` per the `style=label.style_*` enum (unmapped/non-drawing style
   → `text` + `label-style-not-mapped`).
+- **`label.new` text is a full expression, whether positional or named.** The
+  constructor reads positional arg 3 OR `text=`, lowers it through
+  `emitWithContext` (dynamic/state/input strings survive), and maps
+  `textcolor`→`TextOpts.color`, `size`→`size`, and `textalign`→`halign`.
+  `color` maps to `bgColor` except for `label.style_none`, whose Pine
+  background is intentionally absent. This shared synthesis applies to Camp A,
+  Camp B, and standalone callsite-owned labels.
 - **`foldSetters(setters, handleType, emit, warn): string | null`
   (`setterFold.ts`) is the reusable setter→patch fold** (Camp A + Camp B +
   tables). The `emit: EmitContext` (NOT a bare `AnnotationLookup`) lowers each
@@ -1788,6 +1809,12 @@ that has no byte-identical chartlang analogue.
   double-emit and the compiler's `stateful-call-inside-loop` reject. A
   malformed array-typed handle decl (`var line[] xs = …`, which the parser
   models as `var line` with an `unknown-expression` init) is also skipped.
+- **`camp-a-standalone` constructors are the exception to the constructor
+  skip.** `emitExpressionStatementCore` checks that classification first and
+  emits the synthesized call through the active rich `EmitContext`; only then
+  does the generic drawing-owned-call filter run. This preserves the surrounding
+  control flow and lets dynamic label text/color read the same state/input
+  rewrites as neighboring scalar statements.
 - **Input references and scalar reads rewrite HERE, not in codegen.**
   `emitWithContext` (`emitContext.ts`) wraps `emitExpr`: a bare identifier that
   exactly matches a registered `scaffold.inputs` name → `inputs.<name>`; a

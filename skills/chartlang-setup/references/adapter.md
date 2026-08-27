@@ -137,12 +137,14 @@ function onEmissions(emissions: RunnerEmissions): void {
         void plot; // hand off to your chart library's series API
     }
     for (const drawing of emissions.drawings) {
+        const pane = drawing.pane ?? "overlay";
         if (drawing.op === "remove") {
             // remove from your renderer
         } else {
-            // create or update
+            // create or update in `pane`
         }
         void drawing;
+        void pane;
     }
     for (const alert of emissions.alerts) {
         void alert; // hand off to your toast / notification surface
@@ -193,6 +195,12 @@ list of four `DrawPrimitive` shapes: `polyline` | `arc` | `text` | `marker`,
 each with `StrokeStyle` / `FillStyle`. The recommended authoring pattern is
 **decompose once, then map each primitive to your library** — you only write
 the four-primitive mapping, never the drawing math.
+
+Build the `Viewport` from `drawing.pane ?? "overlay"`, not unconditionally
+from the price pane. Runtime-produced drawings carry the resolved script pane;
+the fallback exists for older/custom producers. This keeps text and labels
+inside `overlay: false` oscillator panes while preserving their authored
+`(time, price)` coordinates.
 
 **Pan / zoom for self-scaled adapters.** If your library has no built-in
 zoom/pan (e.g. a canvas or scene-graph renderer where you compute the

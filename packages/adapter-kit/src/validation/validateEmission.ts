@@ -1688,6 +1688,9 @@ function validateDrawingEmission(e: Record<string, unknown>): ValidationResult {
     if (!isFiniteNumber(e.time)) {
         return bad("drawing.time: must be a finite number");
     }
+    if (e.pane !== undefined && !isNonEmptyString(e.pane)) {
+        return bad("drawing.pane: must be a non-empty string when provided");
+    }
     const state = e.state;
     if (!isPlainObject(state)) {
         return bad("drawing.state: must be a plain object");

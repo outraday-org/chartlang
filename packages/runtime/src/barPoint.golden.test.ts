@@ -44,6 +44,7 @@ describe("bar.point golden over a synthetic daily series", () => {
         // Historical — real timestamps from the time ring buffer.
         expect(bar.point(-1, 50).time).toBe(BASE + 3 * DAY);
         expect(bar.point(-4, 50).time).toBe(BASE);
+        expect(bar.point(-1.5, 50).time).toBe(BASE + 2.5 * DAY);
 
         // Out-of-range history degrades to NaN time (no throw).
         const oob = bar.point(-10, 7);
@@ -52,6 +53,12 @@ describe("bar.point golden over a synthetic daily series", () => {
 
         // Future — even daily spacing ⇒ median delta = one day.
         expect(bar.point(3, bar.close)).toEqual({ time: lastTime + 3 * DAY, price: 104 });
+        expect(bar.point(1.5, bar.close)).toEqual({
+            time: lastTime + 1.5 * DAY,
+            price: 104,
+        });
+
+        expect(bar.point(Number.NaN, 7)).toEqual({ time: Number.NaN, price: 7 });
 
         // Price passthrough including NaN.
         expect(bar.point(-2, Number.NaN).price).toBeNaN();

@@ -87,6 +87,12 @@ describe("callIsStatefulPrimitive", () => {
         expect(callIsStatefulPrimitive(call(member(["draw", "line"])))).toBe(true);
     });
 
+    it("recognises Pine drawing constructors that lower to draw.*", () => {
+        expect(callIsStatefulPrimitive(call(member(["label", "new"])))).toBe(true);
+        expect(callIsStatefulPrimitive(call(member(["line", "new"])))).toBe(true);
+        expect(callIsStatefulPrimitive(call(member(["box", "new"])))).toBe(true);
+    });
+
     it("rejects non-stateful and computed callees", () => {
         expect(callIsStatefulPrimitive(call(ident("nz")))).toBe(false);
         expect(callIsStatefulPrimitive(call(member(["math", "abs"])))).toBe(false);

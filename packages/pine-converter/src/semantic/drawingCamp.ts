@@ -370,47 +370,35 @@ export function classifyDrawingSites(
             record(handleSite.call, handleSite.constructor, camp);
             continue;
         }
-        const bare = asBareStandalonePolyline(stmt);
+        const bare = asBareStandaloneDrawing(stmt);
         if (bare !== null) {
-            record(bare.call, "polyline.new", standalonePolylineCamp());
+            record(bare.call, bare.constructor, { kind: "camp-a-standalone" });
         }
     }
 
     return { sites, classifications, diagnostics };
 }
 
-// A standalone `polyline.new(pts, …)` expression statement — the build-and-
-// draw idiom that binds no Pine handle. Only `polyline.new` is surfaced this
-// way (a bare `line.new`/`box.new`/`label.new` each-bar is a different,
-// unsupported idiom; a standalone `linefill.new` keeps the Camp C path for its
-// cross-collection reject), so `transformPolylineLinefill` can rebuild it
-// instead of the site being silently dropped.
-function asBareStandalonePolyline(stmt: Statement): { call: CallExpression } | null {
+// An unbound drawing constructor expression. Pine commonly uses this form for
+// event labels (`if exit\n    label.new(...)`) and one-shot lines/boxes. The
+// lexical statement itself owns the drawing lifetime, so no handle slot/ring is
+// needed. `polyline.new` is included for its dedicated transform; `table.new`
+// and `linefill.new` still require named handles and keep their existing paths.
+function asBareStandaloneDrawing(
+    stmt: Statement,
+): { call: CallExpression; constructor: PineDrawingConstructor } | null {
     if (stmt.kind !== "expression-statement") {
         return null;
     }
     const drawing = asDrawingConstructorCall(stmt.expression);
-    return drawing !== null && drawing.constructor === "polyline.new"
-        ? { call: drawing.call }
-        : null;
-}
-
-// The camp for a standalone `polyline.new`: `camp-a` (so it raises no
-// reject diagnostic) with a synthetic, never-read handle symbol. The convert
-// pipeline skips `polyline.new` in the Camp A/B/C dispatch — only
-// `transformPolylineLinefill` consumes it — so this symbol is a placeholder.
-function standalonePolylineCamp(): DrawingCamp {
-    return {
-        kind: "camp-a",
-        handleSymbol: {
-            name: "",
-            kind: "var-variable",
-            declarationSpan: null,
-            typeAnnotation: null,
-            qualifier: "series",
-            handleType: "polyline",
-        },
-    };
+    if (
+        drawing === null ||
+        drawing.constructor === "table.new" ||
+        drawing.constructor === "linefill.new"
+    ) {
+        return null;
+    }
+    return drawing;
 }
 
 // A `var line lvl = line.new(...)` / `lvl := line.new(...)` single-handle

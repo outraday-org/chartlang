@@ -359,4 +359,26 @@ describe("classifyDrawingSites — standalone entry", () => {
         expect(out.classifications.size).toBe(0);
         expect(out.diagnostics).toHaveLength(0);
     });
+
+    it("classifies standalone label, line, and box constructors without a handle", () => {
+        const script = parse(
+            [
+                "//@version=6",
+                "indicator('a')",
+                "if close > open",
+                "    label.new(bar_index, low, text='buy')",
+                "    line.new(bar_index, low, bar_index, high)",
+                "    box.new(bar_index, high, bar_index, low)",
+                "",
+            ].join("\n"),
+        );
+        const root = createScopeBuilder(null, script.span);
+        const out = classifyDrawingSites(script, (name) => resolveSymbol(root, name), {});
+        expect(out.sites.map((site) => [site.constructor, site.camp.kind])).toEqual([
+            ["label.new", "camp-a-standalone"],
+            ["line.new", "camp-a-standalone"],
+            ["box.new", "camp-a-standalone"],
+        ]);
+        expect(out.diagnostics).toHaveLength(0);
+    });
 });
