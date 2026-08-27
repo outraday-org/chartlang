@@ -77,6 +77,27 @@ function stringConcatStaticSuffix(node: ExpressionNode): string | null {
  *
  * @since 0.10
  * @stable
+ * @example
+ *     import { isUnsupportedEarningsFeed } from "./securityShape.js";
+ *     const span = { startLine: 1, startColumn: 1, endLine: 1, endColumn: 24 } as const;
+ *     const symbol = {
+ *         kind: "binary-expression",
+ *         operator: "+",
+ *         left: {
+ *             kind: "literal-expression",
+ *             literalKind: "string",
+ *             value: '"ESD:AAPL"',
+ *             span,
+ *         },
+ *         right: {
+ *             kind: "literal-expression",
+ *             literalKind: "string",
+ *             value: '";EARNINGS"',
+ *             span,
+ *         },
+ *         span,
+ *     } as const;
+ *     isUnsupportedEarningsFeed(symbol); // true
  */
 export function isUnsupportedEarningsFeed(symbol: ExpressionNode): boolean {
     return stringConcatStaticSuffix(symbol)?.toUpperCase().endsWith(";EARNINGS") === true;
