@@ -661,6 +661,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** `request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.
 - **Suggested fix:** Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol.
 
+### request-security-earnings-feed-disabled
+
+- **Code:** `pine-converter/transform/request-security-earnings-feed-disabled`
+- **Severity:** warning
+- **Message:** TradingView's proprietary earnings pseudo-feed is not available in chartlang; the feed was disabled with a stable value so optional earnings-change exits remain inactive.
+- **Suggested fix:** No action is needed when the earnings exit is optional. Remove the earnings branch, or supply earnings data through an application-owned feed if it is required.
+
 ### request-security-expr-captures-series
 
 - **Code:** `pine-converter/transform/request-security-expr-captures-series`
