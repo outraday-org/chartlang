@@ -1,5 +1,12 @@
 # @invinite-org/chartlang-language-service
 
+## 1.6.5
+
+### Patch Changes
+
+- Updated dependencies [3e876fb]
+  - @invinite-org/chartlang-adapter-kit@1.12.0
+
 ## 1.6.4
 
 ### Patch Changes
