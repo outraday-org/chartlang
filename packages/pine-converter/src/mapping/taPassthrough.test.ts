@@ -10,6 +10,11 @@ describe("TA_PASSTHROUGH_MAP", () => {
         expect(TA_PASSTHROUGH_MAP.get("ta.rma")?.chartlang).toBe("ta.smma");
     });
 
+    it("preserves bidirectional ta.cross", () => {
+        expect(TA_PASSTHROUGH_MAP.get("ta.cross")?.chartlang).toBe("ta.cross");
+        expect(TA_PASSTHROUGH_MAP.get("ta.cross")?.signatureNote).toBeUndefined();
+    });
+
     it("projects ta.pivothigh/pivotlow onto the high/low fields", () => {
         expect(TA_PASSTHROUGH_MAP.get("ta.pivothigh")?.chartlang).toBe("ta.pivotsHighLow.high");
         expect(TA_PASSTHROUGH_MAP.get("ta.pivotlow")?.chartlang).toBe("ta.pivotsHighLow.low");

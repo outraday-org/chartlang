@@ -41,6 +41,13 @@ describe("ta.* passthrough", () => {
         );
     });
 
+    it("keeps Pine ta.cross bidirectional", () => {
+        const { statements, codes } = run("x = ta.cross(close, open)\nplot(x)");
+
+        expect(statements[0]).toBe("let x = ta.cross(bar.close, bar.open).current;");
+        expect(codes).not.toContain("pine-converter/transform/ta-signature-divergence");
+    });
+
     it("maps every non-null TA_PASSTHROUGH_MAP entry to its chartlang member", () => {
         for (const [pine, mapping] of TA_PASSTHROUGH_MAP) {
             if (mapping.chartlang === null) {
