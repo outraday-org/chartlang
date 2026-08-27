@@ -85,6 +85,30 @@ artefacts that ship alongside the published packages).
 - **Vitest excludes `apps/**`.** Set in the root `vitest.config.ts`
   to keep the apps' own test runners (Playwright in Task 4) from
   being discovered by the workspace coverage run.
+- **Every `lazy(() => import(...))` must sit inside a `LazyBoundary`,
+  never a bare `Suspense`.** A rejected lazy import propagates *past*
+  `Suspense` to the router root, which unmounts the document and swaps in
+  TanStack's default "Something went wrong!" screen — one un-fetchable
+  chunk white-screens the whole site, nav and marketing copy included.
+  This is not hypothetical: `/assets/DemoBody-*.js` failing at the CDN
+  edge took `chartlang.invinite.com` down while every chunk on the origin
+  was intact. `src/components/ui/LazyBoundary.tsx` wraps Suspense in an
+  error boundary so a failure degrades to a message plus a reload button
+  in that section only. The three call sites are `demo/EmbeddedDemo.tsx`,
+  `converter/ConverterPanel.tsx`, and `converter/CompilePreview.tsx`.
+- **Chunk-fetch failures are recovered by reloading the document, not by
+  retrying the import.** `src/lib/chunkRecovery.ts` listens for Vite's
+  `vite:preloadError` (dispatched by `__vitePreload` before it rethrows)
+  and reloads once per tab, guarded by a `sessionStorage` key that
+  `__root.tsx` clears 10s after a healthy mount. A retry in place cannot
+  work: the HTML module map memoizes the *failure* against the chunk URL,
+  so re-calling `import()` with the same specifier rethrows without a
+  second request, and React's `lazy` memoizes the rejected promise on top
+  of that. Only a fresh document re-reads the SSR HTML and with it the
+  current chunk hashes. Do NOT call `preventDefault()` on the event —
+  suppressing the throw resolves the import to `undefined` and React
+  renders a broken element instead of failing cleanly.
+  `tests/e2e/chunk-recovery.spec.ts` gates both halves.
 
 ## `apps/site/` demo + compiler invariants
 

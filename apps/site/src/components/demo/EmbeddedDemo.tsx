@@ -9,8 +9,9 @@
 // business running, so we render a static placeholder during SSR and
 // swap in the live demo once mounted.
 
-import { type ReactElement, Suspense, lazy, useEffect, useState } from "react"
+import { type ReactElement, lazy, useEffect, useState } from "react"
 
+import { LazyBoundary } from "@/components/ui/LazyBoundary"
 import "./demo.css"
 
 const DemoBody = lazy(() => import("./DemoBody"))
@@ -43,9 +44,9 @@ export function EmbeddedDemo(): ReactElement {
       </p>
 
       {mounted ? (
-        <Suspense fallback={<DemoPlaceholder />}>
+        <LazyBoundary label="live demo" pending={<DemoPlaceholder />}>
           <DemoBody />
-        </Suspense>
+        </LazyBoundary>
       ) : (
         <DemoPlaceholder />
       )}

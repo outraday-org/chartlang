@@ -4,8 +4,10 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
+import { useEffect } from "react"
 
 import { SiteNav } from "@/components/brand/SiteNav"
+import { clearChunkReloadGuard, installChunkRecovery } from "@/lib/chunkRecovery"
 import appCss from "../styles.css?url"
 import faviconIco from "../../../../brand/chartlang_logo.ico?url"
 import iconPng48 from "../../../../brand/chartlang_logo_48.png?url"
@@ -55,7 +57,23 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 })
 
+// How long the app must stay up before a chunk failure is treated as a new
+// incident rather than a repeat of the one we already reloaded for.
+const CHUNK_GUARD_RESET_MS = 10_000
+
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // Client-only: a failed `lazy()` chunk fetch is recovered by reloading the
+  // document, which re-reads the SSR HTML and with it the current chunk
+  // hashes. See lib/chunkRecovery.ts for why a retry in place cannot work.
+  useEffect(() => {
+    const uninstall = installChunkRecovery()
+    const reset = window.setTimeout(clearChunkReloadGuard, CHUNK_GUARD_RESET_MS)
+    return () => {
+      uninstall()
+      window.clearTimeout(reset)
+    }
+  }, [])
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

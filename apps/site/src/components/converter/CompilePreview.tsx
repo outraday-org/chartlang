@@ -15,7 +15,9 @@
 
 import type { AlertEmission } from "@invinite-org/chartlang-adapter-kit";
 import type { Bar } from "@invinite-org/chartlang-core";
-import { type ReactElement, Suspense, lazy, useEffect, useRef, useState } from "react";
+import { type ReactElement, lazy, useEffect, useRef, useState } from "react";
+
+import { LazyBoundary } from "@/components/ui/LazyBoundary";
 
 import { DEFAULT_ADAPTER_ID } from "../demo/adapters/registry";
 import type { CompiledArtifact } from "../demo/hybridLanguageService";
@@ -229,7 +231,10 @@ export function CompilePreviewChart(props: {
     const { artifact, bars, alerts, onAlert, clearAlerts } = props.controller;
     if (artifact === null) return null;
     return (
-        <Suspense fallback={<div className="output-empty">Loading the chart renderer…</div>}>
+        <LazyBoundary
+            label="chart renderer"
+            pending={<div className="output-empty">Loading the chart renderer…</div>}
+        >
             <div className="pane pane-chart">
                 <ChartPane
                     adapterId={DEFAULT_ADAPTER_ID}
@@ -258,6 +263,6 @@ export function CompilePreviewChart(props: {
                     )}
                 </div>
             </div>
-        </Suspense>
+        </LazyBoundary>
     );
 }

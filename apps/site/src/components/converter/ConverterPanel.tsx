@@ -7,7 +7,9 @@
 // the server render, where the editor and `/api/compile` fetch have no
 // business executing. A static placeholder fills the SSR pass.
 
-import { type ReactElement, Suspense, lazy, useEffect, useState } from "react";
+import { type ReactElement, lazy, useEffect, useState } from "react";
+
+import { LazyBoundary } from "@/components/ui/LazyBoundary";
 
 const ConverterBody = lazy(() => import("./ConverterBody"));
 
@@ -43,9 +45,9 @@ export function ConverterPanel(): ReactElement {
             </p>
 
             {mounted ? (
-                <Suspense fallback={<ConverterPlaceholder />}>
+                <LazyBoundary label="converter" pending={<ConverterPlaceholder />}>
                     <ConverterBody />
-                </Suspense>
+                </LazyBoundary>
             ) : (
                 <ConverterPlaceholder />
             )}
