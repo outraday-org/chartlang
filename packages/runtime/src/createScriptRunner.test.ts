@@ -695,12 +695,9 @@ describe("createScriptRunner", () => {
             apiVersion: 1,
             overlay: false,
             compute: ({ bar, draw }) => {
-                draw.text(
-                    "label:1:1#0",
-                    { time: bar.time, price: -1.6 },
-                    "41.5 ma",
-                    { color: "#00e676" },
-                );
+                draw.text("label:1:1#0", { time: bar.time, price: -1.6 }, "41.5 ma", {
+                    color: "#00e676",
+                });
             },
         });
         const runner = createScriptRunner({

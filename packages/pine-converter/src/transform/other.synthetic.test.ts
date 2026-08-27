@@ -49,6 +49,7 @@ function analysisWith(
         annotations: new Map(),
         symbols,
         drawingSites,
+        drawingClassifications: new Map(),
         rootScope: { symbols: new Map() },
     } as unknown as SemanticResult;
 }
@@ -173,6 +174,7 @@ describe("transformOther — synthetic defensive arms", () => {
         const collectionSymbol = { name: "ring" } as unknown as SymbolInfo;
         const site = {
             constructor: "line.new",
+            call: callOf(member(["line", "new"]), []),
             camp: { kind: "camp-b", collectionSymbol, cap: 5, capSource: "max-count-decl" },
         } as unknown as DrawingCallSite;
         // `array.push(ring, line.new(...))` is owned (collection from the site)

@@ -2100,11 +2100,7 @@ function emitExpressionStatementCore(
     return [`${emitWithContext(expr, ctx)};`];
 }
 
-function emitStandaloneDrawing(
-    call: CallExpression,
-    ctx: EmitContext,
-    walk: Walk,
-): string | null {
+function emitStandaloneDrawing(call: CallExpression, ctx: EmitContext, walk: Walk): string | null {
     const camp = walk.analysis.drawingClassifications.get(call);
     const site = walk.analysis.drawingSites.find(
         (candidate) =>
