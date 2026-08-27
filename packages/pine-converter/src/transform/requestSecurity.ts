@@ -6,6 +6,7 @@ import type { DiagnosticCollector } from "./diagnosticCollector.js";
 import type { EmitContext } from "./emitContext.js";
 import { emitWithContext } from "./emitContext.js";
 import {
+    isUnsupportedEarningsFeed,
     resolveSecurityFeed,
     securityCallbackRead,
     securityDataRead,
@@ -57,6 +58,7 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
 // (`qualifiers.ts`), so a history-indexed rejected feed (`earnings[1]`) is
 // slot-backed by the promotion pass and `<slot>[n]` still type-checks.
 const REJECTED_SECURITY_PLACEHOLDER = "Number.NaN /* unsupported request.security feed */";
+const DISABLED_EARNINGS_PLACEHOLDER = "0 /* unsupported earnings feed disabled */";
 
 /**
  * Lower an MTF `request.security(<symbol>, "<timeframe>", <source>)` call. The
@@ -83,7 +85,12 @@ const REJECTED_SECURITY_PLACEHOLDER = "Number.NaN /* unsupported request.securit
  * `gaps` named arg pushes the info `request-security-gaps-dropped` once per
  * script (chartlang feeds are gap-filled by default). An out-of-subset shape
  * (computed timeframe, missing args) pushes `request-security-not-mapped` and
- * returns the `Number.NaN` placeholder. `null` is returned ONLY when `call` is
+ * returns the `Number.NaN` placeholder. TradingView's proprietary
+ * `ESD:<symbol>;EARNINGS` pseudo-feed is recognized even with a dynamic left
+ * prefix and lowered to a stable zero with
+ * `request-security-earnings-feed-disabled`; this makes an optional earnings
+ * change detector stay false instead of inheriting JavaScript's `NaN != NaN`
+ * behavior. `null` is returned ONLY when `call` is
  * not a `request.security` call at all (the caller then emits it generically).
  *
  * `callbackEmit`, when supplied (by the `other.ts` caller that holds the `Walk`),
@@ -134,6 +141,18 @@ export function emitRequestSecurity(
     if (!isRequestSecurity(call)) {
         return null;
     }
+    const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
+    const symbol = positional[0];
+    const timeframe = positional[1];
+    const source = positional[2];
+    if (symbol === undefined || timeframe === undefined || source === undefined) {
+        diagnostics.pushCode("request-security-not-mapped", call.span);
+        return REJECTED_SECURITY_PLACEHOLDER;
+    }
+    if (isUnsupportedEarningsFeed(symbol)) {
+        diagnostics.pushCode("request-security-earnings-feed-disabled", call.span);
+        return DISABLED_EARNINGS_PLACEHOLDER;
+    }
     const lookahead = call.args.find((arg) => arg.name === "lookahead");
     if (lookahead !== undefined) {
         diagnostics.pushCode("request-security-lookahead-not-supported", lookahead.span);
@@ -145,14 +164,6 @@ export function emitRequestSecurity(
     const gaps = call.args.find((arg) => arg.name === "gaps");
     if (gaps !== undefined) {
         diagnostics.pushCodeOnce("request-security-gaps-dropped", "gaps", gaps.span);
-    }
-    const positional = call.args.filter((arg) => arg.name === null).map((arg) => arg.value);
-    const symbol = positional[0];
-    const timeframe = positional[1];
-    const source = positional[2];
-    if (symbol === undefined || timeframe === undefined || source === undefined) {
-        diagnostics.pushCode("request-security-not-mapped", call.span);
-        return REJECTED_SECURITY_PLACEHOLDER;
     }
     // Resolve the symbol + timeframe into the opts via the shared resolver:
     // `syminfo.tickerid` → `symbol: null` (omit `symbol`, byte-identical to the

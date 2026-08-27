@@ -576,6 +576,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
         defaultSuggestion:
             "Remove the `gaps` argument; chartlang aligns the higher-timeframe feed onto every chart bar.",
     },
+    "request-security-earnings-feed-disabled": {
+        code: "pine-converter/transform/request-security-earnings-feed-disabled",
+        severity: "warning",
+        defaultMessage:
+            "TradingView's proprietary earnings pseudo-feed is not available in chartlang; the feed was disabled with a stable value so optional earnings-change exits remain inactive.",
+        defaultSuggestion:
+            "No action is needed when the earnings exit is optional. Remove the earnings branch, or supply earnings data through an application-owned feed if it is required.",
+    },
     "request-security-not-mapped": {
         code: "pine-converter/transform/request-security-not-mapped",
         severity: "error",
