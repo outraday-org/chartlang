@@ -1,5 +1,19 @@
 # @invinite-org/chartlang-host-worker
 
+## 1.7.1
+
+### Patch Changes
+
+- d0d425a: Republish the browser worker boot artifact with the Pine-compatible EMA runtime
+  bundled into it. The worker bundle snapshots runtime behavior at publish time,
+  so the runtime release must also republish host-worker to prevent browser
+  workers from retaining the previous EMA recurrence.
+- Updated dependencies [3dd0dc4]
+- Updated dependencies [3dd0dc4]
+  - @invinite-org/chartlang-core@1.14.0
+  - @invinite-org/chartlang-adapter-kit@1.13.0
+  - @invinite-org/chartlang-runtime@1.14.0
+
 ## 1.7.0
 
 ### Minor Changes

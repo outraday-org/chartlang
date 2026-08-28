@@ -1,5 +1,27 @@
 # @invinite-org/chartlang-runtime
 
+## 1.14.0
+
+### Minor Changes
+
+- 3dd0dc4: Preserve Pine line, step-line, histogram, columns, and circle plot styles,
+  including conditional style expressions and histogram baselines. Add a distinct
+  typed columns plot kind across the authoring, compiler, runtime, and adapter
+  wire contracts so columns no longer collapse into a plausible default line.
+  Also retain Pine plotshape titles, sizes, text, and independent text colors on
+  the typed shape descriptor. Add the certified Trend/MASM source-to-runtime
+  parity oracle and full 3,000-bar converted-engine release gate.
+- 3dd0dc4: Make canonical EMA Pine-compatible: seed on the first finite source, emit gaps
+  without losing recurrence state, and isolate tentative ticks from later closes.
+  Re-pin EMA-composed primitives and conformance scenarios to the new recurrence.
+  Regenerate the QuickJS dispatcher so its inlined runtime uses the same EMA.
+
+### Patch Changes
+
+- Updated dependencies [3dd0dc4]
+  - @invinite-org/chartlang-core@1.14.0
+  - @invinite-org/chartlang-adapter-kit@1.13.0
+
 ## 1.13.1
 
 ### Patch Changes
