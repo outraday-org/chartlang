@@ -16,9 +16,11 @@ describe("ta.pmo", () => {
         });
         // pmo warmup = 35 + 20 − 1 = 54 bars NaN at pmo (bar 0's
         // roc1 is NaN — the inner Swenlin EMA seed-count starts at bar 1).
-        // signal warmup = 35 + 20 + 10 − 3 = 62 bars NaN at signal.
+        // The canonical signal EMA seeds on the first finite PMO value,
+        // so both lines share the same 54-bar warmup.
         for (let i = 0; i < 54; i += 1) expect(Number.isNaN(out[i].pmo)).toBe(true);
-        for (let i = 0; i < 62; i += 1) expect(Number.isNaN(out[i].signal)).toBe(true);
+        for (let i = 0; i < 54; i += 1) expect(Number.isNaN(out[i].signal)).toBe(true);
+        expect(Number.isFinite(out[54].signal)).toBe(true);
         expect(Number.isFinite(out[bars.length - 1].pmo)).toBe(true);
         expect(Number.isFinite(out[bars.length - 1].signal)).toBe(true);
     });

@@ -103,6 +103,13 @@ exclusion).
   state isn't yet warm (per primitive's documented `@warmup`
   count). `Float64RingBuffer.at()` already returns `NaN` for OOR
   reads — the primitives propagate.
+- **Canonical EMA follows Pine's first-finite recurrence.** The first finite
+  source value is the EMA output (no SMA seed and no `length - 1` warmup).
+  A missing source bar emits `NaN` without changing recurrence state; the next
+  finite bar resumes from the last finite EMA. Close state keeps both
+  `closedEma` and `priorClosedEma`, so every tentative tick replaces the head
+  from the state before the current close and cannot bleed into the next close.
+  Invalid non-positive/fractional lengths emit `NaN` deterministically.
 - **JSDoc.** Every export carries the §17.2 set: one-line
   description, `@formula`, `@warmup`, `@since 0.1`, an
   `@stable | @stable` marker, and one `@example` block.

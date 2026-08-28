@@ -51,6 +51,13 @@
   satisfy `ComputeContext.ta: TaNamespace`. That cast lives in
   `primitives.ts:ta` and nowhere else; see `src/ta/CLAUDE.md` for
   the port convention every `<id>.ts` follows.
+- **Canonical `ta.ema` snapshots one Pine recurrence, not an SMA seed.** Its
+  first finite source is output immediately; a missing source emits `NaN` while
+  retaining the last finite recurrence value. The persisted slot shape is
+  `alpha`, `length`, `outBuffer`, `closedEma`, `priorClosedEma`; obsolete
+  `seedSum` / `seedCount` / `prevEma` / `prevClosedEma` snapshots are rejected
+  rather than read under different semantics. Tentative ticks always recompute
+  from `priorClosedEma`, so replacing a live head cannot seed a later close.
 - **`RunnerState.barIndex` is the only mutable field on the runner
   state.** `onBarClose` increments; `onBarTick` does not. Every
   other field is `readonly`. `RuntimeContext.barIndex` is a
@@ -841,6 +848,14 @@
   last-write-wins dedup, exactly like `plot`. `capabilities.allPhase5Plots()`
   does NOT include `candle`/`ohlc-bar` (frozen `PHASE_5_PLOT_KINDS`), so a
   test emitting them must ADD the two kinds to the cap set.
+- **`buildStyle` preserves `columns` as a distinct wire kind.** Like
+  `histogram`, it resolves an omitted baseline to `0`; unlike histogram it
+  returns `{ kind: "columns", baseline, lineWidth }`, resolving the sibling
+  `PlotOpts.lineWidth` to `1` when omitted. The normal
+  `unsupported-plot-kind` gate requires the adapter to claim that kind.
+  `PHASE_5_PLOT_KINDS` remains frozen and does not gain columns implicitly.
+  The shape arm also forwards optional `text` / `textColor` verbatim, omitting
+  their keys when absent so pre-annotation emissions remain byte-identical.
 - **`pushPlot` / `pushAlert` validate via Task 4's
   `validateEmission`; `pushDiagnostic` does not.** Diagnostics are
   the failure sink — recursively validating them would loop. A

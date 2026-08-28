@@ -13,7 +13,7 @@ import type { RuntimeTaNamespace } from "./ta/index.js";
 type RuntimeStateNamespace = {
     readonly int: (slotId: string, init: number) => MutableSlot<number>;
 };
-type RuntimeTaSubset = Pick<RuntimeTaNamespace, "sma">;
+type RuntimeTaSubset = Pick<RuntimeTaNamespace, "ema">;
 
 function makeCapabilities(): Capabilities {
     return {
@@ -61,8 +61,8 @@ function makeCompiled(sink: number[]): ReturnType<typeof defineIndicator> {
             const runtimeTa = ta as unknown as RuntimeTaSubset;
             const counter = runtimeState.int("counter", 0);
             counter.value += 1;
-            const sma = runtimeTa.sma("sma", bar.close, 5);
-            sink.push(sma.current + counter.value);
+            const ema = runtimeTa.ema("ema", bar.close, 5);
+            sink.push(ema.current + counter.value);
         },
     });
     return { ...compiled, manifest: { ...compiled.manifest, maxLookback: 50 } };

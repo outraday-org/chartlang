@@ -13,8 +13,9 @@ export default defineIndicator({
             polylines: 50,
             other: 0,
         },
-        compute({ bar, plot, state }) {
+        compute({ bar, plot, state, barstate }) {
             const active = state.boolSeries(false);
+            if (barstate.isnew && !barstate.isfirst) { active.value = active[1]; }
             active.value = bar.close > bar.open;
             let wasActive = active[1];
             let wasActive2 = active[2];

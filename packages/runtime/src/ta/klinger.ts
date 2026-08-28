@@ -134,7 +134,7 @@ function computeVf(
  *           vf     = cm ≠ 0 ? volume · |2·(dm/cm − 1)| · trend · 100 : 0 ;
  *           klinger = ema(vf, fastLength) − ema(vf, slowLength) ;
  *           signal  = ema(klinger, signalLength)
- * @warmup   slowLength + signalLength − 2
+ * @warmup   0 (the first zero-VF bar seeds every EMA stage)
  * @since 0.2
  * @stable
  *

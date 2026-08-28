@@ -7,14 +7,14 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
         slotId: "examples/scripts/ema-cross.chart.ts:14:9#0",
-        sha256: "d17bdb9ba1d5f6992e3ced6614ff71f902b62cc316a6e99247075e2caeb2c4e2",
+        sha256: "7f9ede087b52f84d276c8de5cf21a26d8a16b82ed3571d04912be00bdf3826ee",
     },
     {
         kind: "plot-hash",
         slotId: "examples/scripts/ema-cross.chart.ts:15:9#0",
-        sha256: "33bdf8eb6fd9a55d5649c3b41eda05cf8bbc8672f02028a44b7101f67ba5a923",
+        sha256: "cfc0b84c6ed5586655bc43b3cc90277bb684247f1c616a1a65896c7e5639655f",
     },
-    { kind: "alert-count", count: 153 },
+    { kind: "alert-count", count: 156 },
     { kind: "alert-message-contains", pattern: "crossed", min: 100 },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },
 ]);

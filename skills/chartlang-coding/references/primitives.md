@@ -365,17 +365,16 @@ two `ta.ema` sub-slots over the ADL series; a fix to `ta.adl` or
 category, oscillator-shape around zero).
 
 Defaults `{ fastLength: 3, slowLength: 10 }` (TradingView /
-invinite canonical). ADL has warmup 0; the slow EMA seeds at bar
-`slowLength − 1`, so the oscillator first emits a finite value at
-that bar.
+invinite canonical). ADL and both EMA stages seed on bar zero, so
+the oscillator is finite immediately for a finite bar.
 
 **Tick mode.** The sub-slots handle their own tick replay (ADL
-snapshots `prevClosedCumAdl`; EMA snapshots `prevClosedEma`); this
+snapshots `prevClosedCumAdl`; EMA snapshots `priorClosedEma`); this
 primitive's parent slot just re-evaluates `fastEma − slowEma`
 against the live sub-slot heads and `replaceHead`s its own output.
 
 **Formula:** chaikinOsc[t] = ema(adl(t), fastLength) − ema(adl(t), slowLength)
-**Warmup:** slowLength − 1
+**Warmup:** 0 on a finite ADL source
 **Since:** 0.2 · stable
 
 ### ta.chandeKrollStop
@@ -646,7 +645,7 @@ sub-slot pattern.
 **Formula:** ema1 = EMA(source, length) ;
 ema2 = EMA(ema1, length) ;
 out  = 2 · ema1 − ema2
-**Warmup:** 2 · length − 2
+**Warmup:** 0 on a finite source
 **Since:** 0.2 · stable
 
 ### ta.dmi
@@ -726,15 +725,17 @@ function ema(slotId: string, source: ScalarOrSeries, length: number, opts?: EmaO
 ```
 
 Exponential moving average. Recurrence `EMA[t] = α·x[t] + (1 − α)·EMA[t − 1]`
-with `α = 2 / (length + 1)` after a seed of `simple mean of the first
-`length` finite source values`. Tick-mode (`onBarTick`) recomputes the
-head from the previous closed EMA so partial-bar values don't bleed
-into the next close's recurrence.
+with `α = 2 / (length + 1)`. The first finite source value seeds the
+recurrence immediately. A missing source bar emits `NaN` without changing
+the last finite closed EMA. Tick-mode (`onBarTick`) recomputes the head from
+the state before the current closed head so tentative values don't bleed
+into the next close's recurrence. A non-positive or non-integer `length`
+produces `NaN`.
 
 **Formula:** α = 2 / (length + 1) ;
-seed at bar length−1 = mean(source[0..length−1]) ;
+EMA[first finite t] = source[t] ;
 EMA[t] = source[t]·α + EMA[t−1]·(1−α)
-**Warmup:** length − 1
+**Warmup:** 0 on a finite source; leading/missing source bars emit NaN
 **Since:** 0.1 · stable
 
 ### ta.envelope
@@ -1042,7 +1043,7 @@ dm     = high − low ; cm = trend === prevTrend ? prevCm + dm : prevDm + dm ;
 vf     = cm ≠ 0 ? volume · |2·(dm/cm − 1)| · trend · 100 : 0 ;
 klinger = ema(vf, fastLength) − ema(vf, slowLength) ;
 signal  = ema(klinger, signalLength)
-**Warmup:** slowLength + signalLength − 2
+**Warmup:** 0 (the first zero-VF bar seeds every EMA stage)
 **Since:** 0.2 · stable
 
 ### ta.kst
@@ -1150,7 +1151,7 @@ slow   = ema(source, slowLength) ;
 macd   = fast − slow ;
 signal = ema(macd, signalLength) ;
 hist   = macd − signal
-**Warmup:** slowLength + signalLength − 1 (slow EMA seeds at slowLength − 1; signal EMA seeds signalLength − 1 bars after that)
+**Warmup:** 0 on a finite source (all three EMA stages seed immediately)
 **Since:** 0.1 · stable
 
 ### ta.maRibbon
@@ -1198,7 +1199,7 @@ ema1     = EMA(emaLength)(range) ;
 ema2     = EMA(emaLength)(ema1) ;
 ratio[t] = ema1[t] / ema2[t] ;
 mi[t]    = sum(ratio[t − sumLength + 1..= t])
-**Warmup:** emaLength + emaLength + sumLength − 3
+**Warmup:** sumLength − 1 (both EMA stages seed immediately)
 **Since:** 0.2 · stable
 
 ### ta.mcginley
@@ -1475,7 +1476,8 @@ constant. Matches TradingView's published PMO output verbatim.
 ema1[t]   = SwenlinEMA(firstSmoothing)(roc1) ;
 pmo[t]    = SwenlinEMA(secondSmoothing)(ema1 × 10) ;
 signal[t] = EMA(signalLength)(pmo)
-**Warmup:** firstSmoothing + secondSmoothing − 1 (pmo line); firstSmoothing + secondSmoothing + signalLength − 3 (signal line)
+**Warmup:** firstSmoothing + secondSmoothing − 1 for both lines (the
+signal EMA seeds on the first finite PMO value)
 **Since:** 0.2 · stable
 
 ### ta.ppo
@@ -1503,7 +1505,7 @@ slow   = ema(source, slowLength) ;
 ppo    = 100 · (fast − slow) / slow ; NaN if slow === 0 ;
 signal = ema(ppo, signalLength) ;
 hist   = ppo − signal
-**Warmup:** slowLength + signalLength − 2
+**Warmup:** 0 on a finite source with nonzero slow EMA
 **Since:** 0.2 · stable
 
 ### ta.psar
@@ -1587,7 +1589,7 @@ slow   = ema(volume, slowLength) ;
 pvo    = 100 · (fast − slow) / slow ; NaN if slow === 0 ;
 signal = ema(pvo, signalLength) ;
 hist   = pvo − signal
-**Warmup:** slowLength + signalLength − 2
+**Warmup:** 0 when volume and the slow EMA are nonzero
 **Since:** 0.2 · stable
 
 ### ta.pvt
@@ -1701,7 +1703,7 @@ downRaw[t] = source[t] < source[t − 1] ? sigma[t] : 0 ;
 upEma     = EMA(length)(upRaw) ;
 downEma   = EMA(length)(downRaw) ;
 rvi[t]    = 100 · upEma[t] / (upEma[t] + downEma[t])
-**Warmup:** 2 · length − 1
+**Warmup:** length − 1 (the rolling standard-deviation window)
 **Since:** 0.2 · stable
 
 ### ta.sessionVolumeProfile
@@ -1776,7 +1778,8 @@ numSmoothed = EMA(secondSmoothing)(EMA(firstSmoothing)(num)) ;
 denSmoothed = EMA(secondSmoothing)(EMA(firstSmoothing)(den)) ;
 smi    = 100 · numSmoothed / denSmoothed ;
 signal = EMA(dLength)(smi)
-**Warmup:** kLength + firstSmoothing + secondSmoothing + dLength − 4
+**Warmup:** kLength − 1 for both lines (the high/low window; all EMA
+stages seed immediately)
 **Since:** 0.2 · stable
 
 ### ta.smma
@@ -1788,8 +1791,9 @@ function smma(slotId: string, source: ScalarOrSeries, length: number, _opts?: Sm
 Smoothed moving average (Wilder's RMA). Recurrence
 `SMMA[t] = α·x[t] + (1 − α)·SMMA[t − 1]` with `α = 1 / length`
 after a seed of the simple mean of the first `length` finite
-source values. Mid-stream NaN forward-fills the prior value
-(matches the recurrence-MA convention shared with `ta.ema`).
+source values. Mid-stream NaN forward-fills the prior value;
+unlike canonical `ta.ema`, SMMA's current output stays finite
+across a source gap.
 Tick-mode (`onBarTick`) recomputes the head from the previous
 closed SMMA so partial-bar values don't bleed into the next
 close's recurrence.
@@ -1923,7 +1927,7 @@ sub-slot pattern.
 ema2 = EMA(ema1, length) ;
 ema3 = EMA(ema2, length) ;
 out  = 3 · ema1 − 3 · ema2 + ema3
-**Warmup:** 3 · length − 3
+**Warmup:** 0 on a finite source
 **Since:** 0.2 · stable
 
 ### ta.trendStrengthIndex
@@ -1972,8 +1976,8 @@ ema2 = EMA(ema1,   length) ;
 ema3 = EMA(ema2,   length) ;
 trix[t]   = ema3[t-1] === 0 ? NaN : 100 · (ema3[t] − ema3[t-1]) / ema3[t-1] ;
 signal[t] = EMA(trix, signalLength)
-**Warmup:** 3 · length + signalLength − 3 (first defined `signal` index ;
-trix line first defined at `3 · length − 2`)
+**Warmup:** 1 for both lines on a finite, nonzero source (TRIX needs
+one prior EMA3 value; its signal EMA seeds immediately)
 **Since:** 0.2 · stable
 
 ### ta.tsi
@@ -2005,7 +2009,8 @@ Note: Pine's `ta.tsi()` returns the raw `ema2 / absEma2` ratio
 (×100); for the raw ratio, divide by 100.
 
 **Formula:** see above
-**Warmup:** firstSmoothing + secondSmoothing + signalLength − 3
+**Warmup:** 1 for both lines on a finite source (one prior source is
+required for momentum; all EMA stages seed immediately)
 **Since:** 0.2 · stable
 
 ### ta.ulcerIndex

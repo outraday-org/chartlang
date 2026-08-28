@@ -13,6 +13,6 @@ describe("ta.massIndex — golden", () => {
         const out = harness(bars, bars.length + 1, () => massIndex("slot").current);
         // Hash captured during implementation against syntheticBars(100, 42);
         // re-pin if the math intentionally changes.
-        expect(hashFloat64Array(out)).toBe("e8016f8f");
+        expect(hashFloat64Array(out)).toBe("b355ac92");
     });
 });

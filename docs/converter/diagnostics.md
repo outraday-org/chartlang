@@ -360,6 +360,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Message:** Pine `explicit_plot_zorder` is the default in chartlang (marks layer by declaration order within their group); no flag is needed and none is emitted.
 - **Suggested fix:** Remove the argument; chartlang always orders marks by declaration order, so the flag is a no-op either way.
 
+### external-series-input-override-invalid
+
+- **Code:** `pine-converter/transform/external-series-input-override-invalid`
+- **Severity:** error
+- **Message:** An external-series input override is invalid; the source input was left unchanged.
+- **Suggested fix:** Target one named Pine source input by its exact declaration name and use a unique, non-empty feed name.
+
 ### fill-handle-unresolved
 
 - **Code:** `pine-converter/transform/fill-handle-unresolved`
@@ -632,6 +639,13 @@ hard-rejects and the recommended Pine rewrites.
 - **Severity:** warning
 - **Message:** The Pine plot-level `offset=` replaced the `offset` already set on the plotted `ta.*` call; the plot-level offset is the source of truth.
 - **Suggested fix:** Remove the `offset` argument on the `ta.*` call, or drop the plot-level `offset=` so the two no longer conflict.
+
+### plot-style-not-mapped
+
+- **Code:** `pine-converter/transform/plot-style-not-mapped`
+- **Severity:** error
+- **Message:** This Pine plot style cannot be represented by the converter, so the plot was omitted instead of silently falling back to a line.
+- **Suggested fix:** Use plot.style_line, plot.style_stepline, plot.style_histogram, plot.style_columns, plot.style_circles, or a conditional expression whose branches use those styles.
 
 ### polyline-closed-info
 

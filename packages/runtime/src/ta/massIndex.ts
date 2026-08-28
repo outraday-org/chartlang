@@ -128,7 +128,7 @@ function tickValue(slot: MassIndexSlot, ratio: number): number {
  *           ema2     = EMA(emaLength)(ema1) ;
  *           ratio[t] = ema1[t] / ema2[t] ;
  *           mi[t]    = sum(ratio[t − sumLength + 1..= t])
- * @warmup   emaLength + emaLength + sumLength − 3
+ * @warmup   sumLength − 1 (both EMA stages seed immediately)
  * @since 0.2
  * @stable
  *

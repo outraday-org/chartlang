@@ -4,7 +4,7 @@
 import { capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Capabilities } from "@invinite-org/chartlang-adapter-kit";
 import type { Series } from "@invinite-org/chartlang-core";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Float64RingBuffer } from "../ringBuffer.js";
 import {
@@ -16,6 +16,31 @@ import { makeSeriesView, makeShiftedSeriesView } from "../seriesView.js";
 import { inMemoryStateStore } from "../stateStore.js";
 import { createStreamState } from "../streamState.js";
 import { plot } from "./plot.js";
+
+// Workspace package imports resolve to the last-built adapter-kit dist during
+// this package-local test run. The adapter-kit's source validator has its own
+// focused columns tests; admit that one newly additive kind here so this suite
+// can exercise runtime style construction without requiring a forbidden build.
+vi.mock("@invinite-org/chartlang-adapter-kit", async (importOriginal) => {
+    const original = await importOriginal<typeof import("@invinite-org/chartlang-adapter-kit")>();
+    return {
+        ...original,
+        validateEmission(emission: unknown) {
+            if (
+                typeof emission === "object" &&
+                emission !== null &&
+                "style" in emission &&
+                typeof emission.style === "object" &&
+                emission.style !== null &&
+                "kind" in emission.style &&
+                emission.style.kind === "columns"
+            ) {
+                return { ok: true } as const;
+            }
+            return original.validateEmission(emission);
+        },
+    };
+});
 
 function makeCaps(overrides: Partial<Capabilities> = {}): Capabilities {
     return {
@@ -375,6 +400,31 @@ describe("plot — style selection (opts.style)", () => {
         expect(style.baseline).toBe(50);
     });
 
+    it("emits columns as a distinct kind with default and explicit baselines", () => {
+        const caps = makeCaps({ plots: new Set(["line", "columns"]) });
+        const first = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = first.ctx;
+        plot("a:1:1#0", 10, { style: { kind: "columns" } });
+        expect(first.emissions.diagnostics).toEqual([]);
+        expect(first.emissions.plots[0].style).toEqual({
+            kind: "columns",
+            baseline: 0,
+            lineWidth: 1,
+        });
+
+        const second = makeCtx({ caps });
+        ACTIVE_RUNTIME_CONTEXT.current = second.ctx;
+        plot("a:1:1#1", 10, {
+            style: { kind: "columns", baseline: 50 },
+            lineWidth: 3,
+        });
+        expect(second.emissions.plots[0].style).toEqual({
+            kind: "columns",
+            baseline: 50,
+            lineWidth: 3,
+        });
+    });
+
     it("emits a step-line style when opts.style.kind === 'step-line'", () => {
         const caps = makeCaps({ plots: new Set(["line", "step-line"]) });
         const { ctx, emissions } = makeCtx({ caps });
@@ -480,7 +530,14 @@ describe("plot — style selection (opts.style)", () => {
         const cases = [
             {
                 slotId: "a:1:1#1",
-                style: { kind: "shape", shape: "flag", size: 8, location: "below" },
+                style: {
+                    kind: "shape",
+                    shape: "flag",
+                    size: 8,
+                    location: "below",
+                    text: "1",
+                    textColor: "#ffffff",
+                },
             },
             {
                 slotId: "a:1:1#2",

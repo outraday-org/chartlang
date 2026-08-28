@@ -76,11 +76,60 @@ describe("emitPlotFamily", () => {
         expect(emit("plot()").source).toBeNull();
     });
 
+    it("preserves the supported Pine plot styles as typed chartlang styles", () => {
+        expect(emit("plot(close, style=plot.style_line)").source).toBe(
+            'plot(bar.close, { style: { kind: "line" } });',
+        );
+        expect(emit("plot(close, style=plot.style_stepline)").source).toBe(
+            'plot(bar.close, { style: { kind: "step-line" } });',
+        );
+        expect(emit("plot(close, style=plot.style_histogram)").source).toBe(
+            'plot(bar.close, { style: { kind: "histogram", baseline: 0 } });',
+        );
+        expect(emit("plot(close, style=plot.style_columns)").source).toBe(
+            'plot(bar.close, { style: { kind: "columns", baseline: 0 } });',
+        );
+        expect(emit("plot(close, style=plot.style_circles)").source).toBe(
+            'plot(bar.close, { style: { kind: "marker", shape: "circle", size: 8 } });',
+        );
+    });
+
+    it("preserves histogram/column baselines and the positional style slot", () => {
+        expect(
+            emit('plot(close, "Trend", color.red, 2, plot.style_columns, false, 50)').source,
+        ).toBe(
+            'plot(bar.close, { title: "Trend", color: "#FF5252", lineWidth: 2, style: { kind: "columns", baseline: 50 } });',
+        );
+        expect(emit("plot(close, style=plot.style_histogram, histbase=base)").source).toBe(
+            'plot(bar.close, { style: { kind: "histogram", baseline: base } });',
+        );
+    });
+
+    it("preserves a per-bar conditional style instead of choosing one branch", () => {
+        expect(
+            emit(
+                'plot(close, title="Turnover", style=mode == "Histo" ? plot.style_histogram : plot.style_line)',
+            ).source,
+        ).toBe(
+            'plot(bar.close, { title: "Turnover", style: mode == "Histo" ? { kind: "histogram", baseline: 0 } : { kind: "line" } });',
+        );
+    });
+
+    it("rejects an unsupported or opaque plot style instead of defaulting to line", () => {
+        const unknownMember = emit("plot(close, style=plot.style_area)");
+        expect(unknownMember.source).toBeNull();
+        expect(unknownMember.codes).toEqual(["pine-converter/transform/plot-style-not-mapped"]);
+
+        const opaque = emit("plot(close, style=chosenStyle)");
+        expect(opaque.source).toBeNull();
+        expect(opaque.codes).toEqual(["pine-converter/transform/plot-style-not-mapped"]);
+    });
+
     it("lowers plotshape to a valid shape style with the glyph + size", () => {
         // `color` moves to plot level (the `shape` style carries no color);
-        // a missing `style=` glyph defaults to `circle`.
+        // a missing `style=` glyph defaults to Pine's `shape.xcross`.
         expect(emit("plotshape(close > open, color=color.green)").source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { color: "#4CAF50", style: { kind: "shape", shape: "circle", size: 8 } });',
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { color: "#4CAF50", style: { kind: "shape", shape: "xcross", size: 8 } });',
         );
         // An explicit `style=shape.*` glyph maps through `enumLookup`.
         expect(emit("plotshape(close > open, style=shape.triangleup)").source).toBe(
@@ -96,19 +145,39 @@ describe("emitPlotFamily", () => {
 
     it("lowers plotarrow", () => {
         expect(emit("plotarrow(close)").source).toBe(
-            'plot(bar.close ? bar.close : Number.NaN, { style: { kind: "arrow", direction: "up", size: 10 } });',
+            'plot(bar.close.current ? bar.close : Number.NaN, { style: { kind: "arrow", direction: "up", size: 10 } });',
         );
     });
 
-    it("defaults the glyph to circle for an unmapped `style=` enum", () => {
-        expect(emit("plotshape(close > open, style=shape.bogus)").source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
-        );
+    it("rejects an unmapped plotshape glyph instead of defaulting to circle", () => {
+        const result = emit("plotshape(close > open, style=shape.bogus)");
+        expect(result.source).toBeNull();
+        expect(result.codes).toEqual(["pine-converter/transform/plot-style-not-mapped"]);
     });
 
     it("threads a mapped `location=` into the style", () => {
         expect(emit("plotshape(close > open, location=location.abovebar)").source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8, location: "above" } });',
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { style: { kind: "shape", shape: "xcross", size: 8, location: "above" } });',
+        );
+    });
+
+    it("preserves plotshape title, tiny size, text, text color, and current-bar anchor", () => {
+        expect(
+            emit(
+                'plotshape(signal, "Never Long C1 Cancel", style=shape.xcross, location=location.top, color=color.gray, text="1", textcolor=color.red, size=size.tiny)',
+            ).source,
+        ).toBe(
+            'plot(signal ? bar.close : Number.NaN, { title: "Never Long C1 Cancel", color: "#787B86", style: { kind: "shape", shape: "xcross", size: 8, location: "above", text: "1", textColor: "#FF5252" } });',
+        );
+    });
+
+    it("reads plotshape presentation from Pine's positional slots", () => {
+        expect(
+            emit(
+                'plotshape(signal, "Signal", shape.xcross, location.top, color.red, 0, "sl1", color.white, true, size.small)',
+            ).source,
+        ).toBe(
+            'plot(signal ? bar.close : Number.NaN, { title: "Signal", color: "#FF5252", style: { kind: "shape", shape: "xcross", size: 10, location: "above", text: "sl1", textColor: "#FFFFFF" } });',
         );
     });
 
@@ -122,14 +191,14 @@ describe("emitPlotFamily", () => {
         // A `ta.*` call returns a `Series<boolean>`; without `.current` the
         // object is always truthy and the shape would plot on every bar.
         expect(emit("plotshape(ta.crossover(close, open))").source).toBe(
-            'plot(ta.crossover(bar.close, bar.open).current ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
+            'plot(ta.crossover(bar.close, bar.open).current ? bar.close : Number.NaN, { style: { kind: "shape", shape: "xcross", size: 8 } });',
         );
     });
 
     it("leaves a non-`ta` call condition unprojected", () => {
         // A user-defined call has no scalar-projecting `.current`; emit it as-is.
         expect(emit("plotshape(myCond())").source).toBe(
-            'plot(myCond() ? bar.close : Number.NaN, { style: { kind: "shape", shape: "circle", size: 8 } });',
+            'plot(myCond() ? bar.close : Number.NaN, { style: { kind: "shape", shape: "xcross", size: 8 } });',
         );
     });
 
@@ -471,13 +540,13 @@ describe("emitPlotFamily — display visibility", () => {
 
     it("threads visibility through shape, character, and arrow plots", () => {
         expect(emit("plotshape(close > open, display = display.none)").source).toBe(
-            'plot(bar.close > bar.open ? bar.close : Number.NaN, { visible: false, style: { kind: "shape", shape: "circle", size: 8 } });',
+            'plot(bar.close > bar.open ? bar.close : Number.NaN, { visible: false, style: { kind: "shape", shape: "xcross", size: 8 } });',
         );
         expect(emit('plotchar(close > open, char="X", display = display.none)').source).toBe(
             'plot(bar.close > bar.open ? bar.close : Number.NaN, { visible: false, style: { kind: "character", char: "X", size: 12 } });',
         );
         expect(emit("plotarrow(close, display = display.none)").source).toBe(
-            'plot(bar.close ? bar.close : Number.NaN, { visible: false, style: { kind: "arrow", direction: "up", size: 10 } });',
+            'plot(bar.close.current ? bar.close : Number.NaN, { visible: false, style: { kind: "arrow", direction: "up", size: 10 } });',
         );
     });
 
@@ -548,7 +617,7 @@ describe("emitPlotFamily — color transparency", () => {
         const { source, codes } = emit("plotshape(close > open, color=color.new(color.green, 0))");
         expect(source).toBe(
             "plot(bar.close > bar.open ? bar.close : Number.NaN, " +
-                '{ color: "#4CAF50FF", style: { kind: "shape", shape: "circle", size: 8 } });',
+                '{ color: "#4CAF50FF", style: { kind: "shape", shape: "xcross", size: 8 } });',
         );
         expect(codes).toContain(APPROX);
     });

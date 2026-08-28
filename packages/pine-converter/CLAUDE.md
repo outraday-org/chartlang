@@ -9,6 +9,20 @@ the conversion pipeline is built stage-by-stage under `src/lexer/`,
 
 ## Invariants
 
+### Full-source goldens
+
+- **The canonical Trend Wizard and MASM sources are full-source fixtures
+  without duplicating their licensed bodies.**
+  `fixtures/98-trend-wizard-full.full-source.json` and
+  `99-masm-strat-full.full-source.json` point at the repository-root canonical
+  Pine files, pin their SHA-256 checksums and provenance, and own generated
+  `.expected.chart.ts` / `.expected.diagnostics.json` siblings. The golden test
+  discovers these descriptors separately from the 98 focused `.pine` fixtures,
+  verifies the source checksum before conversion, and uses the same fixed
+  conversion options/update gate. Keep the focused corpus count and descriptor
+  count separate: adding a complete script must never replace or renumber a
+  small regression fixture.
+
 ### Synthesized identifier naming (`src/transform/nameAllocator.ts`)
 
 - **Every synthesized identifier in the generated output is READABLE and
@@ -445,8 +459,13 @@ that has no byte-identical chartlang analogue.
   `"ESD:...;EARNINGS"` symbol and a dynamic-prefix concat such as
   `esdSymbolTemplate + ";EARNINGS"`. `emitRequestSecurity` lowers that feed to
   the stable numeric value `0` and emits the warning
-  `request-security-earnings-feed-disabled`; it does not leave a rejected NaN
-  series whose JavaScript `NaN != NaN` comparison could activate an optional
+  `request-security-earnings-feed-disabled`. `other.ts:disabledSeriesValues`
+  records an unreassigned top-level local initialized from that exact request,
+  and `EmitContext.disabledSeriesValues` rewrites BOTH its current and history
+  reads to `0`. This first-bar rule is load-bearing: leaving `earnings[1]` on a
+  newly allocated slot produces `0 != NaN === true` in JavaScript. A local with
+  any top-level `:=` reassignment is not folded, preserving the later Pine
+  value. The disabled feed therefore cannot manufacture an optional
   earnings-change exit.
 - **An untyped color-valued decl resolves its `na` arm to the transparent
   color.** `valueIsColor` (`analyze.ts`) gives a `c = cond ? color.x : na` decl /
@@ -907,7 +926,8 @@ that has no byte-identical chartlang analogue.
 
 ### Transform: inputs (`src/transform/inputs.ts`, `timeframeConvert.ts`)
 
-- **`transformInputs(analysis, scaffold, diagnostics): void` emits ONE
+- **`transformInputs(analysis, scaffold, diagnostics, externalSeriesInputs?)`
+  emits ONE
   `InputDeclarationIR` per Pine `input.*` site, and `InputDeclarationIR` is
   `{ name, code }` — a VERBATIM chartlang source string, NOT the rich
   kind/defaultValue/min/max shape Task 9's task file describes.** The task
@@ -1001,6 +1021,25 @@ that has no byte-identical chartlang analogue.
   miss arm (`literalKind: "na"`) is unreachable from the real parser (bare `na`
   is an `na-expression`, not a `literal-expression`) and is covered by a
   synthetic-AST test (`inputs.synthetic.test.ts`).
+- **A caller may externalize an exact named Pine source input through
+  `ConvertOpts.externalSeriesInputs`.** Each
+  `ExternalSeriesInputOverride { inputName, feedName, title? }` targets the
+  declaration identity (`lt_trend`), never its mutable title or source span,
+  and lowers that one source to
+  `input.externalSeries<number>({ name: feedName, schema: { kind:
+  "external-series-schema" }, ... })`. With no metadata, ordinary
+  `input.source` output remains byte-identical. The array shape is deliberate:
+  duplicate targets and feed names remain observable and are refused rather
+  than resolved last-write-wins. Empty names, duplicate target/feed groups,
+  missing/renamed identities, and non-source targets emit
+  `external-series-input-override-invalid` (error) and leave the relevant Pine
+  input on the ordinary path. A valid external source is carried in
+  `EmitContext.externalSeriesInputs`: series/TA/plot/history positions receive
+  `(inputs.<name> as Series<number>)`, while arithmetic/comparisons/conditions
+  and scalar UDF parameters receive `.current`. TradingView saves
+  indicator-to-indicator bindings in chart-layout state; Pine source does not
+  contain enough information to infer them, so there is intentionally no title
+  heuristic or automatic binding fallback.
 - **`pineTimeframeToInterval`/`intervalToPineTimeframe`
   (`timeframeConvert.ts`) are the §3 Pine-timeframe ↔ chartlang-interval
   table (`"60"`↔`"1h"`, `"D"`→`"1D"`, …), returning `null` for an
@@ -1674,18 +1713,24 @@ that has no byte-identical chartlang analogue.
   symbol (`analysis.symbols.get(decl.span).stateful`) — **never re-derived**; a
   duplicate-named EARLIER declaration resolves to no symbol (the semantic hoist
   registers only the last) and is skipped, so only the last `const` is emitted.
-- **A pure UDF body lowers param REFERENCES verbatim (shadowed via
-  `EmitContext.localNames`) but emits each param NAME with a `: number` TYPE
-  ANNOTATION — no `emitContext.ts` change was needed for the shadowing.**
+- **A pure UDF body lowers ordinary scalar param REFERENCES verbatim (shadowed
+  via `EmitContext.localNames`) and emits those params with a `: number` TYPE
+  ANNOTATION. A parameter history-indexed by the body instead emits as
+  `Series<number>`.**
   `ctx.localNames` already short-circuits the input/slot rewrite
   (`rewriteIdentifier` checks it FIRST), so seeding it with the UDF names (at
   the top-level `ctx`, so a call-site callee like `cf_limit(...)` keeps its bare
   name) plus, per UDF, its params + body-local names (in the child `ctx`) makes a
   param/local reference stay verbatim while a free input/`var` reference in the
   body still rewrites (`inputs.<name>` / `<slot>.value`) — the closure captures
-  the enclosing `compute` scope. The emitted param LIST is typed `: number` (an
-  untyped arrow param fails `noImplicitAny`; see the typed-param invariant in the
-  UDF block below). A single-expression body becomes an
+  the enclosing `compute` scope. `pureUdfSeriesParams` discovers exact
+  history-indexed parameter positions and propagates them to a fixed point
+  through pure-UDF forwarding calls (`outer(v) => inner(v)` inherits `inner`'s
+  series requirement); `EmitContext.udfSeriesParams` passes a full series at
+  those call arguments, and `seriesValueAliases` projects the parameter's
+  scalar body reads to `.current` while leaving `param[n]` indexable. Every
+  other param stays `: number` (an untyped arrow param fails
+  `noImplicitAny`; see the typed-param invariant in the UDF block below). A single-expression body becomes an
   expression-bodied arrow (`cf_add(a, b) => a + b` → `const cf_add = (a: number,
   b: number) => a + b;`); any other body becomes a block arrow whose value locals lower to `let`
   (uniformly — a later `:=`/`+=` reassignment of the same name emits a plain
@@ -1749,19 +1794,18 @@ that has no byte-identical chartlang analogue.
   see the `historyIndexedBodyLocals`/`registerSeriesSlot` note in the
   `other.ts`/`udfInline.ts` history-promotion section). KNOWN LIMITATION: a local
   DECLARED inside a nested control-flow body statement is still not uniquified.
-- **A pure UDF param is emitted with a `: number` TYPE ANNOTATION
+- **A pure UDF param is emitted with a concrete TYPE ANNOTATION
   (`emitPureUdf`, `other.ts`).** An untyped arrow param trips the compiler's
   `noImplicitAny` (TS7006), so a clean pure helper would not type-check. `number`
   is the sound annotation for the numeric helper case: every realistic pure
   helper uses its params in scalar/number positions (arithmetic, `math.*`,
   comparison), and a `PriceSeries` call-site arg (`bar.close`) is `number &
-  Series<…>` (`Price = number`), assignable to `number`. The ONE pure-helper
-  shape this does NOT cover is a PURE param that history-indexes itself (`f(src)
-  => src - src[1]`): a pure UDF is emitted as a real arrow whose param is a
-  scalar `: number`, so `number[1]` is a TS7053 error. (A STATEFUL helper whose
-  param/body is history-indexed IS handled — Part A2 promotes the argument, Part
-  B the body-local; only the pure-helper self-index stays a narrow documented
-  gap, not a corpus fixture.)
+  Series<…>` (`Price = number`), assignable to `number`. A pure param that
+  history-indexes itself (`f(src) => src - src[1]`) is typed
+  `Series<number>` instead; the call-site receives the full series, the scalar
+  `src` read becomes `src.current`, and `src[1]` remains history access. This is
+  required for `input.externalSeries` (which is not number-coercible) and also
+  closes the former TS7053 gap for ordinary series arguments.
 - **UDF fixture corpus.** The UDF surface is pinned by fixtures `42`–`46`:
   `42-udf-pure-limit` (`cf_limit` — the PURE-helper round-trip: typed-param arrow
   `const`, nested `math.*` lowered to `Math.*`, CLEAN), `43-udf-stateful-slope-
@@ -1795,7 +1839,13 @@ that has no byte-identical chartlang analogue.
   `var` history now COMPILES** as well (T12) — a history-indexed `var bool` →
   `state.boolSeries`, `var string` → `state.stringSeries` (the non-numeric
   siblings of `state.series`; first-bar/out-of-range `[n]` ⇒ `false`/`""`),
-  using the SAME value/history/`:=` split as the numeric series. Remaining gaps:
+  using the SAME value/history/`:=` split as the numeric series. At the source
+  declaration, each history-promoted `var` seeds its new-bar head from `[1]`
+  under `barstate.isnew && !barstate.isfirst`; this preserves Pine `var`
+  carry-forward without overwriting the runtime's committed current-bar head on
+  realtime ticks. A direct OHLCV/aggregate assignment into a scalar snapshots
+  `.current`; storing the identity-stable `bar.close` Series view itself would
+  make a Pine entry-price `var` follow every future close. Remaining gaps:
   TUPLE-element history (`macdLine[1]`, where `macdLine` is projected with
   `.current`, so `…macd.current[1]` indexes a scalar); and **`color` `var`
   history** (a `state.colorSeries` is a deferred follow-up — the converter keeps
@@ -2295,6 +2345,28 @@ that has no byte-identical chartlang analogue.
   diagnose and omit rather than inventing a truth value. `display=` is NEVER
   silently dropped, and hline uses the real `HLineOpts.visible` channel — never
   a `NaN` substitute that could leave an accumulated slot stale.
+- **Pine `plot.style_*` lowers through the enum registry and never defaults
+  silently when present.** `plotFamily.ts:plotStyleOption` consumes named
+  `style=` or positional slot 4 and maps line → `line`, stepline → `step-line`,
+  histogram → `histogram`, columns → the DISTINCT `columns` kind, and circles
+  → `marker`/`circle`. Histogram/columns carry named `histbase` or positional
+  slot 6 (default `0`). A ternary recursively lowers both branches and keeps
+  the scalar condition dynamic; any unsupported/opaque leaf emits the ERROR
+  `plot-style-not-mapped` and omits the plot instead of dropping the style and
+  manufacturing a line. The shared title/color/linewidth/display ordering is
+  unchanged, so source call order remains the render-order tie breaker.
+- **`plotshape` presentation is one typed shape descriptor, not discarded
+  decoration.** Named or positional title/style/location/color/text/textcolor/
+  size fields are retained; the static Pine size ladder maps to 8/10/12/16/24
+  CSS px, while an omitted size retains the converter's established defaults
+  (8px for plotshape, 12px for plotchar) so this additive parity work does not
+  resize existing converted scripts. An omitted `plotshape` style preserves
+  Pine's documented `shape.xcross` default; it is not guessed as a circle.
+  Shape descriptors carry optional `text` +
+  `textColor`, allowing MASM's `1`, `2`, and `sl1` glyph annotations to survive
+  conversion. An
+  unmapped glyph or opaque size is `plot-style-not-mapped`, never a default
+  circle/size guess. The numeric anchor stays the current bar (`bar.close`).
 - **`bgcolor`/`barcolor` lower to the chartlang Pine-ergonomic SUGAR
   (`plotFamily.ts` `emitBackground`), NOT `plot(NaN, { style })`.** Since
   Deliverable 2 of the `bgcolor`/`barcolor` ergonomics feature, `emitBackground`
@@ -2313,6 +2385,7 @@ that has no byte-identical chartlang analogue.
   per-bar color — do not revert to that shape.
 - **New codes (APPENDED to `diagnostics/codes.ts`, no reorder):**
   `plot-offset-needs-ta-call`, `plot-offset-overrides-ta-offset`,
+  `plot-style-not-mapped` (error),
   `strategy-direction-assumed`, `strategy-order-args-dropped` (warnings),
   `ta-signature-divergence`, `ta-not-mapped`, `math-not-mapped`,
   `str-format-not-mapped`, `str-not-mapped` (warnings), `fill-not-mapped`,

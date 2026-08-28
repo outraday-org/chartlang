@@ -25,13 +25,13 @@ This index page is hand-maintained.
 | ID | Page | Output | Warmup |
 |---|---|---|---|
 | `sma` | [`./sma.md`](./sma.md) | `Series<number>` | `length − 1` |
-| `ema` | [`./ema.md`](./ema.md) | `Series<number>` | `length − 1` |
+| `ema` | [`./ema.md`](./ema.md) | `Series<number>` | `0` on a finite source |
 | `wma` | [`./wma.md`](./wma.md) | `Series<number>` | `length − 1` |
 | `vwma` | [`./vwma.md`](./vwma.md) | `Series<number>` | `length − 1` |
 | `hma` | [`./hma.md`](./hma.md) | `Series<number>` | `length + ⌈√length⌉ − 2` |
 | `smma` | [`./smma.md`](./smma.md) | `Series<number>` (Wilder's RMA) | `length − 1` |
-| `dema` | [`./dema.md`](./dema.md) | `Series<number>` | `2 · length − 2` |
-| `tema` | [`./tema.md`](./tema.md) | `Series<number>` | `3 · length − 3` |
+| `dema` | [`./dema.md`](./dema.md) | `Series<number>` | `0` on a finite source |
+| `tema` | [`./tema.md`](./tema.md) | `Series<number>` | `0` on a finite source |
 | `kama` | [`./kama.md`](./kama.md) | `Series<number>` (Kaufman Adaptive MA) | `length` |
 | `alma` | [`./alma.md`](./alma.md) | `Series<number>` (Gaussian-weighted) | `length − 1` |
 | `lsma` | [`./lsma.md`](./lsma.md) | `Series<number>` (least-squares regression value) | `length − 1` |
@@ -43,19 +43,19 @@ This index page is hand-maintained.
 | ID | Page | Output | Warmup |
 |---|---|---|---|
 | `rsi` | [`./rsi.md`](./rsi.md) | `Series<number>` | `length` |
-| `macd` | [`./macd.md`](./macd.md) | `{ macd, signal, hist }` | `slowLength + signalLength − 1` |
+| `macd` | [`./macd.md`](./macd.md) | `{ macd, signal, hist }` | `0` on a finite source |
 | `cci` | [`./cci.md`](./cci.md) | `Series<number>` (unbounded, typically ±200) | `length − 1` |
 | `stoch` | [`./stoch.md`](./stoch.md) | `{ k, d }` (bounded `[0, 100]`) | `kLength + kSmoothing + dLength − 3` |
 | `williamsR` | [`./williamsR.md`](./williamsR.md) | `Series<number>` (bounded `[-100, 0]`) | `length − 1` |
 | `stochRsi` | [`./stochRsi.md`](./stochRsi.md) | `{ k, d }` (bounded `[0, 100]`) | `rsiLength + stochLength + kSmoothing + dSmoothing − 4` |
 | `ultimateOsc` | [`./ultimateOsc.md`](./ultimateOsc.md) | `Series<number>` (bounded `[0, 100]`) | `longLength` |
 | `coppock` | [`./coppock.md`](./coppock.md) | `Series<number>` (unbounded; zero-crossings signal regime change) | `max(roc1Length, roc2Length) + wmaLength − 1` |
-| `ppo` | [`./ppo.md`](./ppo.md) | `{ ppo, signal, hist }` (unbounded, MACD-shape normalised by slow EMA) | `slowLength + signalLength − 2` |
+| `ppo` | [`./ppo.md`](./ppo.md) | `{ ppo, signal, hist }` (unbounded, MACD-shape normalised by slow EMA) | `0` with nonzero slow EMA |
 | `dpo` | [`./dpo.md`](./dpo.md) | `Series<number>` (unbounded, detrended around zero) | `length` |
 | `connorsRsi` | [`./connorsRsi.md`](./connorsRsi.md) | `Series<number>` (bounded `[0, 100]`) | `max(rsiLength, streakLength, rocLength) + 1` |
 | `kst` | [`./kst.md`](./kst.md) | `{ kst, signal }` (unbounded; zero-crossings signal regime change) | `max_N(rocNLength + rocNSmooth) + signalLength − 2` |
 | `fisher` | [`./fisher.md`](./fisher.md) | `{ fisher, trigger }` (unbounded, typically `[-3, 3]`) | `length` |
-| `klinger` | [`./klinger.md`](./klinger.md) | `{ klinger, signal }` (unbounded; volume-flow oscillator) | `slowLength + signalLength − 2` |
+| `klinger` | [`./klinger.md`](./klinger.md) | `{ klinger, signal }` (unbounded; volume-flow oscillator) | `0` |
 | `rvgi` | [`./rvgi.md`](./rvgi.md) | `{ rvgi, signal }` (unbounded; close-open vs high-low ratio) | `length + 3` |
 
 ## Momentum
@@ -66,9 +66,9 @@ This index page is hand-maintained.
 | `cmo` | [`./cmo.md`](./cmo.md) | `Series<number>` (bounded `[-100, 100]`) | `length` |
 | `momentum` | [`./momentum.md`](./momentum.md) | `Series<number>` | `length` |
 | `roc` | [`./roc.md`](./roc.md) | `Series<number>` | `length` |
-| `pmo` | [`./pmo.md`](./pmo.md) | `{ pmo, signal }` | `firstSmoothing + secondSmoothing + signalLength − 3` |
-| `smi` | [`./smi.md`](./smi.md) | `{ smi, signal }` (bounded `[-100, 100]`) | `kLength + firstSmoothing + secondSmoothing + dLength − 4` |
-| `tsi` | [`./tsi.md`](./tsi.md) | `{ tsi, signal }` (bounded `[-100, 100]`) | `firstSmoothing + secondSmoothing + signalLength − 3` |
+| `pmo` | [`./pmo.md`](./pmo.md) | `{ pmo, signal }` | `firstSmoothing + secondSmoothing − 1` |
+| `smi` | [`./smi.md`](./smi.md) | `{ smi, signal }` (bounded `[-100, 100]`) | `kLength − 1` |
+| `tsi` | [`./tsi.md`](./tsi.md) | `{ tsi, signal }` (bounded `[-100, 100]`) | `1` on a finite source |
 
 ## Trend
 
@@ -78,7 +78,7 @@ This index page is hand-maintained.
 | `aroonOsc` | [`./aroonOsc.md`](./aroonOsc.md) | `Series<number>` | `length` |
 | `adx` | [`./adx.md`](./adx.md) | `Series<number>` (clamped `[0, 100]`) | `2 · length − 1` |
 | `dmi` | [`./dmi.md`](./dmi.md) | `{ plusDi, minusDi }` (clamped `[0, 100]`) | `length` |
-| `trix` | [`./trix.md`](./trix.md) | `{ trix, signal }` (unbounded, oscillator around zero) | `3 · length + signalLength − 3` |
+| `trix` | [`./trix.md`](./trix.md) | `{ trix, signal }` (unbounded, oscillator around zero) | `1` on a finite nonzero source |
 | `vortex` | [`./vortex.md`](./vortex.md) | `{ plus, minus }` (≥ 0) | `length` |
 | `trendStrengthIndex` | [`./trendStrengthIndex.md`](./trendStrengthIndex.md) | `Series<number>` (clamped `[-1, 1]`; Pearson correlation of source vs bar-index) | `length − 1` |
 | `ichimoku` | [`./ichimoku.md`](./ichimoku.md) | `{ tenkan, kijun, senkouA, senkouB, chikou }` | `senkouBLength` for the full set |
@@ -96,8 +96,8 @@ This index page is hand-maintained.
 | `envelope` | [`./envelope.md`](./envelope.md) | `{ upper, middle, lower }` | `length − 1` |
 | `chop` | [`./chop.md`](./chop.md) | `Series<number>` (clamped `[0, 100]`) | `length` |
 | `historicalVolatility` | [`./historicalVolatility.md`](./historicalVolatility.md) | `Series<number>` (≥ 0, annualised stddev of log returns ×100) | `length` |
-| `rvi` | [`./rvi.md`](./rvi.md) | `Series<number>` (bounded `[0, 100]`) | `2 · length − 1` |
-| `massIndex` | [`./massIndex.md`](./massIndex.md) | `Series<number>` (≥ 0, range-EMA "bulge" sum) | `2 · emaLength + sumLength − 3` |
+| `rvi` | [`./rvi.md`](./rvi.md) | `Series<number>` (bounded `[0, 100]`) | `length − 1` |
+| `massIndex` | [`./massIndex.md`](./massIndex.md) | `Series<number>` (≥ 0, range-EMA "bulge" sum) | `sumLength − 1` |
 
 ## Volume
 
@@ -110,10 +110,10 @@ This index page is hand-maintained.
 | `adl` | [`./adl.md`](./adl.md) | `Series<number>` (cumulative CLV × volume) | `0` |
 | `bop` | [`./bop.md`](./bop.md) | `Series<number>` (raw per-bar `(C-O)/(H-L)`) | `0` |
 | `cmf` | [`./cmf.md`](./cmf.md) | `Series<number>` (bounded `[-1, 1]`) | `length − 1` |
-| `chaikinOsc` | [`./chaikinOsc.md`](./chaikinOsc.md) | `Series<number>` (EMA-diff over ADL; unbounded, oscillator-shape around zero) | `slowLength − 1` |
+| `chaikinOsc` | [`./chaikinOsc.md`](./chaikinOsc.md) | `Series<number>` (EMA-diff over ADL; unbounded, oscillator-shape around zero) | `0` |
 | `mfi` | [`./mfi.md`](./mfi.md) | `Series<number>` (bounded `[0, 100]`; volume-weighted RSI) | `length + 1` |
 | `netVolume` | [`./netVolume.md`](./netVolume.md) | `Series<number>` (cumulative signed volume — equivalent to `obv`, naming-parity dup) | `1` (bar 0 emits 0) |
-| `pvo` | [`./pvo.md`](./pvo.md) | `{ pvo, signal, hist }` (MACD-shape on volume) | `slowLength + signalLength − 2` |
+| `pvo` | [`./pvo.md`](./pvo.md) | `{ pvo, signal, hist }` (MACD-shape on volume) | `0` with nonzero slow EMA |
 | `pvt` | [`./pvt.md`](./pvt.md) | `Series<number>` (cumulative `volume · close-pct-change`) | `1` (bar 0 emits 0) |
 | `eom` | [`./eom.md`](./eom.md) | `Series<number>` (SMA-smoothed midpoint-move / box-ratio) | `length` |
 | `nvi` | [`./nvi.md`](./nvi.md) | `Series<number>` (cumulative on lower-volume bars, seeded at 1000) | `1` (bar 0 emits seed) |

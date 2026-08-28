@@ -90,8 +90,8 @@ function resultForOffset(slot: TrixSlot, offset: number, signalBuf: Float64RingB
  *           ema3 = EMA(ema2,   length) ;
  *           trix[t]   = ema3[t-1] === 0 ? NaN : 100 · (ema3[t] − ema3[t-1]) / ema3[t-1] ;
  *           signal[t] = EMA(trix, signalLength)
- * @warmup   3 · length + signalLength − 3 (first defined `signal` index ;
- *           trix line first defined at `3 · length − 2`)
+ * @warmup   1 for both lines on a finite, nonzero source (TRIX needs
+ *           one prior EMA3 value; its signal EMA seeds immediately)
  * @anchors  length, signalLength
  * @since 0.2
  * @stable

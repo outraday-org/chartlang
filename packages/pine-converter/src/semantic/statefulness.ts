@@ -91,11 +91,13 @@ export type UdfBodyFacts = Readonly<{
 type FactsAccumulator = {
     seedStateful: boolean;
     readonly calls: Set<string>;
+    readonly callSites: CallExpression[];
 };
 
 function collectExpressionFacts(expr: ExpressionNode, acc: FactsAccumulator): void {
     switch (expr.kind) {
         case "call-expression": {
+            acc.callSites.push(expr);
             if (callIsStatefulPrimitive(expr)) {
                 acc.seedStateful = true;
             }
@@ -248,9 +250,27 @@ function collectBodyFacts(statements: readonly Statement[], acc: FactsAccumulato
  *     facts.seedStateful; // false
  */
 export function collectUdfBodyFacts(body: BlockStatement): UdfBodyFacts {
-    const acc: FactsAccumulator = { seedStateful: false, calls: new Set() };
+    const acc: FactsAccumulator = { seedStateful: false, calls: new Set(), callSites: [] };
     collectBodyFacts(body.body, acc);
     return { seedStateful: acc.seedStateful, calls: acc.calls };
+}
+
+/**
+ * Collect every call expression in one UDF body in deterministic source-tree
+ * order. This reuses the complete statefulness traversal so transform passes
+ * that need call arguments cannot drift to a shallower AST walk.
+ *
+ * @since 0.10
+ * @stable
+ * @example
+ *     import { collectUdfCallSites } from "./statefulness.js";
+ *     declare const body: BlockStatement;
+ *     collectUdfCallSites(body); // readonly CallExpression[]
+ */
+export function collectUdfCallSites(body: BlockStatement): readonly CallExpression[] {
+    const acc: FactsAccumulator = { seedStateful: false, calls: new Set(), callSites: [] };
+    collectBodyFacts(body.body, acc);
+    return acc.callSites;
 }
 
 type UdfNode = {

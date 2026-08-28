@@ -12,6 +12,6 @@ describe("ta.tema — golden", () => {
         const bars = syntheticBars(100, 42);
         const out = harness(bars, bars.length + 1, (bar) => tema("slot", bar.close, 20).current);
         const h = hashFloat64Array(out);
-        expect(h).toBe("76e8d8ea");
+        expect(h).toBe("6a875119");
     });
 });

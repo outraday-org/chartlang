@@ -34,6 +34,8 @@ import { BAR_INDEX_SENTINEL } from "./emitHelpers.js";
  *         syminfo: false,
  *         drawingHandle: true,
  *         barIndex: false,
+ *         sourceField: false,
+ *         series: false,
  *     };
  *     void flags;
  */
@@ -62,6 +64,8 @@ export type UsageFlags = Readonly<{
     barIndex: boolean;
     /** The `SourceField` type — needed by a `bar[inputs.<src> as SourceField]` read. */
     sourceField: boolean;
+    /** The `Series` type — needed by an external-series input value/history read. */
+    series: boolean;
 }>;
 
 // The full corpus of generated source the usage scan walks: every input
@@ -143,5 +147,6 @@ export function scanUsage(scaffold: ScriptScaffold): UsageFlags {
         drawingHandle: hasNonCompactHandle || hasRings,
         barIndex: corpus.includes(`${BAR_INDEX_SENTINEL}(`),
         sourceField: corpus.includes("as SourceField"),
+        series: corpus.includes("Series<"),
     };
 }

@@ -11,6 +11,14 @@ describe("ENUM_VALUE_MAP", () => {
         expect(ENUM_VALUE_MAP.get("line.style_dashed")?.chartlang).toBe("dashed");
     });
 
+    it("maps Pine plot styles without collapsing columns into histogram", () => {
+        expect(ENUM_VALUE_MAP.get("plot.style_line")?.chartlang).toBe("line");
+        expect(ENUM_VALUE_MAP.get("plot.style_stepline")?.chartlang).toBe("step-line");
+        expect(ENUM_VALUE_MAP.get("plot.style_histogram")?.chartlang).toBe("histogram");
+        expect(ENUM_VALUE_MAP.get("plot.style_columns")?.chartlang).toBe("columns");
+        expect(ENUM_VALUE_MAP.get("plot.style_circles")?.chartlang).toBe("circles");
+    });
+
     it("collapses arrow line styles to dashed with a warning note", () => {
         const m = ENUM_VALUE_MAP.get("line.style_arrow_both");
         expect(m?.chartlang).toBe("dashed");

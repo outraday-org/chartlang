@@ -55,6 +55,7 @@ const VALID_PLOT_STYLE_KINDS: ReadonlySet<string> = new Set([
     "step-line",
     "horizontal-line",
     "histogram",
+    "columns",
     "area",
     "filled-band",
     "label",
@@ -281,6 +282,15 @@ function validateHistogramStyle(style: Record<string, unknown>): ValidationResul
     return { ok: true };
 }
 
+function validateColumnsStyle(style: Record<string, unknown>): ValidationResult {
+    const baseline = validateHistogramStyle(style);
+    if (!baseline.ok) return baseline;
+    const lineWidth = style.lineWidth;
+    return !isFiniteNumber(lineWidth) || lineWidth <= 0
+        ? bad("style.lineWidth: must be a finite positive number")
+        : { ok: true };
+}
+
 function validateFilledBandStyle(style: Record<string, unknown>): ValidationResult {
     const upper = style.upper;
     if (upper !== null && !isFiniteNumber(upper)) {
@@ -347,7 +357,12 @@ function validatePlotShapeStyle(style: Record<string, unknown>): ValidationResul
     if (!isFiniteNumber(size) || size <= 0) {
         return bad("style.size: must be a finite positive number");
     }
-    return validateOptionalLocation(style);
+    const location = validateOptionalLocation(style);
+    if (!location.ok) return location;
+    if (style.text !== undefined && typeof style.text !== "string") {
+        return bad("style.text: must be a string");
+    }
+    return validateOptionalColor(style.textColor, "style.textColor");
 }
 
 function validateCharacterStyle(style: Record<string, unknown>): ValidationResult {
@@ -497,6 +512,8 @@ function validatePlotStyle(style: unknown): ValidationResult {
             return validateLineLikeStyle(style);
         case "histogram":
             return validateHistogramStyle(style);
+        case "columns":
+            return validateColumnsStyle(style);
         case "area":
             return validateAreaStyle(style);
         case "filled-band":

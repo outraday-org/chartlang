@@ -28,20 +28,22 @@ const INLINE_SOURCE = CONVERTED.output;
 // `plot(delta)` is the first plot callsite; `plot(prev[1])` the second. Both
 // are pinned over the full `{ bar, value }` emission stream — the proof that
 // the lowered `state.series` carries history that survives convert → compile →
-// runtime. Re-pin via the runner's "expected vs actual" message if the golden
-// bars change.
-const DELTA_HASH = "74980a551c882e7696ea55bc7b7b7fd7426eb90c142ccc27a4d5b2fbb7df6c65";
+// runtime. The delta hash reflects Pine `var` carry-forward plus an explicit
+// `.current` snapshot of the assigned OHLCV series; the lag hash remains the
+// same. Re-pin via the runner's "expected vs actual" message if the golden bars
+// change.
+const DELTA_HASH = "5d70bfd06b74b69ce95c3e7c98e3d603a9e96bd9ab3f44e4a4fcb06ae9dce12b";
 const PREV_LAG_HASH = "39483f5ebaee134fd37d020d2cf261d3e39d9ddc254ee3999c74ad8f4b400691";
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
-        slotId: "<inline:pine-converter-round-trip-var-series>.chart.ts:21:13#0",
+        slotId: "<inline:pine-converter-round-trip-var-series>.chart.ts:22:13#0",
         sha256: DELTA_HASH,
     },
     {
         kind: "plot-hash",
-        slotId: "<inline:pine-converter-round-trip-var-series>.chart.ts:22:13#0",
+        slotId: "<inline:pine-converter-round-trip-var-series>.chart.ts:23:13#0",
         sha256: PREV_LAG_HASH,
     },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },

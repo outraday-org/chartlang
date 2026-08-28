@@ -22,6 +22,7 @@ import {
     DEFINE_ALERT_CONDITION_GATED_SCENARIO,
     DEFINE_ALERT_CONDITION_UNKNOWN_SCENARIO,
     DEP_CROSS_FILE_SCENARIO,
+    DEP_CROSSOVER_GATE_SCENARIO,
     DEP_DIAMOND_SCENARIO,
     DEP_ERROR_HALTS_PARENT_SCENARIO,
     DEP_MULTI_EXPORT_SCENARIO,
@@ -43,6 +44,7 @@ import {
     PLOT_OFFSET_XSHIFT_SCENARIO,
     PLOT_STYLE_OVERRIDES_SCENARIO,
     PLOT_VISIBLE_SCENARIO,
+    PINE_CONVERTER_ROUND_TRIP_ORDER_CROSSOVER_SCENARIO,
     REQUEST_SECURITY_NAN_FALLBACK_SCENARIO,
     RSI_SUBPANE_ROUTING_SCENARIO,
     RUNTIME_ERROR_SCENARIO,
@@ -52,6 +54,10 @@ import {
     STATE_SESSION_HIGH_SCENARIO,
     STATE_TICK_COUNTER_SCENARIO,
     SYMINFO_MINTICK_SCENARIO,
+    TA_BARSSINCE_SCENARIO,
+    TA_CROSS_SCENARIO,
+    TA_EMA_SCENARIO,
+    TA_TRIX_SCENARIO,
     TIMEFRAME_ISDAILY_SCENARIO,
     UNSUPPORTED_INTERVAL_SCENARIO,
     Z_ORDER_SCENARIO,
@@ -240,9 +246,9 @@ describe("runConformanceSuite", () => {
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: PHASE_4_SCENARIOS,
         });
+        expect(report.failures).toEqual([]);
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(PHASE_4_SCENARIOS.length);
-        expect(report.failures).toEqual([]);
         expect(report.scenarios.map((scenario) => scenario.status)).toEqual(
             PHASE_4_SCENARIOS.map(() => "pass"),
         );
@@ -299,14 +305,34 @@ describe("runConformanceSuite", () => {
         expect(report.failures).toEqual([]);
     }, 120_000);
 
+    it("runs the canonical EMA plot, crossover, and order scenarios end-to-end", async () => {
+        const emaScenarios = [
+            TA_EMA_SCENARIO,
+            EMA_CROSS_SCENARIO,
+            ORDER_EMA_CROSS_SCENARIO,
+            PINE_CONVERTER_ROUND_TRIP_ORDER_CROSSOVER_SCENARIO,
+            DEP_CROSSOVER_GATE_SCENARIO,
+            MTF_SECURITY_EXPRESSION_EMA_SCENARIO,
+            TA_BARSSINCE_SCENARIO,
+            TA_CROSS_SCENARIO,
+            TA_TRIX_SCENARIO,
+        ];
+        const report = await runConformanceSuite(makeAdapter(), {
+            scenarios: emaScenarios,
+        });
+        expect(report.failures).toEqual([]);
+        expect(report.failed).toBe(0);
+        expect(report.passed).toBe(emaScenarios.length);
+    }, 120_000);
+
     it("runs Phase-7 indicator-composition scenarios end-to-end", async () => {
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: PHASE_7_DEP_SCENARIOS,
             candles: SMALL_BARS,
         });
+        expect(report.failures).toEqual([]);
         expect(report.failed).toBe(0);
         expect(report.passed).toBe(PHASE_7_DEP_SCENARIOS.length);
-        expect(report.failures).toEqual([]);
     }, 60_000);
 
     it("runs the plot-style-overrides scenario end-to-end (mount + live overrides)", async () => {
@@ -800,14 +826,14 @@ export default defineIndicator({
             scriptPath: absolutePath,
             intervalCount: 1,
             assertions: Object.freeze([
-                { kind: "alert-count", count: 0 },
+                { kind: "alert-count", count: 2 },
             ] as ReadonlyArray<ScenarioAssertion>),
         });
         const report = await runConformanceSuite(makeAdapter(), {
             scenarios: [scenario],
             candles: SMALL_BARS.slice(0, 5),
         });
-        // Empty alert count over 5 bars is correct.
+        // Pine-seeded EMA(12)/EMA(26) crosses on bars 1 and 3.
         expect(report.failed).toBe(0);
     });
 

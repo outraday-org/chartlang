@@ -36,7 +36,8 @@ signal = EMA(dLength)(smi)
 
 ## Warmup
 
-kLength + firstSmoothing + secondSmoothing + dLength − 4
+kLength − 1 for both lines (the high/low window; all EMA
+stages seed immediately)
 
 ## Signature
 

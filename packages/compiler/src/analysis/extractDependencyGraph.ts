@@ -5,6 +5,7 @@ import type { JsonValue, OutputDeclaration } from "@invinite-org/chartlang-core"
 import ts from "typescript";
 
 import { type CompileDiagnostic, createDiagnostic } from "../diagnostics.js";
+import { plotKindFromCallsite } from "../transformers/plotKindFromCallsite.js";
 import { resolveCalleeName } from "../transformers/resolveCallee.js";
 import type { StructuralBindingInfo } from "./structuralChecks.js";
 
@@ -237,6 +238,17 @@ function extractBindingOutputs(
                 hasUntitledPlot = true;
             } else if (callee === "plot") {
                 const optsArg = node.arguments[1];
+                const plotKind = plotKindFromCallsite("plot", optsArg);
+                // Glyph plots are display annotations, not numeric producer
+                // outputs addressable through `.output(title)`. Pine permits
+                // duplicate display titles for these (MASM deliberately has
+                // two "Never Long C1 Cancel" plotshapes), so keep them out of
+                // the unique dependency-output namespace just like bgcolor.
+                if (plotKind === "shape" || plotKind === "character" || plotKind === "arrow") {
+                    hasUntitledPlot = true;
+                    ts.forEachChild(node, visit);
+                    return;
+                }
                 let title: string | undefined;
                 if (optsArg !== undefined && ts.isObjectLiteralExpression(optsArg)) {
                     for (const property of optsArg.properties) {

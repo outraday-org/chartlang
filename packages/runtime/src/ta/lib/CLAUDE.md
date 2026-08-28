@@ -46,9 +46,10 @@ New chartlang helpers (no upstream source) ship with the standard
   `ACTIVE_RUNTIME_CONTEXT`, `Bar`, `BarView`, or `Float64RingBuffer`
   — those types live one level up where the slot state and runtime
   context live.
-- **NaN propagation differs per helper.** Recurrence-style MAs
-  (`emaFloat64`, `smmaFloat64`) hold the prior value forward on a
-  mid-stream NaN to keep the output continuous past gaps.
+- **NaN propagation differs per helper.** `emaFloat64` emits `NaN` for a
+  missing input without changing its last finite recurrence value; the next
+  finite input resumes from that retained value. `smmaFloat64` instead holds
+  the prior value forward in the output on a mid-stream NaN.
   Full-recompute window helpers (`wmaFloat64`, `vwmaFloat64`,
   `rollingStddev`) short-circuit a window to NaN if any slot in it
   is NaN — there is no meaningful weighted mean over a partial
@@ -56,9 +57,10 @@ New chartlang helpers (no upstream source) ship with the standard
   NaN through arithmetic, so once a NaN enters the window the output
   effectively holds the prior value forward. The per-helper unit
   test pins the exact behaviour.
-- **Warmup.** Every MA helper's first `length - 1` output slots are
-  NaN. The first defined value lands at `out[length - 1]` (counted
-  past any leading-NaN prefix in the input).
+- **Warmup.** `emaFloat64` is the canonical Pine exception: its first finite
+  input seeds the recurrence immediately, independent of `length`; leading
+  NaNs remain NaN. Window-seeded MA helpers emit NaN until their documented
+  window is full.
 
 ## Test layers
 

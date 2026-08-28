@@ -8,21 +8,11 @@ import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { rvi } from "./rvi.js";
 
 describe("ta.rvi", () => {
-    it("emits NaN until warmup completes (~2 · length − 1 closed bars)", () => {
+    it("emits NaN until the standard-deviation window fills", () => {
         const bars = syntheticBars(30, 4);
         const out = harness(bars, bars.length + 1, (bar) => rvi("slot", bar.close, 5).current);
-        // First sigma lands at length-1 = 4; EMA of length 5 needs 5 more
-        // bars to seed → first defined output at ~2*length-1 = 9.
-        for (let i = 0; i < 8; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        // By bar 9 onwards we should see a finite value.
-        let sawFinite = false;
-        for (let i = 9; i < bars.length; i += 1) {
-            if (Number.isFinite(out[i])) {
-                sawFinite = true;
-                break;
-            }
-        }
-        expect(sawFinite).toBe(true);
+        for (let i = 0; i < 4; i += 1) expect(Number.isNaN(out[i])).toBe(true);
+        expect(Number.isFinite(out[4])).toBe(true);
     });
 
     it("output is bounded in [0, 100] when defined", () => {

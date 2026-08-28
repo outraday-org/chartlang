@@ -9,17 +9,16 @@ import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { tsi } from "./tsi.js";
 
 describe("ta.tsi", () => {
-    it("emits NaN through the warmup window (defaults 25/13/13)", () => {
+    it("seeds both lines on the first finite momentum bar", () => {
         const bars = syntheticBars(80, 9);
         const out = harness(bars, bars.length + 1, (bar) => {
             const t = tsi("slot", bar.close);
             return { tsi: t.tsi.current, signal: t.signal.current };
         });
-        // tsi warmup ≥ 25 + 13 − 1 = 37 NaN bars; signal warmup ≥ 37 + 13 − 1 = 49.
-        for (let i = 0; i < 37; i += 1) expect(Number.isNaN(out[i].tsi)).toBe(true);
-        for (let i = 0; i < 49; i += 1) expect(Number.isNaN(out[i].signal)).toBe(true);
-        expect(Number.isFinite(out[bars.length - 1].tsi)).toBe(true);
-        expect(Number.isFinite(out[bars.length - 1].signal)).toBe(true);
+        expect(Number.isNaN(out[0].tsi)).toBe(true);
+        expect(Number.isNaN(out[0].signal)).toBe(true);
+        expect(Number.isFinite(out[1].tsi)).toBe(true);
+        expect(Number.isFinite(out[1].signal)).toBe(true);
     });
 
     it("tsi ∈ [-100, 100] after warmup (small FP epsilon)", () => {

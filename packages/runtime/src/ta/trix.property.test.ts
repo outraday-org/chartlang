@@ -77,7 +77,7 @@ describe("ta.trix — property invariants", () => {
         );
     });
 
-    it("warmup: trix line first defined at `3·length − 2`", () => {
+    it("defines the TRIX line at bar one for finite nonzero sources", () => {
         fc.assert(
             fc.property(
                 fc.array(arbCloseBar, { minLength: 30, maxLength: 60 }),
@@ -88,14 +88,8 @@ describe("ta.trix — property invariants", () => {
                         bars.length + 1,
                         (bar) => trix("slot", bar.close, length).trix.current,
                     );
-                    // ema3 first defined at 3·length − 3; trix needs prevEma3 → first defined at 3·length − 2.
-                    const trixWarmup = 3 * length - 2;
-                    for (let i = 0; i < trixWarmup && i < out.length; i += 1) {
-                        expect(Number.isNaN(out[i])).toBe(true);
-                    }
-                    if (out.length > trixWarmup) {
-                        expect(Number.isFinite(out[trixWarmup])).toBe(true);
-                    }
+                    expect(Number.isNaN(out[0])).toBe(true);
+                    expect(Number.isFinite(out[1])).toBe(true);
                 },
             ),
             { numRuns: 20 },

@@ -56,7 +56,7 @@ describe("ta.tema — property invariants", () => {
         );
     });
 
-    it("warmup is `3·length − 3` NaN slots when sources are finite", () => {
+    it("is finite from bar zero when sources are finite", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 40, maxLength: 80 }),
@@ -67,13 +67,8 @@ describe("ta.tema — property invariants", () => {
                         bars.length + 1,
                         (bar) => tema("slot", bar.close, length).current,
                     );
-                    const warmup = 3 * length - 3;
-                    for (let i = 0; i < warmup && i < out.length; i += 1) {
-                        expect(Number.isNaN(out[i])).toBe(true);
-                    }
-                    if (out.length > warmup) {
-                        expect(Number.isFinite(out[warmup])).toBe(true);
-                    }
+                    expect(out.every(Number.isFinite)).toBe(true);
+                    expect(out[0]).toBe(bars[0].close);
                 },
             ),
             { numRuns: 30 },

@@ -77,7 +77,8 @@ function tsiValue(num: number, den: number): number {
  * (×100); for the raw ratio, divide by 100.
  *
  * @formula  see above
- * @warmup   firstSmoothing + secondSmoothing + signalLength − 3
+ * @warmup   1 for both lines on a finite source (one prior source is
+ *           required for momentum; all EMA stages seed immediately)
  * @since 0.2
  * @stable
  *

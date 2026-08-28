@@ -12,6 +12,6 @@ describe("ta.chaikinOsc — golden", () => {
         const bars = syntheticBars(100, 42);
         const out = harness(bars, bars.length + 1, () => chaikinOsc("slot").current);
         // Captured on first deterministic green run.
-        expect(hashFloat64Array(out)).toBe("0e5a6477");
+        expect(hashFloat64Array(out)).toBe("481ff3d6");
     });
 });

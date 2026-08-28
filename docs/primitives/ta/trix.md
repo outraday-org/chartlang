@@ -21,8 +21,8 @@ signal[t] = EMA(trix, signalLength)
 
 ## Warmup
 
-3 · length + signalLength − 3 (first defined `signal` index ;
-trix line first defined at `3 · length − 2`)
+1 for both lines on a finite, nonzero source (TRIX needs
+one prior EMA3 value; its signal EMA seeds immediately)
 
 ## Anchors
 

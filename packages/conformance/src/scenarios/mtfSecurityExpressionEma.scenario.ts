@@ -4,11 +4,9 @@
 import type { Scenario, ScenarioAssertion } from "../runConformanceSuite.js";
 import { MTF_DAILY_FIXTURE_BARS } from "./mtfFixtures.js";
 
-// EMA length 2 (not 10): the shared 3-bar daily fixture warms a 2-period
-// EMA in two HTF closes, so the aligned series carries FINITE values — a
-// length-10 EMA over only three HTF bars would be all-NaN (Pine-style
-// warmup), a degenerate golden indistinguishable from the NaN fallback and
-// unable to prove the distinctness contract.
+// EMA length 2 keeps the three-bar reference sequence compact. Pine-compatible
+// EMA seeds on the first HTF close, so every aligned value after the first
+// secondary close is finite and remains distinct from the NaN fallback.
 const INLINE_SOURCE = `import { defineIndicator } from "@invinite-org/chartlang-core";
 export default defineIndicator({
     name: "mtf security expression ema",
@@ -22,7 +20,7 @@ export default defineIndicator({
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
-        sha256: "e105d8e00333c1d152d6ce5a40b5ea93077c5342457a125b141abf21a2299aaa",
+        sha256: "9d7725a035c4d1f96248c1bd2588b47548118d8f5e2e20a54b9bd9e0e5035ced",
     },
     { kind: "diagnostic-code-absent", code: "multi-timeframe-not-supported" },
     { kind: "diagnostic-code-absent", code: "unsupported-interval" },

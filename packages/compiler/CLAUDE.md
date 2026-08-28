@@ -166,10 +166,13 @@
   call is matched TEXTUALLY (`bar.point` property-access shape, mirroring
   the OHLCV `isSeriesShapedAccess` recognition) so it fires for both the
   destructured `compute({ bar })` binding and a `declare const bar: Bar`
-  test fixture. `bar.point(0, …)` (current), positive (future,
-  extrapolated) offsets, and non-literal / dynamic offsets contribute
-  `0`; the ambient `program.ts` shim declares `Bar.point` in lockstep
-  with core. Drawing anchors stay ONLY `WorldPoint { time, price }`.
+  test fixture. `bar.point(0, …)` (current) and positive (future,
+  extrapolated) offsets contribute `0`; const-resolvable negative expressions
+  fold to their precise depth, while genuinely dynamic negative offsets request
+  `seriesCapacities.dynamicFallback = 5000` and emit the shared
+  `dynamic-series-index` warning. The ambient `program.ts` shim declares
+  `Bar.point` in lockstep with core. Drawing anchors stay ONLY `WorldPoint {
+  time, price }`.
 - **`extractMaxLookback` counts a literal-length `ta.highestbars` /
   `ta.lowestbars` as `length − 1` lookback depth.** Both primitives return
   the bar OFFSET (≤ 0) to the trailing-window extreme, so the deepest offset
@@ -236,11 +239,12 @@
   passes can never disagree. `unwrapParens` also lives in `loopBounds.ts`
   (a leaf module) so `extractMaxLookback` and `resolveIndexBound` share it
   without a circular import.
-- **`extractMaxLookback` recognises `state.series`-bound variables as
+- **`extractMaxLookback` recognises all state-series-bound variables as
   series-shaped.** `collectSeriesVarNames` adds a variable's name to
   `seriesVarNames` when its initializer is a `ta.*` call **or** a
-  `state.series(...)` call (matched on `resolveCalleeName(...) ===
-  "state.series"`, the same resolution the slot-injection pass uses — so an
+  `state.series(...)`, `state.boolSeries(...)`, or `state.stringSeries(...)`
+  call (matched on `resolveCalleeName(...)`, the same resolution the
+  slot-injection pass uses — so an
   element-access form like `state["series"](...)` is not recognised; that
   form is rejected upstream as `stateful-call-element-access`). Once the name
   is collected, `isSeriesShapedAccess`'s identifier branch and the shared
@@ -463,7 +467,9 @@
   / non-literal `style` ⇒ best-effort `line` (slot still listed). For
   multi-export files the flat plot-slot list attaches to the **default
   manifest only** (mirrors how `outputs?` scopes; per-export plot
-  partitioning is deferred).
+  partitioning is deferred). `columns` is a first-class literal kind in this
+  inventory (never rewritten to histogram), and the ambient `PlotKind` /
+  `PlotOptsStyle` mirrors carry the matching union arms.
 - **`manifest.plots[*].defaultVisible` is a boolean-literal-only static
   visibility hint for `plot` and `hline`.** `injectCallsiteIds` reads a `visible`
   opt via `readLiteralVisible` (sibling of `readLiteralTitle`) and records
@@ -480,3 +486,9 @@
   visibility is unused. `PlotSlotDescriptor` is a **core** type
   (`packages/core/src/types.ts`); the append-only `defaultVisible?` lives there
   and is mirrored in the `program.ts` shim `PlotSlotDescriptor` in lockstep.
+- **Glyph plot titles are display identity, not dependency-output identity.**
+  `extractBindingOutputs` excludes literal `shape` / `character` / `arrow`
+  styles from the `.output(title)` namespace (like bgcolor/barcolor), so Pine's
+  legal duplicate plotshape titles do not trip `duplicate-output-title`.
+  Numeric line/columns/histogram titles remain unique and referenceable; do not
+  weaken the duplicate guard for those producer outputs.

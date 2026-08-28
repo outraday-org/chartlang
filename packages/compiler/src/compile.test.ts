@@ -404,9 +404,10 @@ export default defineIndicator({
         expect(Object.isFrozen(result)).toBe(true);
     });
 
-    it("type-checks the area plot style arm through the ambient shim", async () => {
-        // `{ kind: "area", fillAlpha? }` is an author-selectable PlotOptsStyle
-        // arm (core 1.10) — the shim must mirror it in lockstep or scripts
+    it("type-checks area, columns, and shape text through the ambient shim", async () => {
+        // `{ kind: "area", fillAlpha? }` and `{ kind: "columns", baseline? }`
+        // are author-selectable PlotOptsStyle arms — the shim must mirror them
+        // in lockstep or scripts
         // selecting it fail with `type-error`. A successful compile proves
         // zero type diagnostics; the manifest pin proves the callsite-kind
         // extractor recognises the literal.
@@ -418,6 +419,8 @@ export default defineIndicator({
     compute({ bar, ta, plot }) {
         plot(ta.rsi(bar.close, 14), { title: "rsi", style: { kind: "area", fillAlpha: 0.25 } });
         plot(ta.ema(bar.close, 20), { title: "ema", style: { kind: "area" } });
+        plot(bar.volume, { title: "volume", style: { kind: "columns", baseline: 0 } });
+        plot(bar.close, { title: "signal", style: { kind: "shape", shape: "xcross", size: 8, text: "1", textColor: "#ffffff" } });
     },
 });
 `;
@@ -426,7 +429,12 @@ export default defineIndicator({
             sourcePath: "area.chart.ts",
         });
         expect(Object.isFrozen(result)).toBe(true);
-        expect(result.manifest.plots?.map((p) => p.kind)).toEqual(["area", "area"]);
+        expect(result.manifest.plots?.map((p) => p.kind)).toEqual([
+            "area",
+            "area",
+            "columns",
+            "shape",
+        ]);
     });
 
     it("type-checks the destructured ctx.bgcolor/ctx.barcolor through the shim ComputeContext", async () => {

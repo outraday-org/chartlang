@@ -33,6 +33,17 @@ import { emitStr } from "./strFormat.js";
  */
 export type ArrayReductionWarnCode = "array-reduction-not-mapped" | "array-sort-returns-copy";
 
+const BAR_PRICE_SERIES_NAMES = new Set([
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "hl2",
+    "hlc3",
+    "ohlc4",
+]);
+
 /**
  * The diagnostic code the `map.*` rewrite may raise through
  * {@link EmitContext.mapWarn}: an unsupported `map.*` member over a `state.map`
@@ -107,6 +118,29 @@ export type EmitContext = Readonly<{
      * Absent → no source inputs.
      */
     sourceInputs?: ReadonlySet<string>;
+    /**
+     * Input names emitted as `input.externalSeries<number>`. A series-position
+     * read becomes `(inputs.<name> as Series<number>)`; a scalar-position read
+     * projects `.current`. History access naturally indexes the series form.
+     * Absent -> no external-series inputs.
+     */
+    externalSeriesInputs?: ReadonlySet<string>;
+    /**
+     * Series locals backed by unsupported feeds that the converter deliberately
+     * disables with a constant numeric value. Both current and history reads
+     * resolve to the same literal so a missing first-bar history slot cannot
+     * manufacture a change event through JavaScript's `0 != NaN` behavior.
+     */
+    disabledSeriesValues?: ReadonlyMap<string, number>;
+    /**
+     * Local series-valued aliases, currently pure-UDF parameters that are
+     * history-indexed in the function body. The map value is the emitted local
+     * expression (normally the parameter name). Scalar positions project
+     * `.current`; series/history positions preserve the alias itself.
+     */
+    seriesValueAliases?: ReadonlyMap<string, string>;
+    /** Pure-UDF name -> parameter indices that must receive a full series. */
+    udfSeriesParams?: ReadonlyMap<string, ReadonlySet<number>>;
     /**
      * Per-name replacement for a tuple-destructuring target — `macdLine` →
      * `macdLineResult.macd.current` — bound by a `[a, b, c] = ta.macd(...)`
@@ -628,6 +662,32 @@ function seriesSlotReceiver(receiver: ExpressionNode, ctx: EmitContext): Express
 function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): ExpressionNode {
     switch (node.kind) {
         case "identifier-expression": {
+            // A host-bound external source is a real `Series<number>`, unlike a
+            // normal `input.source` selector. Preserve the series in ta/plot /
+            // history positions and project its current value for arithmetic,
+            // comparisons, conditions, and UDF arguments. Locals are checked
+            // first so an inlined UDF parameter can safely shadow an input.
+            const seriesAlias = ctx.seriesValueAliases?.get(node.name);
+            if (seriesAlias !== undefined) {
+                return { ...node, name: scalar ? `${seriesAlias}.current` : seriesAlias };
+            }
+            const disabledValue = ctx.disabledSeriesValues?.get(node.name);
+            if (!ctx.localNames.has(node.name) && disabledValue !== undefined) {
+                return {
+                    kind: "literal-expression",
+                    literalKind: "int",
+                    value: String(disabledValue),
+                    span: node.span,
+                };
+            }
+            if (
+                !ctx.localNames.has(node.name) &&
+                ctx.inputNames.has(node.name) &&
+                ctx.externalSeriesInputs?.has(node.name) === true
+            ) {
+                const series = `(inputs.${node.name} as Series<number>)`;
+                return { ...node, name: scalar ? `${series}.current` : series };
+            }
             const replacement = rewriteIdentifier(node.name, ctx);
             if (replacement !== null) {
                 return { ...node, name: replacement };
@@ -764,13 +824,21 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
             // a SERIES position (an inner `ta.*` source arg stays a `Series`);
             // every other call (`math.*`, a user function) takes scalar args.
             const calleeName = dottedCallee(node.callee);
-            const argScalar = calleeName === null || !calleeName.startsWith("ta.");
+            const taArgsAreSeries = calleeName?.startsWith("ta.") === true;
+            const udfSeriesParams =
+                node.callee.kind === "identifier-expression"
+                    ? ctx.udfSeriesParams?.get(node.callee.name)
+                    : undefined;
             return {
                 ...node,
                 callee: rewriteTree(node.callee, ctx, false),
-                args: node.args.map((arg) => ({
+                args: node.args.map((arg, index) => ({
                     ...arg,
-                    value: rewriteTree(arg.value, ctx, argScalar),
+                    value: rewriteTree(
+                        arg.value,
+                        ctx,
+                        !taArgsAreSeries && udfSeriesParams?.has(index) !== true,
+                    ),
                 })),
             };
         }
@@ -785,6 +853,20 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
             // rewrites normally; the receiver of every OTHER history form is
             // rewritten by the generic recursion in SERIES position (a `ta.*`
             // receiver `ta.sma(close,20)[1]` indexes the `Series`).
+            if (
+                node.receiver.kind === "identifier-expression" &&
+                !ctx.localNames.has(node.receiver.name)
+            ) {
+                const disabledValue = ctx.disabledSeriesValues?.get(node.receiver.name);
+                if (disabledValue !== undefined) {
+                    return {
+                        kind: "literal-expression",
+                        literalKind: "int",
+                        value: String(disabledValue),
+                        span: node.span,
+                    };
+                }
+            }
             const seriesReceiver = seriesSlotReceiver(node.receiver, ctx);
             return {
                 ...node,
@@ -905,7 +987,30 @@ export function emitWithContext(node: ExpressionNode, ctx: EmitContext): string 
  *     emitScalar(call, ctx); // "ta.atr(14).current"
  */
 export function emitScalar(node: ExpressionNode, ctx: EmitContext): string {
-    return emitExpr(rewriteTree(node, ctx, true), ctx.annotations, ctx.enumTypes);
+    return emitExpr(rewriteStoredScalar(node, ctx), ctx.annotations, ctx.enumTypes);
+}
+
+function rewriteStoredScalar(node: ExpressionNode, ctx: EmitContext): ExpressionNode {
+    if (
+        node.kind === "identifier-expression" &&
+        !ctx.localNames.has(node.name) &&
+        BAR_PRICE_SERIES_NAMES.has(node.name)
+    ) {
+        const mapped = remapIdentifier(node.name);
+        if (mapped !== null) return { ...node, name: `${mapped}.current` };
+    }
+    if (node.kind === "paren-expression") {
+        return { ...node, expression: rewriteStoredScalar(node.expression, ctx) };
+    }
+    if (node.kind === "ternary-expression") {
+        return {
+            ...node,
+            condition: rewriteTree(node.condition, ctx, true),
+            consequent: rewriteStoredScalar(node.consequent, ctx),
+            alternate: rewriteStoredScalar(node.alternate, ctx),
+        };
+    }
+    return rewriteTree(node, ctx, true);
 }
 
 /**
@@ -984,7 +1089,12 @@ export function buildDrawingEmitContext(
 ): EmitContext {
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
     const inputCasts = new Map<string, string>();
+    const externalSeriesInputs = new Set<string>();
     for (const input of scaffold.inputs) {
+        if (input.code.startsWith("input.externalSeries<")) {
+            externalSeriesInputs.add(input.name);
+            continue;
+        }
         const cast = inputCastType(input.code);
         if (cast !== null) {
             inputCasts.set(input.name, cast);
@@ -1007,6 +1117,7 @@ export function buildDrawingEmitContext(
         localNames: new Set(),
         stateSlots: new Map(),
         inputCasts,
+        externalSeriesInputs,
         handleRings,
     };
 }

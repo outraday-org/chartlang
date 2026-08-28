@@ -104,7 +104,7 @@ function pvoValue(fast: number, slow: number): number {
  *           pvo    = 100 · (fast − slow) / slow ; NaN if slow === 0 ;
  *           signal = ema(pvo, signalLength) ;
  *           hist   = pvo − signal
- * @warmup   slowLength + signalLength − 2
+ * @warmup   0 when volume and the slow EMA are nonzero
  * @since 0.2
  * @stable
  *

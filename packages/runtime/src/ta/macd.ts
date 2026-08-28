@@ -98,7 +98,7 @@ function resultForOffset(slot: MacdSlot, offset: number): MacdResult {
  *           macd   = fast − slow ;
  *           signal = ema(macd, signalLength) ;
  *           hist   = macd − signal
- * @warmup   slowLength + signalLength − 1 (slow EMA seeds at slowLength − 1; signal EMA seeds signalLength − 1 bars after that)
+ * @warmup   0 on a finite source (all three EMA stages seed immediately)
  * @since 0.1
  * @stable
  *

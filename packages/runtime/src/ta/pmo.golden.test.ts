@@ -24,6 +24,6 @@ describe("ta.pmo — golden", () => {
         });
         const combined = [...ps, ...ss];
         // Captured on first deterministic green run.
-        expect(hashFloat64Array(combined)).toBe("d18c9fbe");
+        expect(hashFloat64Array(combined)).toBe("ae74353b");
     });
 });

@@ -27,6 +27,6 @@ describe("ta.ppo — golden", () => {
         });
         const combined = [...ppos, ...signals, ...hists];
         // Captured on first deterministic green run.
-        expect(hashFloat64Array(combined)).toBe("67897cf2");
+        expect(hashFloat64Array(combined)).toBe("227d23a6");
     });
 });

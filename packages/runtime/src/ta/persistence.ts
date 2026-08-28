@@ -17,6 +17,7 @@ import { makeSeriesView } from "../seriesView.js";
 import type { StreamState } from "../streamState.js";
 
 const TA_SLOT_PREFIX = "ta:";
+const OBSOLETE_EMA_FIELDS = ["seedSum", "seedCount", "prevEma", "prevClosedEma"] as const;
 
 type RestoredBaseSlot = {
     readonly outBuffer: Float64RingBuffer;
@@ -35,10 +36,8 @@ type RestoredEmaSlot = RestoredBaseSlot & {
     readonly kind: "ta.ema";
     readonly alpha: number;
     readonly length: number;
-    seedSum: number;
-    seedCount: number;
-    prevEma: number;
-    prevClosedEma: number;
+    closedEma: number;
+    priorClosedEma: number;
 };
 
 type RestoredRsiSlot = RestoredBaseSlot & {
@@ -87,6 +86,16 @@ function isFloat64RingBuffer(value: unknown): value is Float64RingBuffer {
     return value instanceof Float64RingBuffer;
 }
 
+function hasObsoleteEmaFields(value: Readonly<Record<string, unknown>>): boolean {
+    return OBSOLETE_EMA_FIELDS.some((field) => Object.hasOwn(value, field));
+}
+
+function isCanonicalEmaConfiguration(length: unknown, alpha: unknown): boolean {
+    if (!isInteger(length) || typeof alpha !== "number") return false;
+    if (length <= 0) return Number.isNaN(alpha);
+    return alpha === 2 / (length + 1);
+}
+
 function serialiseSma(slot: Readonly<Record<string, unknown>>): JsonValue | null {
     if (
         slot.kind !== "ta.sma" ||
@@ -109,12 +118,12 @@ function serialiseSma(slot: Readonly<Record<string, unknown>>): JsonValue | null
 function serialiseEma(slot: Readonly<Record<string, unknown>>): JsonValue | null {
     if (
         slot.kind !== "ta.ema" ||
-        typeof slot.alpha !== "number" ||
         typeof slot.length !== "number" ||
-        typeof slot.seedSum !== "number" ||
-        typeof slot.seedCount !== "number" ||
-        typeof slot.prevEma !== "number" ||
-        typeof slot.prevClosedEma !== "number" ||
+        typeof slot.alpha !== "number" ||
+        !isCanonicalEmaConfiguration(slot.length, slot.alpha) ||
+        hasObsoleteEmaFields(slot) ||
+        typeof slot.closedEma !== "number" ||
+        typeof slot.priorClosedEma !== "number" ||
         !isFloat64RingBuffer(slot.outBuffer)
     ) {
         return null;
@@ -124,10 +133,8 @@ function serialiseEma(slot: Readonly<Record<string, unknown>>): JsonValue | null
         alpha: finiteOrNull(slot.alpha),
         length: slot.length,
         outBuffer: serialiseBuffer(slot.outBuffer),
-        seedSum: finiteOrNull(slot.seedSum),
-        seedCount: slot.seedCount,
-        prevEma: finiteOrNull(slot.prevEma),
-        prevClosedEma: finiteOrNull(slot.prevClosedEma),
+        closedEma: finiteOrNull(slot.closedEma),
+        priorClosedEma: finiteOrNull(slot.priorClosedEma),
     };
 }
 
@@ -190,18 +197,19 @@ function restoreEma(snapshot: Readonly<Record<string, unknown>>): RestoredEmaSlo
     if (
         snapshot.kind !== "ta.ema" ||
         !isInteger(snapshot.length) ||
-        !isInteger(snapshot.seedCount) ||
+        hasObsoleteEmaFields(snapshot) ||
         !isBufferSnapshot(outSnapshot)
     ) {
         return null;
     }
     const numbers = restoreNumbers({
         alpha: snapshot.alpha,
-        seedSum: snapshot.seedSum,
-        prevEma: snapshot.prevEma,
-        prevClosedEma: snapshot.prevClosedEma,
+        closedEma: snapshot.closedEma,
+        priorClosedEma: snapshot.priorClosedEma,
     });
-    if (numbers === null) return null;
+    if (numbers === null || !isCanonicalEmaConfiguration(snapshot.length, numbers.alpha)) {
+        return null;
+    }
     const outBuffer = restoreBuffer(outSnapshot, outSnapshot.values.length);
     if (outBuffer === null) return null;
     return {
@@ -209,10 +217,8 @@ function restoreEma(snapshot: Readonly<Record<string, unknown>>): RestoredEmaSlo
         ...baseSlot(outBuffer),
         alpha: numbers.alpha,
         length: snapshot.length,
-        seedSum: numbers.seedSum,
-        seedCount: snapshot.seedCount,
-        prevEma: numbers.prevEma,
-        prevClosedEma: numbers.prevClosedEma,
+        closedEma: numbers.closedEma,
+        priorClosedEma: numbers.priorClosedEma,
     };
 }
 

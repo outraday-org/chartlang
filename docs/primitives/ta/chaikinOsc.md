@@ -10,12 +10,11 @@ two `ta.ema` sub-slots over the ADL series; a fix to `ta.adl` or
 category, oscillator-shape around zero).
 
 Defaults `{ fastLength: 3, slowLength: 10 }` (TradingView /
-invinite canonical). ADL has warmup 0; the slow EMA seeds at bar
-`slowLength − 1`, so the oscillator first emits a finite value at
-that bar.
+invinite canonical). ADL and both EMA stages seed on bar zero, so
+the oscillator is finite immediately for a finite bar.
 
 **Tick mode.** The sub-slots handle their own tick replay (ADL
-snapshots `prevClosedCumAdl`; EMA snapshots `prevClosedEma`); this
+snapshots `prevClosedCumAdl`; EMA snapshots `priorClosedEma`); this
 primitive's parent slot just re-evaluates `fastEma − slowEma`
 against the live sub-slot heads and `replaceHead`s its own output.
 
@@ -25,7 +24,7 @@ chaikinOsc[t] = ema(adl(t), fastLength) − ema(adl(t), slowLength)
 
 ## Warmup
 
-slowLength − 1
+0 on a finite ADL source
 
 ## Signature
 

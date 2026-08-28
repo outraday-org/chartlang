@@ -18,6 +18,6 @@ describe("ta.klinger — golden", () => {
             ss.push(k.signal.current);
             return null;
         });
-        expect(hashFloat64Array([...ks, ...ss])).toBe("a105d5b5");
+        expect(hashFloat64Array([...ks, ...ss])).toBe("dfe65929");
     });
 });

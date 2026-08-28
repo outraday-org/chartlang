@@ -1216,10 +1216,10 @@ describe("createScriptRunner", () => {
         });
         await runner.push({ kind: "close", bar: makeBar(0) });
 
-        // EMA(3) over [10,20,30,40]: seed = (10+20+30)/3 = 20, then
-        // 40·0.5 + 20·0.5 = 30; aligned to the one main bar at/after the last
-        // daily close.
-        expect(seen).toEqual([30]);
+        // Pine EMA(3) seeds from the first finite value: 10, 15, 22.5,
+        // then 40·0.5 + 22.5·0.5 = 31.25; aligned to the one main bar at/after
+        // the last daily close.
+        expect(seen).toEqual([31.25]);
         expect(runner.drain().diagnostics).toEqual([]);
         await runner.dispose();
     });

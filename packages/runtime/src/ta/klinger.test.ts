@@ -8,16 +8,18 @@ import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { klinger } from "./klinger.js";
 
 describe("ta.klinger", () => {
-    it("emits NaN through warmup (defaults 34, 55, 13)", () => {
+    it("seeds Klinger and signal from the first zero-VF bar", () => {
         const bars = syntheticBars(80, 5);
         const out = harness(bars, bars.length + 1, (bar) => {
             const k = klinger("slot");
             return { klinger: k.klinger.current, signal: k.signal.current };
         });
-        // Conservatively assert NaN for the first 30 bars (fast EMA seeds
-        // at bar 33 for default fastLength=34); the signal needs further
-        // warmup beyond that.
-        for (let i = 0; i < 30; i += 1) expect(Number.isNaN(out[i].signal)).toBe(true);
+        expect(out[0]).toEqual({ klinger: 0, signal: 0 });
+        expect(
+            out.every(
+                ({ klinger: line, signal }) => Number.isFinite(line) && Number.isFinite(signal),
+            ),
+        ).toBe(true);
     });
 
     it("zero-volume bars produce vf = 0 (no throw, output finite or NaN)", () => {
@@ -32,9 +34,8 @@ describe("ta.klinger", () => {
             interval: "1m",
         }));
         const out = harness(bars, bars.length + 1, (bar) => klinger("slot").klinger.current);
-        // With volume=0 every bar, vf is always 0 → EMAs converge to 0 →
-        // klinger = 0 - 0 = 0 once both EMAs are warmed.
-        for (let i = 60; i < bars.length; i += 1) {
+        // With volume=0 every bar, vf and both seeded EMAs stay at zero.
+        for (let i = 0; i < bars.length; i += 1) {
             expect(out[i]).toBe(0);
         }
     });
@@ -61,8 +62,7 @@ describe("ta.klinger", () => {
             const k = klinger("slot", { fastLength: 5, slowLength: 8, signalLength: 3 });
             return k.signal.current;
         });
-        // Warmup `slowLength + signalLength - 2 = 9` → finite at tail.
-        expect(Number.isFinite(out[out.length - 1])).toBe(true);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 });
 

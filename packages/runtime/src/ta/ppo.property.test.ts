@@ -42,7 +42,7 @@ describe("ta.ppo — property invariants", () => {
         );
     });
 
-    it("warmup is at least slowLength + signalLength − 2 NaN slots on signal", () => {
+    it("signal is finite from bar zero for finite nonzero sources", () => {
         fc.assert(
             fc.property(fc.array(arbBar, { minLength: 30, maxLength: 60 }), (bars) => {
                 const out = harness(
@@ -55,10 +55,8 @@ describe("ta.ppo — property invariants", () => {
                             signalLength: 4,
                         }).signal.current,
                 );
-                // First defined signal at bar `6 + 4 - 2 = 8`.
-                for (let i = 0; i < 8 && i < out.length; i += 1) {
-                    expect(Number.isNaN(out[i])).toBe(true);
-                }
+                expect(out.every(Number.isFinite)).toBe(true);
+                expect(out[0]).toBe(0);
             }),
             { numRuns: 15 },
         );

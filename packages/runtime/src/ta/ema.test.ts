@@ -4,6 +4,7 @@
 import type { Bar } from "@invinite-org/chartlang-core";
 import { describe, expect, it } from "vitest";
 
+import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
 import { harness, harnessWithCtx, tick } from "./__fixtures__/runPrimitive.js";
 import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { ema } from "./ema.js";
@@ -23,11 +24,11 @@ describe("ta.ema", () => {
         }
     });
 
-    it("emits NaN for the first length−1 bars", () => {
+    it("is finite from bar zero for a finite source", () => {
         const bars = syntheticBars(30, 3);
         const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 5).current);
-        for (let i = 0; i < 4; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[4])).toBe(true);
+        expect(out[0]).toBe(bars[0].close);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 
     it("returns the same Series identity on every call", () => {
@@ -56,43 +57,59 @@ describe("ta.ema", () => {
         expect(Number.isFinite(out[bars.length - 1])).toBe(true);
     });
 
-    it("holds the previous EMA forward when the source is NaN past warmup", () => {
+    it("emits NaN for a missing source and resumes from the prior finite EMA", () => {
         const bars: Bar[] = syntheticBars(20, 4).map((b, i) =>
             i === 10 ? { ...b, close: Number.NaN } : b,
         );
         const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 5).current);
-        expect(out[10]).toBeCloseTo(out[9], 12);
+        expect(Number.isNaN(out[10])).toBe(true);
+        const alpha = 2 / 6;
+        expect(out[11]).toBeCloseTo(bars[11].close * alpha + out[9] * (1 - alpha), 12);
     });
 
-    it("holds prevClosedEma during NaN warmup", () => {
-        // Slot starts un-warm; a NaN tick during seeding shouldn't crash.
-        const bars: Bar[] = syntheticBars(10, 8);
-        bars[1] = { ...bars[1], close: Number.NaN };
+    it("keeps leading NaNs and seeds on the first usable source", () => {
+        const bars: Bar[] = syntheticBars(5, 8).map((bar, index) =>
+            index < 2 ? { ...bar, close: Number.NaN } : bar,
+        );
         const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 5).current);
         expect(Number.isNaN(out[0])).toBe(true);
         expect(Number.isNaN(out[1])).toBe(true);
+        expect(out[2]).toBe(bars[2].close);
+    });
+
+    it("length 1 follows each finite source exactly and preserves NaN gaps", () => {
+        const bars: Bar[] = syntheticBars(4, 2).map((bar, index) =>
+            index === 1 ? { ...bar, close: Number.NaN } : bar,
+        );
+        const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 1).current);
+        expect(out[0]).toBe(bars[0].close);
+        expect(Number.isNaN(out[1])).toBe(true);
+        expect(out[2]).toBe(bars[2].close);
+        expect(out[3]).toBe(bars[3].close);
+    });
+
+    it.each([0, -1, 1.5, Number.NaN])("emits NaN for invalid length %s", (length) => {
+        const bars = syntheticBars(4, 2);
+        const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, length).current);
+        expect(out.every(Number.isNaN)).toBe(true);
+    });
+
+    it("exposes the first finite output through history indexing", () => {
+        const bars = syntheticBars(4, 9);
+        const out = harness(bars, bars.length + 1, (bar) => {
+            const series = ema("slot", bar.close, 5);
+            return { current: series.current, prior: series[1] };
+        });
+        expect(out[0].current).toBe(bars[0].close);
+        expect(Number.isNaN(out[0].prior)).toBe(true);
+        expect(out[1].prior).toBe(out[0].current);
     });
 });
 
-describe("ta.ema tick during seeding", () => {
-    it("tick while count < length-1 returns NaN", () => {
-        const bars = syntheticBars(3, 5);
-        const { ctxRef } = harnessWithCtx(bars, bars.length + 10, (bar) =>
-            ema("slot", bar.close, 5),
-        );
-        const head = tick(
-            ctxRef,
-            bars[bars.length - 1],
-            () => ema("slot", bars[bars.length - 1].close, 5).current,
-        );
-        expect(Number.isNaN(head)).toBe(true);
-    });
-
-    it("tick at the seed boundary returns the provisional seed mean", () => {
-        // 4 closes, length 5: count = 4 < 5; tick with one more value
-        // simulates the seed completing (count would be 5) and returns the
-        // mean.
-        const bars = syntheticBars(4, 6);
+describe("ta.ema first-usable tick", () => {
+    it("a finite tick replaces a NaN closed head from the prior recurrence", () => {
+        const bars: Bar[] = syntheticBars(2, 6);
+        bars[1] = { ...bars[1], close: Number.NaN };
         const { ctxRef } = harnessWithCtx(bars, bars.length + 10, (bar) =>
             ema("slot", bar.close, 5),
         );
@@ -102,17 +119,29 @@ describe("ta.ema tick during seeding", () => {
             { ...bars[bars.length - 1], close: tickClose },
             () => ema("slot", tickClose, 5).current,
         );
-        const expected = (bars.reduce((a, b) => a + b.close, 0) + tickClose) / 5;
+        const alpha = 2 / 6;
+        const expected = tickClose * alpha + bars[0].close * (1 - alpha);
         expect(head).toBeCloseTo(expected, 10);
     });
 
-    it("tick with NaN src during seeding returns prevEma (NaN)", () => {
+    it("a finite tick seeds immediately when no finite close exists", () => {
+        const bars: Bar[] = syntheticBars(2, 7).map((bar) => ({
+            ...bar,
+            close: Number.NaN,
+        }));
+        const { ctxRef } = harnessWithCtx(bars, bars.length + 5, (bar) =>
+            ema("slot", bar.close, 5),
+        );
+        const head = tick(ctxRef, bars[bars.length - 1], () => ema("slot", 123, 5).current);
+        expect(head).toBe(123);
+    });
+
+    it("a NaN tick emits NaN without changing recurrence state", () => {
         const bars = syntheticBars(2, 7);
         const { ctxRef } = harnessWithCtx(bars, bars.length + 5, (bar) =>
             ema("slot", bar.close, 5),
         );
         const head = tick(ctxRef, bars[bars.length - 1], () => ema("slot", Number.NaN, 5).current);
-        // prevEma is NaN during seeding, so the tick yields NaN.
         expect(Number.isNaN(head)).toBe(true);
     });
 });
@@ -161,6 +190,26 @@ describe("ta.ema tick-mode", () => {
             return b;
         });
         expect(b).toBeCloseTo(a, 12);
+    });
+
+    it("does not carry a tentative tick into the next close", () => {
+        const bars: Bar[] = [
+            { ...syntheticBars(1, 1)[0], close: 10 },
+            { ...syntheticBars(1, 2)[0], close: 20 },
+        ];
+        const { ctxRef } = harnessWithCtx(bars, 8, (bar) => ema("slot", bar.close, 3));
+        const tickBar = { ...bars[1], close: 100 };
+        const tentative = tick(ctxRef, tickBar, () => ema("slot", tickBar.close, 3).current);
+        expect(tentative).toBe(55);
+
+        ACTIVE_RUNTIME_CONTEXT.current = ctxRef.ctx;
+        try {
+            ctxRef.ctx.isTick = false;
+            const nextClose = ema("slot", 30, 3).current;
+            expect(nextClose).toBe(22.5);
+        } finally {
+            ACTIVE_RUNTIME_CONTEXT.current = null;
+        }
     });
 });
 

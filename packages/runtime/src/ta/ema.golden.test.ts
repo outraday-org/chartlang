@@ -12,6 +12,6 @@ describe("ta.ema — golden", () => {
         const bars = syntheticBars(100, 42);
         const out = harness(bars, bars.length + 1, (bar) => ema("slot", bar.close, 20).current);
         const h = hashFloat64Array(out);
-        expect(h).toBe("8006e60d");
+        expect(h).toBe("5f6774f3");
     });
 });

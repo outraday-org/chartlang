@@ -55,7 +55,7 @@ function initSlot(length: number, capacity: number): TemaSlot {
  *           ema2 = EMA(ema1, length) ;
  *           ema3 = EMA(ema2, length) ;
  *           out  = 3 · ema1 − 3 · ema2 + ema3
- * @warmup   3 · length − 3
+ * @warmup   0 on a finite source
  * @since 0.2
  * @stable
  *

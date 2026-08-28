@@ -260,10 +260,11 @@ describe("host-worker integration", () => {
         const weeklyHead = weeklyPlots[weeklyPlots.length - 1].value;
         const mainHead = mainPlots[mainPlots.length - 1].value;
 
-        // EMA(3) over weekly [10,20,30,40] head = 30; finite and distinct from
-        // the same-length main-clock EMA(3) (which warms to 42 over [40..43]).
+        // Pine EMA(3) over weekly [10,20,30,40] heads at 31.25; finite and
+        // distinct from the same-length main-clock EMA(3), which heads at
+        // 42.125 over [40..43].
         expect(Number.isFinite(weeklyHead)).toBe(true);
-        expect(weeklyHead).toBeCloseTo(30, 6);
+        expect(weeklyHead).toBeCloseTo(31.25, 6);
         expect(Number.isFinite(mainHead)).toBe(true);
         expect(weeklyHead).not.toBeCloseTo(mainHead, 3);
         expect(drained.diagnostics).toEqual([]);

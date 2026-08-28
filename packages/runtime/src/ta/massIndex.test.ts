@@ -8,12 +8,12 @@ import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { massIndex } from "./massIndex.js";
 
 describe("ta.massIndex", () => {
-    it("emits NaN until warmup completes (2 · emaLength + sumLength − 3)", () => {
-        // Defaults: emaLength=9, sumLength=25 → warmup = 9+9+25-3 = 40.
+    it("emits NaN until the ratio sum window fills", () => {
+        // Both EMAs seed on bar zero, so only the 25-bar ratio sum warms up.
         const bars = syntheticBars(60, 4);
         const out = harness(bars, bars.length + 1, () => massIndex("slot").current);
-        for (let i = 0; i < 40; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[40])).toBe(true);
+        for (let i = 0; i < 24; i += 1) expect(Number.isNaN(out[i])).toBe(true);
+        expect(Number.isFinite(out[24])).toBe(true);
     });
 
     it("matches the canonical mass-index hand-computation on a flat-range source", () => {
@@ -29,8 +29,8 @@ describe("ta.massIndex", () => {
             bars.length + 1,
             () => massIndex("slot", { emaLength: 5, sumLength: 10 }).current,
         );
-        // Warmup = 5+5+10-3 = 17. From bar 17 onwards the sum is 10.
-        for (let i = 17; i < bars.length; i += 1) {
+        // Only the ten-ratio sum window warms up; it is full at bar 9.
+        for (let i = 9; i < bars.length; i += 1) {
             expect(out[i]).toBeCloseTo(10, 9);
         }
     });

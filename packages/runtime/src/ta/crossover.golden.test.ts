@@ -17,6 +17,6 @@ describe("ta.crossover — golden", () => {
             return crossover("cross", fast.current, slow.current).current;
         });
         const h = hashBoolArray(out);
-        expect(h).toBe("0cee2ba7");
+        expect(h).toBe("f47db15d");
     });
 });

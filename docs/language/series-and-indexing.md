@@ -156,9 +156,10 @@ byte-identical to the no-`z` path. The full contract is in
 
 ## Warmup and NaN
 
-Every `ta.*` primitive declares a warmup window. `ta.ema(_, n)` returns
-`NaN` for the first `n - 1` bars; `ta.rsi(_, n)` warms over its `n`-bar
-window; `ta.macd` warms over the longer of its two EMAs. The primitive
+Every `ta.*` primitive declares a warmup window. `ta.ema(_, n)` seeds on
+the first finite source and emits `NaN` only for missing-source bars;
+windowed primitives such as `ta.sma(_, n)` and `ta.rsi(_, n)` retain their
+documented warmup. The primitive
 reference pages under [TA primitives](../primitives/ta/) carry each
 window in the `@warmup` line.
 
@@ -170,13 +171,13 @@ adapters render them as gaps, not as zeroes.
 import { defineIndicator, plot, ta } from "@invinite-org/chartlang-core";
 
 export default defineIndicator({
-    name: "EMA(50) — warmed by bar 49",
+    name: "SMA(50) — warmed by bar 49",
     apiVersion: 1,
     overlay: true,
     compute({ bar, ta, plot }) {
-        const ema = ta.ema(bar.close, 50);
-        // ema.current is NaN for the first 49 bars — the plot is a gap.
-        plot(ema, { title: "EMA(50)" });
+        const sma = ta.sma(bar.close, 50);
+        // sma.current is NaN for the first 49 bars — the plot is a gap.
+        plot(sma, { title: "SMA(50)" });
     },
 });
 ```

@@ -2232,13 +2232,13 @@
     {
         "id": "idiom-warmup-gap",
         "label": "Idiom · Warmup Gap",
-        "description": "Warmup `NaN` renders as a plot gap, not a zero: `ta.ema(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.",
+        "description": "Warmup `NaN` renders as a plot gap, not a zero: `ta.sma(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.",
         "category": "language",
         "primitives": [],
         "idioms": [
             "lang.warmupGap"
         ],
-        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Idiom · Warmup Gap\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ bar, ta, plot }) {\n        // Idiom: warmup NaN renders as a GAP, not a zero\n        // (docs/language/series-and-indexing.md § \"Warmup and NaN\"). `ta.ema(_, 50)`\n        // returns NaN for its first 49 bars; the plot of a NaN value is emitted as\n        // `value: null` and adapters draw nothing there, so the line simply starts\n        // once the average has warmed — never a misleading drop to 0.\n        const ema = ta.ema(bar.close, 50);\n        plot(ema, { title: \"EMA(50)\", color: \"#ab47bc\" });\n    },\n});\n"
+        "source": "// Copyright (c) 2026 Invinite. Licensed under the MIT License.\n// See the LICENSE file in the repo root for full license text.\n\nimport { defineIndicator, plot, ta } from \"@invinite-org/chartlang-core\";\n\nexport default defineIndicator({\n    name: \"Idiom · Warmup Gap\",\n    apiVersion: 1,\n    overlay: true,\n    compute({ bar, ta, plot }) {\n        // Idiom: warmup NaN renders as a GAP, not a zero\n        // (docs/language/series-and-indexing.md § \"Warmup and NaN\"). `ta.sma(_, 50)`\n        // returns NaN for its first 49 bars; the plot of a NaN value is emitted as\n        // `value: null` and adapters draw nothing there, so the line simply starts\n        // once the average has warmed — never a misleading drop to 0.\n        const sma = ta.sma(bar.close, 50);\n        plot(sma, { title: \"SMA(50)\", color: \"#ab47bc\" });\n    },\n});\n"
     },
     {
         "id": "idiom-bounded-loop",

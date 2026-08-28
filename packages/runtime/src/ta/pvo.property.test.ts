@@ -24,7 +24,7 @@ describe("ta.pvo — property invariants", () => {
         );
     });
 
-    it("warmup respects slowLength: bars 0..slowLength-2 are NaN", () => {
+    it("is finite from bar zero for nonzero volume", () => {
         fc.assert(
             fc.property(
                 fc.integer({ min: 4, max: 20 }),
@@ -36,7 +36,8 @@ describe("ta.pvo — property invariants", () => {
                         bars.length + 1,
                         () => pvo("slot", { fastLength: 2, slowLength: slow }).pvo.current,
                     );
-                    for (let i = 0; i < slow - 1; i += 1) expect(Number.isNaN(out[i])).toBe(true);
+                    expect(out.every(Number.isFinite)).toBe(true);
+                    expect(out[0]).toBe(0);
                 },
             ),
             { numRuns: 15 },

@@ -84,7 +84,8 @@ function smiValue(numSmoothed: number, denSmoothed: number): number {
  *           denSmoothed = EMA(secondSmoothing)(EMA(firstSmoothing)(den)) ;
  *           smi    = 100 · numSmoothed / denSmoothed ;
  *           signal = EMA(dLength)(smi)
- * @warmup   kLength + firstSmoothing + secondSmoothing + dLength − 4
+ * @warmup   kLength − 1 for both lines (the high/low window; all EMA
+ *           stages seed immediately)
  * @since 0.2
  * @stable
  *

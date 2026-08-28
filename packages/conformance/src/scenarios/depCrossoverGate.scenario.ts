@@ -57,7 +57,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
         slotId: CROSS_SLOT_ID,
-        sha256: "e89916c796be2dfc3b1833e004231f3e5a16a088c4590e41cae2306d881147f0",
+        sha256: "3f6fa75547d8e5adc6d076924736be55d83af7ac05a3fefd48c708839832b330",
     },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "dep-error" },

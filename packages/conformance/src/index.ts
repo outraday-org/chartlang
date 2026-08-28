@@ -2,6 +2,50 @@
 // See the LICENSE file in the repo root for full license text.
 
 export { runConformanceSuite } from "./runConformanceSuite.js";
+export {
+    compareTrendMasmEngineParity,
+    compareTrendMasmLiveFeedParity,
+    compareTrendMasmPresentationParity,
+    deriveMasmBackgroundIntervals,
+    loadTrendMasmParityOracle,
+    parityOracleSha256,
+    TREND_MASM_REQUIRED_DECISION_DISTANCES,
+    TREND_MASM_PARITY_FIXTURE_DIR,
+    validateTrendMasmParityOracle,
+} from "./parityOracle.js";
+export type {
+    ActiveInterval,
+    NumericTolerance,
+    OraclePlotDefinition,
+    OracleDirection,
+    OracleLabel,
+    OracleNumber,
+    OraclePlotPoint,
+    OracleTradeEvent,
+    ParityComparison,
+    ParityFirstDifference,
+    ParityLayer,
+    TrendMasmBar,
+    TrendMasmCaptureMetadata,
+    TrendMasmExpectedRow,
+    TrendMasmParityOracle,
+} from "./parityOracle.js";
+export {
+    evaluateTrendMasmPineReference,
+    pineEma,
+    pineRma,
+    pineSma,
+    pineWma,
+} from "./reference/trendMasmPineReference.js";
+export type {
+    ReferenceBar,
+    ReferenceEvaluation,
+    ReferenceExpectedRow,
+    ReferenceLabel,
+    ReferenceNumber,
+    ReferencePlotDefinition,
+    ReferencePlotPoint,
+} from "./reference/trendMasmPineReference.js";
 export { renderConformanceJson, renderConformanceMarkdown } from "./report/renderReport.js";
 export type { ConformanceReportMeta } from "./report/renderReport.js";
 export type {

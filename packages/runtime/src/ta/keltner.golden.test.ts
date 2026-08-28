@@ -16,8 +16,8 @@ describe("ta.keltner — golden", () => {
         });
         // Hashes captured during implementation against
         // syntheticBars(100, 42); re-pin if the math intentionally changes.
-        expect(hashFloat64Array(out.map((o) => o.u))).toBe("0f2bab70");
-        expect(hashFloat64Array(out.map((o) => o.m))).toBe("8006e60d");
-        expect(hashFloat64Array(out.map((o) => o.l))).toBe("6a24fe89");
+        expect(hashFloat64Array(out.map((o) => o.u))).toBe("810b6532");
+        expect(hashFloat64Array(out.map((o) => o.m))).toBe("5f6774f3");
+        expect(hashFloat64Array(out.map((o) => o.l))).toBe("8d2ee780");
     });
 });

@@ -16,7 +16,7 @@ export default defineIndicator({
         },
         compute({ bar, plot, state }) {
             const levels = state.map<number, number>(1000);
-            let key = Math.round(bar.close);
+            let key = Math.round(bar.close.current);
             let prior = (levels.get(key) ?? Number.NaN);
             levels.set(key, (!Number.isFinite(prior) ? 0 : prior) + bar.volume);
             plot((levels.get(key) ?? Number.NaN));

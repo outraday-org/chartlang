@@ -14,11 +14,13 @@ export default defineIndicator({
             polylines: 50,
             other: 0,
         },
-        compute({ bar, plot, state }) {
+        compute({ bar, plot, state, barstate }) {
             const long_pos_active = state.boolSeries(false);
             const short_pos_active = state.boolSeries(false);
             const long_pos_exit_clr = state.color("#00000000");
             const short_pos_exit_clr = state.color("#00000000");
+            if (barstate.isnew && !barstate.isfirst) { long_pos_active.value = long_pos_active[1]; }
+            if (barstate.isnew && !barstate.isfirst) { short_pos_active.value = short_pos_active[1]; }
             long_pos_active.value = (bar.close > bar.open) ? true : long_pos_active.value;
             short_pos_active.value = (bar.close < bar.open) ? true : short_pos_active.value;
             long_pos_exit_clr.value = (bar.close >= bar.open) ? color.green : color.red;

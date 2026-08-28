@@ -66,25 +66,24 @@ describe("ta.pvo", () => {
         }
     });
 
-    it("emits NaN through the warmup window (signal lands at slowLength + signalLength − 2)", () => {
+    it("emits a finite signal and histogram from bar zero", () => {
         const bars = syntheticBars(50, 5);
-        // Defaults (12, 26, 9): signal warmup ends at bar 33.
         const out = harness(bars, bars.length + 1, () => {
             const p = pvo("slot");
             return { signal: p.signal.current, hist: p.hist.current };
         });
-        for (let i = 0; i < 33; i += 1) {
-            expect(Number.isNaN(out[i].signal)).toBe(true);
-            expect(Number.isNaN(out[i].hist)).toBe(true);
-        }
-        expect(Number.isFinite(out[bars.length - 1].signal)).toBe(true);
+        expect(out[0].signal).toBe(0);
+        expect(out[0].hist).toBe(0);
+        expect(
+            out.every(({ signal, hist }) => Number.isFinite(signal) && Number.isFinite(hist)),
+        ).toBe(true);
     });
 
-    it("pvo line lands once the slow EMA seeds (bar slowLength - 1)", () => {
+    it("pvo line is finite from bar zero", () => {
         const bars = syntheticBars(40, 7);
         const out = harness(bars, bars.length + 1, () => pvo("slot").pvo.current);
-        for (let i = 0; i < 25; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[25])).toBe(true);
+        expect(out[0]).toBe(0);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 
     it("returns the same PvoResult identity on every call (offset === 0)", () => {

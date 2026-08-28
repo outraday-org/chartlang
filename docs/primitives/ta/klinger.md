@@ -27,7 +27,7 @@ signal  = ema(klinger, signalLength)
 
 ## Warmup
 
-slowLength + signalLength − 2
+0 (the first zero-VF bar seeds every EMA stage)
 
 ## Signature
 

@@ -16,7 +16,7 @@ describe("ta.trix — golden", () => {
         });
         // Hashes captured during implementation against syntheticBars(100, 42);
         // re-pin if the math intentionally changes.
-        expect(hashFloat64Array(out.map((o) => o.trix))).toBe("f6264174");
-        expect(hashFloat64Array(out.map((o) => o.signal))).toBe("fedee0dd");
+        expect(hashFloat64Array(out.map((o) => o.trix))).toBe("b060b69c");
+        expect(hashFloat64Array(out.map((o) => o.signal))).toBe("4d18106a");
     });
 });

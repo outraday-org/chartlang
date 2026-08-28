@@ -20,7 +20,7 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     // Marker suppression, proved against a bag that DOES declare `arrow` +
     // `label` (`ORDER_MARKER_PLOTS`): the slot is empty because the order was
     // declined, not because the glyph was undrawable. The emitting sibling pins
-    // the same slot at `7e061e47…`.
+    // the same slot at `f62c15c4…`.
     {
         kind: "plot-hash",
         slotId: `${BUY_SLOT_ID}${ORDER_MARKER_SLOT_SUFFIX}`,
@@ -36,9 +36,10 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
  * no capability), so the script's entry branch retries on every crossover and the
  * once-per-slot dedup is what keeps the diagnostic channel from flooding.
  *
- * `candleLimit: 200` is load-bearing: the first order attempt is at bar **162**
- * (EMA(26) warmup plus the first crossing), so a shorter slice would assert the
- * diagnostic's presence over a stream that never tried to trade.
+ * `candleLimit: 200` deliberately matches the original sibling slice. The
+ * first order attempt is now bar **1** because EMA seeds immediately; the
+ * longer slice exercises repeated rejected crossings while the diagnostic
+ * remains once-per-slot deduplicated.
  *
  * @since 1.11
  * @stable
