@@ -8,12 +8,10 @@ import { syntheticBars } from "./__fixtures__/syntheticBars.js";
 import { chaikinOsc } from "./chaikinOsc.js";
 
 describe("ta.chaikinOsc", () => {
-    it("emits NaN through the warmup window (slow EMA seeds at slowLength - 1)", () => {
+    it("is finite from the first ADL bar", () => {
         const bars = syntheticBars(40, 4);
         const out = harness(bars, bars.length + 1, () => chaikinOsc("slot").current);
-        // Defaults (3, 10): slow EMA seeds at bar 9.
-        for (let i = 0; i < 9; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[9])).toBe(true);
+        expect(Number.isFinite(out[0])).toBe(true);
     });
 
     it("returns the same Series identity on every call (offset === 0)", () => {
@@ -55,9 +53,7 @@ describe("ta.chaikinOsc", () => {
             bars.length + 1,
             () => chaikinOsc("slot", { fastLength: 5, slowLength: 15 }).current,
         );
-        // slow EMA seeds at bar 14.
-        for (let i = 0; i < 14; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[14])).toBe(true);
+        expect(Number.isFinite(out[0])).toBe(true);
     });
 
     it("composes ADL + two EMA sub-slots (three sub-slot entries under taSlots)", () => {

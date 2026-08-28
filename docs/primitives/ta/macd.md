@@ -20,7 +20,7 @@ hist   = macd − signal
 
 ## Warmup
 
-slowLength + signalLength − 1 (slow EMA seeds at slowLength − 1; signal EMA seeds signalLength − 1 bars after that)
+0 on a finite source (all three EMA stages seed immediately)
 
 ## Signature
 

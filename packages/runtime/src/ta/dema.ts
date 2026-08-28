@@ -53,7 +53,7 @@ function initSlot(length: number, capacity: number): DemaSlot {
  * @formula  ema1 = EMA(source, length) ;
  *           ema2 = EMA(ema1, length) ;
  *           out  = 2 · ema1 − ema2
- * @warmup   2 · length − 2
+ * @warmup   0 on a finite source
  * @since 0.2
  * @stable
  *

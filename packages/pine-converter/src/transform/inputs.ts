@@ -4,7 +4,7 @@
 import type { CallExpression, ExpressionNode, LiteralKind } from "../ast/index.js";
 import type { Argument } from "../ast/script.js";
 import type { Statement } from "../ast/statements.js";
-import type { SourceSpan } from "../index.js";
+import type { ExternalSeriesInputOverride, SourceSpan } from "../index.js";
 import { INPUT_DISPLAY_MAP, STRING_OPTIONS_ENUM_BUILDER, inputLookup } from "../mapping/index.js";
 import type { EnumTypeInfo, SemanticResult } from "../semantic/index.js";
 import { positionalArgs, spanKey } from "./callArgs.js";
@@ -651,6 +651,55 @@ function buildBareInput(
     return appendBareOptions(`${typed.factory}(${typed.literal}`, optionNamed, diagnostics);
 }
 
+// Whether a direct named Pine input call denotes a source selector. An
+// explicit `input.source(...)` is source-shaped by declaration. The generic
+// `input(...)` form is source-shaped only when its resolved `defval` is an
+// OHLCV/synthetic built-in; typed/literal generic inputs are not eligible for
+// an external-series override.
+function isSourceInputCall(call: CallExpression, primitive: string): boolean {
+    if (primitive === "input.source") {
+        return true;
+    }
+    if (primitive !== "input") {
+        return false;
+    }
+    const { defaultArg, named } = splitArgs(call);
+    const resolvedDefault = defaultArg ?? named.get("defval") ?? null;
+    return resolvedDefault !== null && sourceDefault(resolvedDefault.value) !== null;
+}
+
+// Emit one explicitly host-bound source input. The descriptor identity comes
+// only from caller metadata; supported literal Pine UI metadata is preserved,
+// except that an explicit stable title replaces the Pine title. `defval` is
+// consumed rather than leaked into the descriptor object.
+function buildExternalSeriesInputCode(
+    call: CallExpression,
+    override: ExternalSeriesInputOverride,
+    diagnostics: DiagnosticCollector,
+): string {
+    const { named } = splitArgs(call);
+    const metadata = new Map(named);
+    metadata.delete("defval");
+    if (override.title !== undefined) {
+        metadata.delete("title");
+    }
+    const positional = positionalArgs(call.args);
+    const positionalTitle =
+        override.title === undefined && positional.length >= 2 ? positional[1] : undefined;
+    const parts = [
+        `name: ${JSON.stringify(override.feedName)}`,
+        'schema: { kind: "external-series-schema" }',
+    ];
+    if (override.title !== undefined) {
+        parts.push(`title: ${JSON.stringify(override.title)}`);
+    }
+    appendStringOptions(parts, metadata, diagnostics, positionalTitle);
+    appendDisplayOption(parts, metadata, diagnostics);
+    appendConfirmOption(parts, metadata, diagnostics);
+    appendUnmappedInputArgDiagnostics(metadata, diagnostics, false);
+    return `input.externalSeries<number>({ ${parts.join(", ")} })`;
+}
+
 // Build the chartlang `input.*(...)` source string for one Pine input call,
 // or `null` when the call cannot be converted (a diagnostic is pushed).
 // `primitive` is the resolved Pine `input.*` key (`"input.text_area"`).
@@ -770,17 +819,97 @@ type WalkState = {
     // so the emitter can rewrite the use site to the `inputs.<name>` read.
     // Keyed by span (not node identity — `udfInline` clones nodes downstream).
     promotedInline: Map<string, string>;
+    // Valid, unique caller overrides by exact Pine declaration identity.
+    externalSeriesOverrides: ReadonlyMap<string, ExternalSeriesInputOverride>;
+    // Named input identities observed during the source-order walk. Used to
+    // reject missing/renamed metadata after the walk without title guessing.
+    matchedExternalSeriesOverrides: Set<string>;
 };
 
 // Register a named input declaration (`len = input.int(...)`) — its bound
 // name keys the chartlang descriptor.
 function registerNamed(name: string, call: CallExpression, key: string, state: WalkState): void {
-    const code = buildInputCode(call, key, state.enumTypes, state.diagnostics);
+    const override = state.externalSeriesOverrides.get(name);
+    if (override !== undefined) {
+        state.matchedExternalSeriesOverrides.add(name);
+    }
+    if (override !== undefined && !isSourceInputCall(call, key)) {
+        state.diagnostics.pushCode(
+            "external-series-input-override-invalid",
+            call.span,
+            `External-series override target \`${name}\` is not a Pine source input; the input was left unchanged.`,
+        );
+    }
+    const code =
+        override !== undefined && isSourceInputCall(call, key)
+            ? buildExternalSeriesInputCode(call, override, state.diagnostics)
+            : buildInputCode(call, key, state.enumTypes, state.diagnostics);
     if (code === null) {
         return;
     }
     const input: InputDeclarationIR = { name, code };
     appendInput(state.scaffold, input);
+}
+
+// Validate caller metadata before touching the AST. Arrays intentionally keep
+// duplicates representable so both target and feed collisions can be refused
+// deterministically. Every member of a duplicate group is excluded; no
+// last-write-wins behavior can silently bind a different source.
+function prepareExternalSeriesOverrides(
+    requested: readonly ExternalSeriesInputOverride[] | undefined,
+    diagnostics: DiagnosticCollector,
+    fallbackSpan: SourceSpan,
+): ReadonlyMap<string, ExternalSeriesInputOverride> {
+    if (requested === undefined || requested.length === 0) {
+        return new Map();
+    }
+    const inputCounts = new Map<string, number>();
+    const feedCounts = new Map<string, number>();
+    for (const candidate of requested) {
+        if (candidate.inputName.trim().length > 0) {
+            inputCounts.set(candidate.inputName, (inputCounts.get(candidate.inputName) ?? 0) + 1);
+        }
+        if (candidate.feedName.trim().length > 0) {
+            feedCounts.set(candidate.feedName, (feedCounts.get(candidate.feedName) ?? 0) + 1);
+        }
+    }
+    const reportedInputs = new Set<string>();
+    const reportedFeeds = new Set<string>();
+    const prepared = new Map<string, ExternalSeriesInputOverride>();
+    for (const candidate of requested) {
+        if (candidate.inputName.trim().length === 0 || candidate.feedName.trim().length === 0) {
+            diagnostics.pushCode(
+                "external-series-input-override-invalid",
+                fallbackSpan,
+                "External-series override input and feed names must both be non-empty; the override was refused.",
+            );
+            continue;
+        }
+        if ((inputCounts.get(candidate.inputName) ?? 0) > 1) {
+            if (!reportedInputs.has(candidate.inputName)) {
+                reportedInputs.add(candidate.inputName);
+                diagnostics.pushCode(
+                    "external-series-input-override-invalid",
+                    fallbackSpan,
+                    `External-series overrides repeat Pine input \`${candidate.inputName}\`; every repeated override was refused.`,
+                );
+            }
+            continue;
+        }
+        if ((feedCounts.get(candidate.feedName) ?? 0) > 1) {
+            if (!reportedFeeds.has(candidate.feedName)) {
+                reportedFeeds.add(candidate.feedName);
+                diagnostics.pushCode(
+                    "external-series-input-override-invalid",
+                    fallbackSpan,
+                    `External-series overrides reuse feed name \`${candidate.feedName}\`; every colliding override was refused.`,
+                );
+            }
+            continue;
+        }
+        prepared.set(candidate.inputName, candidate);
+    }
+    return prepared;
 }
 
 // Register a promoted inline input (`ta.ema(close, input.int(20))`) with a
@@ -925,13 +1054,31 @@ export function transformInputs(
     analysis: SemanticResult,
     scaffold: ScriptScaffold,
     diagnostics: DiagnosticCollector,
+    externalSeriesInputs?: readonly ExternalSeriesInputOverride[],
 ): ReadonlyMap<string, string> {
+    const fallbackSpan = analysis.script.declaration?.span ?? analysis.script.span;
+    const externalSeriesOverrides = prepareExternalSeriesOverrides(
+        externalSeriesInputs,
+        diagnostics,
+        fallbackSpan,
+    );
     const state: WalkState = {
         scaffold,
         diagnostics,
         enumTypes: analysis.enumTypes,
         promotedInline: new Map(),
+        externalSeriesOverrides,
+        matchedExternalSeriesOverrides: new Set(),
     };
     walkStatements(analysis.script.body, state);
+    for (const inputName of externalSeriesOverrides.keys()) {
+        if (!state.matchedExternalSeriesOverrides.has(inputName)) {
+            diagnostics.pushCode(
+                "external-series-input-override-invalid",
+                fallbackSpan,
+                `External-series override target \`${inputName}\` was not found as a named Pine input; the override was refused.`,
+            );
+        }
+    }
     return state.promotedInline;
 }

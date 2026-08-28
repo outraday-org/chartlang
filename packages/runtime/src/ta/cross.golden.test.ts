@@ -17,6 +17,6 @@ describe("ta.cross — golden", () => {
             return cross("cross", fast.current, slow.current).current;
         });
         const h = hashBoolArray(out);
-        expect(h).toBe("6c9c9195");
+        expect(h).toBe("461645b5");
     });
 });

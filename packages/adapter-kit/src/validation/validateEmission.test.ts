@@ -479,6 +479,63 @@ describe("validateEmission — Phase-2 plot kinds", () => {
         ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
     });
 
+    it("accepts columns with finite baseline/positive lineWidth and rejects invalid values", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "columns", baseline: 0, lineWidth: 1 },
+            }),
+        ).toEqual({ ok: true });
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "columns" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("baseline") });
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "columns", baseline: 0 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+        for (const lineWidth of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+            expect(
+                validateEmission({
+                    ...validPlot,
+                    style: { kind: "columns", baseline: 0, lineWidth },
+                }),
+            ).toMatchObject({ ok: false, message: expect.stringContaining("lineWidth") });
+        }
+    });
+
+    it("accepts plotshape text metadata and validates text plus textColor", () => {
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: {
+                    kind: "shape",
+                    shape: "xcross",
+                    size: 8,
+                    location: "above",
+                    text: "1",
+                    textColor: "#7C6F6F",
+                },
+            }),
+        ).toEqual({ ok: true });
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "shape", shape: "xcross", size: 8, text: 1 },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("style.text") });
+        expect(
+            validateEmission({
+                ...validPlot,
+                style: { kind: "shape", shape: "xcross", size: 8, textColor: "" },
+            }),
+        ).toMatchObject({ ok: false, message: expect.stringContaining("textColor") });
+    });
+
     it("accepts area with the full lineWidth + lineStyle + fillAlpha triple", () => {
         expect(
             validateEmission({

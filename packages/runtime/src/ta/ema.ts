@@ -23,10 +23,10 @@ type EmaSlot = {
     readonly series: Series<number>;
     readonly alpha: number;
     readonly length: number;
-    seedSum: number;
-    seedCount: number;
-    prevEma: number;
-    prevClosedEma: number;
+    /** EMA state after the latest closed bar with a finite source. */
+    closedEma: number;
+    /** EMA state before the current closed head; frozen across ticks. */
+    priorClosedEma: number;
     /** Per-offset Series-view cache; see `sma.ts` for the convention. */
     readonly shiftedViews: Map<number, Series<number>>;
 };
@@ -45,12 +45,10 @@ function initSlot(length: number, capacity: number): EmaSlot {
         kind: "ta.ema",
         outBuffer,
         series: makeSeriesView<number>(outBuffer),
-        alpha: 2 / (length + 1),
+        alpha: Number.isInteger(length) && length > 0 ? 2 / (length + 1) : Number.NaN,
         length,
-        seedSum: 0,
-        seedCount: 0,
-        prevEma: Number.NaN,
-        prevClosedEma: Number.NaN,
+        closedEma: Number.NaN,
+        priorClosedEma: Number.NaN,
         shiftedViews: new Map(),
     };
 }
@@ -65,48 +63,37 @@ function viewForOffset(slot: EmaSlot, offset: number): Series<number> {
     return view;
 }
 
-function compute(slot: EmaSlot, src: number, isTick: boolean): number {
-    if (!Number.isFinite(src)) {
-        return isTick ? slot.prevEma : slot.prevClosedEma;
-    }
-    if (slot.seedCount < slot.length) {
-        if (isTick) {
-            const nextSum = slot.seedSum + src;
-            const nextCount = slot.seedCount + 1;
-            if (nextCount < slot.length) return Number.NaN;
-            return nextSum / slot.length;
-        }
-        slot.seedSum += src;
-        slot.seedCount += 1;
-        if (slot.seedCount < slot.length) {
-            slot.prevClosedEma = Number.NaN;
-            return Number.NaN;
-        }
-        const seedValue = slot.seedSum / slot.length;
-        slot.prevClosedEma = seedValue;
-        slot.prevEma = seedValue;
-        return seedValue;
-    }
-    const prev = slot.prevClosedEma;
-    const next = src * slot.alpha + prev * (1 - slot.alpha);
-    if (!isTick) {
-        slot.prevClosedEma = next;
-        slot.prevEma = next;
-    }
+function nextEma(src: number, prior: number, alpha: number): number {
+    if (!Number.isFinite(src) || !Number.isFinite(alpha)) return Number.NaN;
+    return Number.isFinite(prior) ? src * alpha + prior * (1 - alpha) : src;
+}
+
+function closeValue(slot: EmaSlot, src: number): number {
+    // Advance the replace-head boundary on every close, including a NaN close.
+    // A later tick always replays the current bar from this frozen state.
+    slot.priorClosedEma = slot.closedEma;
+    const next = nextEma(src, slot.closedEma, slot.alpha);
+    if (Number.isFinite(next)) slot.closedEma = next;
     return next;
+}
+
+function tickValue(slot: EmaSlot, src: number): number {
+    return nextEma(src, slot.priorClosedEma, slot.alpha);
 }
 
 /**
  * Exponential moving average. Recurrence `EMA[t] = α·x[t] + (1 − α)·EMA[t − 1]`
- * with `α = 2 / (length + 1)` after a seed of `simple mean of the first
- * `length` finite source values`. Tick-mode (`onBarTick`) recomputes the
- * head from the previous closed EMA so partial-bar values don't bleed
- * into the next close's recurrence.
+ * with `α = 2 / (length + 1)`. The first finite source value seeds the
+ * recurrence immediately. A missing source bar emits `NaN` without changing
+ * the last finite closed EMA. Tick-mode (`onBarTick`) recomputes the head from
+ * the state before the current closed head so tentative values don't bleed
+ * into the next close's recurrence. A non-positive or non-integer `length`
+ * produces `NaN`.
  *
  * @formula  α = 2 / (length + 1) ;
- *           seed at bar length−1 = mean(source[0..length−1]) ;
+ *           EMA[first finite t] = source[t] ;
  *           EMA[t] = source[t]·α + EMA[t−1]·(1−α)
- * @warmup   length − 1
+ * @warmup   0 on a finite source; leading/missing source bars emit NaN
  * @since 0.1
  * @stable
  *
@@ -117,7 +104,7 @@ function compute(slot: EmaSlot, src: number, isTick: boolean): number {
  * @example
  *     // import { ta } from "@invinite-org/chartlang-runtime";
  *     // const e = ta.ema("slot-id", bar.close, 20);
- *     // const head = e.current; // NaN until bar length-1
+ *     // const head = e.current; // finite from the first finite source bar
  *     // const projected = ta.ema("slot2", bar.close, 20, { offset: 5 });
  */
 export function ema(
@@ -132,7 +119,8 @@ export function ema(
         slot = initSlot(length, ctx.stream.ohlcv.close.capacity);
         ctx.stream.taSlots.set(slotId, slot);
     }
-    const value = compute(slot, readSourceValue(source), ctx.isTick);
+    const src = readSourceValue(source);
+    const value = ctx.isTick ? tickValue(slot, src) : closeValue(slot, src);
     if (ctx.isTick) slot.outBuffer.replaceHead(value);
     else slot.outBuffer.append(value);
     return viewForOffset(slot, opts?.offset ?? 0);

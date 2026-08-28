@@ -7,16 +7,15 @@
 // style is not.
 
 /**
- * EMA over a `Float64Array` input. Walks past any leading-NaN prefix,
- * seeds with the simple mean of the next `length` finite values, then
- * runs the recurrence `out[i] = src[i] * k + out[i − 1] * (1 − k)`
- * with `k = 2 / (length + 1)`. A mid-stream NaN holds the previous
- * value forward — keeps the output continuous past gaps. The
- * incremental `ta.ema` primitive and the property tests share this
- * helper as their reference.
+ * EMA over a `Float64Array` input. The first finite source value seeds the
+ * recurrence, then each later finite value applies
+ * `out[i] = src[i] * k + previous * (1 − k)` with
+ * `k = 2 / (length + 1)`. A missing source bar emits `NaN` without changing
+ * `previous`, so the next finite bar resumes from the last finite EMA. The
+ * incremental `ta.ema` primitive and the property tests share this contract.
  *
- * Warmup `[0, length − 2]` is `NaN`; `out[length − 1]` is the first
- * defined value.
+ * Leading `NaN` values remain `NaN`; the first finite input is also the first
+ * finite output. A non-positive or non-integer length yields all `NaN`.
  *
  * @formula  k = 2 / (length + 1) ;
  *           out[i] = input[i] * k + out[i − 1] * (1 − k)
@@ -30,32 +29,16 @@ export function computeEmaOfFloat64(input: Float64Array, length: number): Float6
     const n = input.length;
     const out = new Float64Array(n);
     out.fill(Number.NaN);
-    if (length <= 0 || n === 0) return out;
-
-    let firstValidIdx = -1;
-    for (let i = 0; i < n; i += 1) {
-        if (Number.isFinite(input[i])) {
-            firstValidIdx = i;
-            break;
-        }
-    }
-    if (firstValidIdx < 0 || n - firstValidIdx < length) return out;
-
-    let seedSum = 0;
-    for (let i = firstValidIdx; i < firstValidIdx + length; i += 1) {
-        seedSum += input[i];
-    }
-    const seedIdx = firstValidIdx + length - 1;
-    out[seedIdx] = seedSum / length;
-
+    if (!Number.isInteger(length) || length <= 0 || n === 0) return out;
     const k = 2 / (length + 1);
-    for (let i = seedIdx + 1; i < n; i += 1) {
+    let previous = Number.NaN;
+    for (let i = 0; i < n; i += 1) {
         const v = input[i];
         if (!Number.isFinite(v)) {
-            out[i] = out[i - 1];
             continue;
         }
-        out[i] = v * k + out[i - 1] * (1 - k);
+        previous = Number.isFinite(previous) ? v * k + previous * (1 - k) : v;
+        out[i] = previous;
     }
     return out;
 }

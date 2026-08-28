@@ -82,6 +82,17 @@ export const ENUM_VALUE_MAP: ReadonlyMap<string, EnumMapping> = new Map<string, 
     entry("hline.style_dotted", "dotted"),
     entry("hline.style_dashed", "dashed"),
 
+    // docs: https://www.tradingview.com/pine-script-reference/v6/#var_plot.style_line
+    // Plot styles are consumed by `plotFamily.ts`, which turns these semantic
+    // names into typed chartlang `PlotOptsStyle` objects. Keep `columns`
+    // distinct from `histogram`: Pine renders them with materially different
+    // bar spacing and hosts need the original intent on the wire.
+    entry("plot.style_line", "line"),
+    entry("plot.style_stepline", "step-line"),
+    entry("plot.style_histogram", "histogram"),
+    entry("plot.style_columns", "columns"),
+    entry("plot.style_circles", "circles"),
+
     // docs: https://www.tradingview.com/pine-script-reference/v6/#var_extend.none
     entry("extend.none", { extendLeft: false, extendRight: false }),
     entry("extend.left", { extendLeft: true, extendRight: false }),

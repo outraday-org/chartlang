@@ -11,6 +11,7 @@ import {
     ConverterNotReadyError,
     type Diagnostic,
     type DiagnosticSeverity,
+    type ExternalSeriesInputOverride,
     PACKAGE_VERSION,
     type SourceSpan,
     convert,
@@ -36,14 +37,23 @@ describe("public surface", () => {
     });
 
     it("convert() accepts optional ConvertOpts", () => {
+        const externalSource: ExternalSeriesInputOverride = {
+            inputName: "trend",
+            feedName: "trendInput",
+        };
         const opts: ConvertOpts = {
             barInterval: 60_000,
             barIndexOrigin: 0,
             strictMode: true,
             targetApiVersion: 1,
+            externalSeriesInputs: [externalSource],
         };
-        const result = convert("//@version=6\nindicator('opts')", opts);
+        const result = convert(
+            "//@version=6\nindicator('opts')\ntrend = input.source(close)",
+            opts,
+        );
         expect(result.output).not.toBeNull();
+        expect(result.output).toContain('name: "trendInput"');
     });
 
     it("ConverterNotReadyError stays on the public surface for the async path", () => {

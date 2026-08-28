@@ -20,7 +20,7 @@ export default defineIndicator({
             mismatch: input.enum("Mid", ["Low", "High"], { title: "Mismatch" }),
         },
         compute({ bar, plot, inputs }) {
-            let src = ((inputs.ma_type as string) == "EMA") ? bar.close : bar.open;
+            let src = ((inputs.ma_type as string) == "EMA") ? bar.close.current : bar.open.current;
             plot(((inputs.preset as string) == "Fast") ? src : bar.close);
             plot(((inputs.mismatch as string) == "Low") ? bar.high : bar.low);
         },

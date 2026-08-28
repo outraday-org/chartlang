@@ -14,8 +14,8 @@ describe("ta.macd — golden", () => {
             const r = macd("slot", bar.close);
             return { m: r.macd.current, s: r.signal.current, h: r.hist.current };
         });
-        expect(hashFloat64Array(out.map((o) => o.m))).toBe("705c42df");
-        expect(hashFloat64Array(out.map((o) => o.s))).toBe("6748dba1");
-        expect(hashFloat64Array(out.map((o) => o.h))).toBe("5808d612");
+        expect(hashFloat64Array(out.map((o) => o.m))).toBe("364c8c0b");
+        expect(hashFloat64Array(out.map((o) => o.s))).toBe("e1c0b20b");
+        expect(hashFloat64Array(out.map((o) => o.h))).toBe("2a36c35a");
     });
 });

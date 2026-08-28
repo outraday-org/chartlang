@@ -9,6 +9,7 @@ import { type InputLoopBounds, unwrapParens } from "./loopBounds.js";
 import { collectConstNumberEnv, resolveIndexUpperBound } from "./resolveIndexBound.js";
 
 const OHLCV_FIELDS = new Set(["close", "open", "high", "low", "volume", "time"]);
+const STATE_SERIES_CALLEES = new Set(["state.series", "state.boolSeries", "state.stringSeries"]);
 
 /**
  * Maximum literal lookback `N` discovered across every series read in the
@@ -36,8 +37,9 @@ export type ExtractMaxLookbackResult = Readonly<{
  * `maxLookback` plus any `dynamicFallback` capacity from non-literal index
  * reads on Phase-1 series shapes: `bar.<ohlcv>[N]`, `ta.<name>(...)[N]`,
  * identifier-bound series variables (`const e = ta.ema(...); e[N];` or
- * `const s = state.series(...); s[N];`), and same-chart external-series
- * inputs (`const bound = inputs.<key>; bound[N];` or `inputs.<key>[N]`) whose
+ * `const s = state.series(...); s[N];` and the bool/string equivalents), and
+ * same-chart external-series inputs (`const bound = inputs.<key>; bound[N];`
+ * or `inputs.<key>[N]`) whose
  * key is passed in `externalSeriesInputKeys` — the fed `Series<number>` view is
  * backed by a runtime ring buffer, so an element-access read of it is a real
  * lookback the buffer must be sized for.
@@ -100,8 +102,26 @@ export function extractMaxLookback(
                 }
             }
             if (isBarPointCall(node)) {
-                const depth = readBarPointLookback(node);
-                if (depth > maxLookback) maxLookback = depth;
+                const depth = readBarPointLookback(node, scope, checker, inputLoopBounds);
+                if (depth === null) {
+                    const offset = node.arguments[0];
+                    if (offset !== undefined) {
+                        diagnostics.push(
+                            createDiagnostic({
+                                severity: "warning",
+                                code: "dynamic-series-index",
+                                message:
+                                    "Non-literal series index — runtime will use the 5000-slot dynamic fallback buffer.",
+                                file: sourcePath,
+                                node: offset,
+                                sourceFile,
+                            }),
+                        );
+                    }
+                    seriesCapacities.dynamicFallback = 5000;
+                } else if (depth > maxLookback) {
+                    maxLookback = depth;
+                }
             }
         }
         if (ts.isElementAccessExpression(node)) {
@@ -195,12 +215,17 @@ function isBarPointCall(call: ts.CallExpression): boolean {
  * `bar.point(-(N), …)`) anchors `N` bars back, so the runtime's time ring
  * buffer must retain `N` extra slots — exactly like a `series[N]` lookback.
  * `bar.point(0, …)` (current) and positive offsets (future, extrapolated, no
- * buffer depth) contribute `0`; a non-literal / dynamic offset (e.g. a bound
- * `-k` or a computed `-(2 + 3)`) cannot be sized at compile time and also
- * contributes `0` (reads past retention degrade to a NaN time at runtime, per
- * `bar.point`'s contract).
+ * buffer depth) contribute `0`; a const-resolvable negative expression folds
+ * to its precise depth, while a genuinely dynamic negative offset requests the
+ * shared 5000-slot fallback so valid historical anchors do not silently become
+ * NaN merely because their distance is computed at runtime.
  */
-function readBarPointLookback(call: ts.CallExpression): number {
+function readBarPointLookback(
+    call: ts.CallExpression,
+    scope: ts.Node,
+    checker: ts.TypeChecker,
+    inputLoopBounds: InputLoopBounds,
+): number | null {
     const first = call.arguments[0];
     if (first === undefined) return 0;
     const expr = unwrapParens(first);
@@ -210,6 +235,12 @@ function readBarPointLookback(call: ts.CallExpression): number {
             const n = Number(operand.text);
             if (Number.isFinite(n) && n > 0) return n;
         }
+        const constEnv = collectConstNumberEnv(operand, scope);
+        return resolveIndexUpperBound(operand, call, {
+            constEnv,
+            checker,
+            inputLoopBounds,
+        });
     }
     return 0;
 }
@@ -262,14 +293,17 @@ function collectSeriesVarNames(
             const initializer = node.initializer;
             if (initializer && ts.isCallExpression(initializer)) {
                 const calleeName = resolveCalleeName(initializer, checker);
-                // A `state.series(...)`-bound variable is series-shaped just
-                // like a `ta.*`-bound one: `s[N]` reads the slot's ring buffer,
+                // All three `state.*Series(...)` constructors return
+                // history-bearing slots: `s[N]` reads the slot's ring buffer,
                 // so its literal index must fold into `maxLookback`. Matched on
                 // the resolved callee name (the slot-injection path) so an
                 // element-access form like `state["series"](...)` is not
                 // recognised — that form is rejected upstream as
                 // `stateful-call-element-access`.
-                if (calleeName?.startsWith("ta.") || calleeName === "state.series") {
+                if (
+                    calleeName?.startsWith("ta.") ||
+                    (calleeName !== null && STATE_SERIES_CALLEES.has(calleeName))
+                ) {
                     names.add(node.name.text);
                 }
             } else if (

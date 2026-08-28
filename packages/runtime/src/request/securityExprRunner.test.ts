@@ -163,24 +163,18 @@ function pushMainClose(ctx: RuntimeContext, time: number, close: number): void {
     s.bar.time = time;
 }
 
-/** Reference SMA-seeded EMA over a closed array, mirroring `ta/ema.ts`. */
+/** Reference Pine EMA over a closed array, mirroring `ta/ema.ts`. */
 function referenceEma(values: ReadonlyArray<number>, length: number): number[] {
     const alpha = 2 / (length + 1);
     const out: number[] = [];
     let prev = Number.NaN;
-    let seedSum = 0;
-    for (let i = 0; i < values.length; i += 1) {
-        if (i < length - 1) {
-            seedSum += values[i];
+    for (const value of values) {
+        if (!Number.isFinite(value)) {
             out.push(Number.NaN);
-        } else if (i === length - 1) {
-            seedSum += values[i];
-            prev = seedSum / length;
-            out.push(prev);
-        } else {
-            prev = values[i] * alpha + prev * (1 - alpha);
-            out.push(prev);
+            continue;
         }
+        prev = Number.isFinite(prev) ? value * alpha + prev * (1 - alpha) : value;
+        out.push(prev);
     }
     return out;
 }

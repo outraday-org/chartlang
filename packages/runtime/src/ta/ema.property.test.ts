@@ -24,7 +24,7 @@ describe("ta.ema — property invariants", () => {
         );
     });
 
-    it("warmup is length-1 NaN slots", () => {
+    it("a finite source is finite from bar zero for every valid length", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 20, maxLength: 50 }),
@@ -35,8 +35,40 @@ describe("ta.ema — property invariants", () => {
                         bars.length + 1,
                         (bar) => ema("slot", bar.close, length).current,
                     );
-                    for (let i = 0; i < length - 1 && i < out.length; i += 1) {
-                        expect(Number.isNaN(out[i])).toBe(true);
+                    expect(out[0]).toBe(bars[0].close);
+                    expect(out.every(Number.isFinite)).toBe(true);
+                },
+            ),
+            { numRuns: 25 },
+        );
+    });
+
+    it("the first finite value seeds and NaN gaps do not change recurrence state", () => {
+        fc.assert(
+            fc.property(
+                fc.array(fc.double({ min: -1_000_000, max: 1_000_000, noNaN: true }), {
+                    minLength: 2,
+                    maxLength: 40,
+                }),
+                fc.integer({ min: 1, max: 10 }),
+                fc.integer({ min: 0, max: 39 }),
+                (values, length, requestedGap) => {
+                    const gap = requestedGap % values.length;
+                    const withGap = new Float64Array(values);
+                    withGap[gap] = Number.NaN;
+                    const actual = computeEmaOfFloat64(withGap, length);
+                    let previous = Number.NaN;
+                    const alpha = 2 / (length + 1);
+                    for (let index = 0; index < actual.length; index += 1) {
+                        const source = withGap[index];
+                        if (!Number.isFinite(source)) {
+                            expect(Number.isNaN(actual[index])).toBe(true);
+                            continue;
+                        }
+                        previous = Number.isFinite(previous)
+                            ? source * alpha + previous * (1 - alpha)
+                            : source;
+                        expect(actual[index]).toBe(previous);
                     }
                 },
             ),

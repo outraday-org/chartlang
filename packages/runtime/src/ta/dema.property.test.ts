@@ -51,7 +51,7 @@ describe("ta.dema — property invariants", () => {
         );
     });
 
-    it("warmup is `2·length − 2` NaN slots when sources are finite", () => {
+    it("is finite from bar zero when sources are finite", () => {
         fc.assert(
             fc.property(
                 fc.array(arbBar, { minLength: 30, maxLength: 80 }),
@@ -62,13 +62,8 @@ describe("ta.dema — property invariants", () => {
                         bars.length + 1,
                         (bar) => dema("slot", bar.close, length).current,
                     );
-                    const warmup = 2 * length - 2;
-                    for (let i = 0; i < warmup && i < out.length; i += 1) {
-                        expect(Number.isNaN(out[i])).toBe(true);
-                    }
-                    if (out.length > warmup) {
-                        expect(Number.isFinite(out[warmup])).toBe(true);
-                    }
+                    expect(out.every(Number.isFinite)).toBe(true);
+                    expect(out[0]).toBe(bars[0].close);
                 },
             ),
             { numRuns: 30 },

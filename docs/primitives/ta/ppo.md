@@ -27,7 +27,7 @@ hist   = ppo − signal
 
 ## Warmup
 
-slowLength + signalLength − 2
+0 on a finite source with nonzero slow EMA
 
 ## Signature
 

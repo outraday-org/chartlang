@@ -112,6 +112,34 @@ export type ConvertManifest = Readonly<{
 }>;
 
 /**
+ * Explicitly replace one named Pine source input with a host-supplied
+ * Chartlang external series. `inputName` is the Pine declaration identity
+ * (`trend = input(defval=close)` -> `"trend"`), never a title or source span;
+ * `feedName` becomes the stable `input.externalSeries` descriptor name.
+ *
+ * The converter deliberately cannot infer TradingView layout bindings from
+ * Pine source. Callers that know such a binding must provide it here.
+ *
+ * @since 0.10
+ * @stable
+ * @example
+ *     const override: ExternalSeriesInputOverride = {
+ *         inputName: "lt_trend",
+ *         feedName: "trendInput",
+ *         title: "Trend Wizard v1.0: Tab Trend Long",
+ *     };
+ *     void override;
+ */
+export type ExternalSeriesInputOverride = Readonly<{
+    /** Exact Pine variable name bound to the source input. */
+    inputName: string;
+    /** Stable host feed identity emitted into the Chartlang descriptor. */
+    feedName: string;
+    /** Optional stable UI title; omitted preserves a literal Pine title. */
+    title?: string;
+}>;
+
+/**
  * Caller-supplied conversion options.
  *
  * @since 0.1
@@ -122,6 +150,7 @@ export type ConvertManifest = Readonly<{
  *         barIndexOrigin: null,
  *         strictMode: false,
  *         targetApiVersion: 1,
+ *         externalSeriesInputs: [{ inputName: "trend", feedName: "trendInput" }],
  *     };
  *     void opts;
  */
@@ -134,6 +163,8 @@ export type ConvertOpts = Readonly<{
     strictMode?: boolean;
     /** Pinned to 1 in v1. */
     targetApiVersion?: 1;
+    /** Exact-identity source inputs supplied by host-bound external series. */
+    externalSeriesInputs?: readonly ExternalSeriesInputOverride[];
 }>;
 
 /**
@@ -252,7 +283,12 @@ export function convert(source: string, opts?: ConvertOpts): ConvertResult {
     const analysis = analyze(parseResult.script);
     const diagnostics = new DiagnosticCollector();
     const scaffold = transformDeclaration(declaration, analysis, diagnostics);
-    const promotedInline = transformInputs(analysis, scaffold, diagnostics);
+    const promotedInline = transformInputs(
+        analysis,
+        scaffold,
+        diagnostics,
+        opts?.externalSeriesInputs,
+    );
     // `transformOther` runs BEFORE the drawing transforms so the non-drawing
     // scalar declarations it emits (`let ph = ta.pivotsHighLow.high(...)`)
     // precede the drawing pushes/updates that reference them. Pine declares a

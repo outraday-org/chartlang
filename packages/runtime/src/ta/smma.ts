@@ -87,8 +87,9 @@ function compute(slot: SmmaSlot, src: number, isTick: boolean): number {
  * Smoothed moving average (Wilder's RMA). Recurrence
  * `SMMA[t] = α·x[t] + (1 − α)·SMMA[t − 1]` with `α = 1 / length`
  * after a seed of the simple mean of the first `length` finite
- * source values. Mid-stream NaN forward-fills the prior value
- * (matches the recurrence-MA convention shared with `ta.ema`).
+ * source values. Mid-stream NaN forward-fills the prior value;
+ * unlike canonical `ta.ema`, SMMA's current output stays finite
+ * across a source gap.
  * Tick-mode (`onBarTick`) recomputes the head from the previous
  * closed SMMA so partial-bar values don't bleed into the next
  * close's recurrence.

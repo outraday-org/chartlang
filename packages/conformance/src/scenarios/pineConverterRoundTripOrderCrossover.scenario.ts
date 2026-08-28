@@ -31,22 +31,21 @@ if (CONVERTED.output === null) {
 const INLINE_SOURCE = CONVERTED.output;
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
-    // MEASURED on this branch: 153 with the scalar-condition rule, 20 000
+    // MEASURED on this branch: 156 with the scalar-condition rule, 20 000
     // without it (2 per bar × 10 000 golden bars) — the defect and the fix are
     // two orders of magnitude apart, so this number IS the regression.
-    { kind: "order-count", count: 153 },
-    // The first round trip. Entry at 162 / exit at 264 are bar-for-bar the same
+    { kind: "order-count", count: 156 },
+    // The first round trip. Entry at 1 / exit at 3 are bar-for-bar the same
     // events the HAND-WRITTEN `order-ema-cross` scenario pins over the same
     // golden bars, which is the cross-check that the converted program is the
-    // same strategy rather than merely a quieter one. The lone `close` at 111
-    // is real Pine: this fixture has no position gate, so its first crossunder
-    // closes while flat (that one extra order is the 153-vs-152 difference).
+    // same strategy rather than merely a quieter one. Pine-compatible EMA
+    // seeding makes the first comparison available immediately; bar zero
+    // cannot cross because the predicate requires a prior bar.
     {
         kind: "order-at-bar",
         expected: [
-            { action: "close", bar: 111, label: "Long" },
-            { action: "buy", bar: 162, label: "Long" },
-            { action: "close", bar: 264, label: "Long" },
+            { action: "buy", bar: 1, label: "Long" },
+            { action: "close", bar: 3, label: "Long" },
         ],
     },
     { kind: "diagnostic-code-absent", code: "unsupported-orders" },

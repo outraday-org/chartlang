@@ -21,7 +21,7 @@ mi[t]    = sum(ratio[t − sumLength + 1..= t])
 
 ## Warmup
 
-emaLength + emaLength + sumLength − 3
+sumLength − 1 (both EMA stages seed immediately)
 
 ## Signature
 

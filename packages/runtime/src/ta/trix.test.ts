@@ -52,7 +52,7 @@ describe("ta.trix", () => {
         }
     });
 
-    it("emits NaN until `3·length + signalLength − 3`; first defined signal at that bar", () => {
+    it("seeds the signal on the first finite TRIX bar", () => {
         const length = 5;
         const signalLength = 4;
         const bars = syntheticBars(40, 29);
@@ -60,14 +60,11 @@ describe("ta.trix", () => {
             const r = trix("slot", bar.close, length, { signalLength });
             return r.signal.current;
         });
-        const firstDefined = 3 * length + signalLength - 3;
-        for (let i = 0; i < firstDefined && i < out.length; i += 1) {
-            expect(Number.isNaN(out[i])).toBe(true);
-        }
-        expect(Number.isFinite(out[firstDefined])).toBe(true);
+        expect(Number.isNaN(out[0])).toBe(true);
+        expect(Number.isFinite(out[1])).toBe(true);
     });
 
-    it("trix line warmup is `3·length − 2`; first defined trix at `3·length − 2`", () => {
+    it("defines the TRIX line after the first EMA3 comparison", () => {
         const length = 5;
         const bars = syntheticBars(30, 31);
         const out = harness(
@@ -75,12 +72,8 @@ describe("ta.trix", () => {
             bars.length + 1,
             (bar) => trix("slot", bar.close, length).trix.current,
         );
-        // 3·5 − 3 = 12; first defined at index 13 (need ema3[t-1] to be finite).
-        // ema3 first defined at 3·5 − 3 = 12; trix first defined at 13.
-        for (let i = 0; i < 13 && i < out.length; i += 1) {
-            expect(Number.isNaN(out[i])).toBe(true);
-        }
-        expect(Number.isFinite(out[13])).toBe(true);
+        expect(Number.isNaN(out[0])).toBe(true);
+        expect(Number.isFinite(out[1])).toBe(true);
     });
 
     it("returns the same TrixResult identity on every call", () => {
@@ -93,7 +86,7 @@ describe("ta.trix", () => {
         expect(ids.size).toBe(1);
     });
 
-    it("emits 0 for a constant-input stream past warmup (ema3 stable, percentage delta is 0)", () => {
+    it("emits 0 for a constant-input stream after the first comparison", () => {
         const bars = Array.from({ length: 40 }, (_, i) => ({
             time: 1_700_000_000_000 + i * 60_000,
             open: 100,
@@ -109,8 +102,7 @@ describe("ta.trix", () => {
             bars.length + 1,
             (bar) => trix("slot", bar.close, 5).trix.current,
         );
-        // 3·5 − 2 = 13; from then on, ema3 = 100 and percentage delta = 0.
-        for (let i = 13; i < bars.length; i += 1) expect(out[i]).toBeCloseTo(0, 12);
+        for (let i = 1; i < bars.length; i += 1) expect(out[i]).toBeCloseTo(0, 12);
     });
 
     it("throws when called outside an active script step", () => {
@@ -177,12 +169,12 @@ describe("ta.trix tick-mode", () => {
         expect(b).toBeCloseTo(a, 12);
     });
 
-    it("tick during warmup returns NaN", () => {
+    it("tick remains finite after one prior EMA3 close", () => {
         const bars = syntheticBars(3, 47);
         const { ctxRef } = harnessWithCtx(bars, bars.length + 5, (bar) =>
             trix("slot", bar.close, 5),
         );
         const head = tick(ctxRef, bars[2], () => trix("slot", bars[2].close, 5).trix.current);
-        expect(Number.isNaN(head)).toBe(true);
+        expect(Number.isFinite(head)).toBe(true);
     });
 });

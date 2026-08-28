@@ -112,10 +112,10 @@ needed to make a price indexable. Because the field is an object,
 `false` — use `bar.close.current` (or `+bar.close`) when you need the raw
 scalar, e.g. storing it in a `state.*` slot or a drawing anchor.
 
-**Warmup.** `ta.ema(_, 14)` returns `NaN` for the first 13 bars;
-`ta.rsi(_, n)` warms over its `n`-bar window; `ta.macd` warms over the
-longer of its two EMAs. Plots whose value is `NaN`/`±Infinity` render
-as gaps, not zeroes. Each primitive's `@warmup` is in
+**Warmup.** `ta.ema(_, n)` seeds on the first finite source and emits `NaN`
+only for missing-source bars; windowed primitives such as `ta.sma(_, n)` and
+`ta.rsi(_, n)` retain their documented warmup. Plots whose value is
+`NaN`/`±Infinity` render as gaps, not zeroes. Each primitive's `@warmup` is in
 [`references/primitives.md`](./references/primitives.md).
 
 **Provably-bounded indices size precisely.** A series index the compiler

@@ -158,7 +158,7 @@ function rviValue(upEma: number, downEma: number): number {
  *           upEma     = EMA(length)(upRaw) ;
  *           downEma   = EMA(length)(downRaw) ;
  *           rvi[t]    = 100 · upEma[t] / (upEma[t] + downEma[t])
- * @warmup   2 · length − 1
+ * @warmup   length − 1 (the rolling standard-deviation window)
  * @since 0.2
  * @stable
  *
@@ -193,8 +193,7 @@ export function rvi(
         const upSeries = ema(`${slotId}/upEma`, up, slot.length);
         const downSeries = ema(`${slotId}/downEma`, down, slot.length);
         // NaN source short-circuits to NaN output regardless of how the
-        // EMA arms forward-fill internally — RVI is undefined when the
-        // current sample isn't measurable.
+        // RVI is undefined when the current sample isn't measurable.
         const value = Number.isFinite(src)
             ? rviValue(upSeries.current, downSeries.current)
             : Number.NaN;

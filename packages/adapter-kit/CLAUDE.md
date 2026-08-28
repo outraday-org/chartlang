@@ -299,6 +299,18 @@ layer** every adapter shares.
   draws at flush, mirroring `renderFilledBandSeries`. Both kinds are additive
   `PlotKind` members (in core, re-exported here) and are deliberately NOT in
   `PHASE_5_PLOT_KINDS` (frozen) — adapters opt in individually.
+- **`columns` and `histogram` are distinct `PlotStyle` discriminants.** Both
+  require a finite `baseline` on the wire and share that validator, but they
+  retain different presentation intent (separated columns vs histogram bars).
+  Columns additionally require a positive finite `lineWidth`; the runtime
+  resolves the authoring default to `1` before emitting the descriptor.
+  `columns` is deliberately NOT added to frozen `PHASE_5_PLOT_KINDS`; a
+  renderer must implement and claim it explicitly.
+- **Shape `text?` / `textColor?` are optional wire presentation metadata.**
+  `text` must be a string when present and `textColor` a non-empty color; they
+  preserve Pine's annotation over a `plotshape` glyph independently of the
+  top-level glyph color. Adapters that render shape annotations consume these
+  fields rather than inferring text from the title.
 - **`RunnerEmissions.orders` is APPEND-ONLY and sits after `alertConditions`,
   before `logs`; every `OrderEmission` field is REQUIRED.** The position is not
   cosmetic — the field order here, the normative queue list in

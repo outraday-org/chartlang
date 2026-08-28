@@ -501,7 +501,19 @@ describe("emitScalar / lowerTaToCurrent", () => {
     });
 
     it("emits a non-ta node identically to emitWithContext", () => {
-        expect(emitScalar(ident("close"), ctx())).toBe("bar.close");
+        expect(emitScalar(ident("close"), ctx())).toBe("bar.close.current");
+        expect(
+            emitScalar(
+                {
+                    kind: "ternary-expression",
+                    condition: ident("enabled"),
+                    consequent: ident("close"),
+                    alternate: ident("open"),
+                    span: SPAN,
+                },
+                ctx(),
+            ),
+        ).toBe("enabled ? bar.close.current : bar.open.current");
     });
 
     it("lowers a mapped ta.* call and surfaces its signature note", () => {

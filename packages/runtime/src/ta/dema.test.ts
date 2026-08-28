@@ -34,12 +34,11 @@ describe("ta.dema", () => {
         }
     });
 
-    it("emits NaN until 2·length − 2 closed bars", () => {
+    it("is finite from the first finite source bar", () => {
         const bars = syntheticBars(20, 5);
         const out = harness(bars, bars.length + 1, (bar) => dema("slot", bar.close, 5).current);
-        // 2·5 − 2 = 8; first defined at index 8.
-        for (let i = 0; i < 8; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[8])).toBe(true);
+        expect(out[0]).toBe(bars[0].close);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 
     it("returns the same Series identity on every call", () => {
@@ -59,18 +58,17 @@ describe("ta.dema", () => {
         );
     });
 
-    it("forward-fills the prior value on a mid-stream NaN source (EMA recurrence convention)", () => {
+    it("emits NaN on a mid-stream NaN source and resumes the recurrence afterward", () => {
         const bars = syntheticBars(30, 4).map((b, i) =>
             i === 15 ? { ...b, close: Number.NaN } : b,
         );
         const out = harness(bars, bars.length + 1, (bar) => dema("slot", bar.close, 5).current);
-        // After warmup (index 8), DEMA stays defined; NaN at bar 15 inherits
-        // ema1's forward-fill semantics, propagated through ema2.
         expect(Number.isFinite(out[14])).toBe(true);
-        expect(Number.isFinite(out[15])).toBe(true);
+        expect(Number.isNaN(out[15])).toBe(true);
+        expect(Number.isFinite(out[16])).toBe(true);
     });
 
-    it("equals the constant for a constant-input stream past warmup", () => {
+    it("equals the constant for a constant-input stream from bar zero", () => {
         const bars = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5].map((c, i) => ({
             time: 1_700_000_000_000 + i * 60_000,
             open: c,
@@ -82,8 +80,7 @@ describe("ta.dema", () => {
             interval: "1m",
         }));
         const out = harness(bars, bars.length + 1, (bar) => dema("slot", bar.close, 3).current);
-        // 2·3 − 2 = 4 warmup bars; first defined at index 4.
-        for (let i = 4; i < bars.length; i += 1) {
+        for (let i = 0; i < bars.length; i += 1) {
             expect(out[i]).toBeCloseTo(5, 12);
         }
     });
@@ -117,22 +114,21 @@ describe("ta.dema tick-mode", () => {
         expect(b).toBeCloseTo(a, 12);
     });
 
-    it("tick during warmup returns NaN", () => {
+    it("tick remains finite before length bars have closed", () => {
         const bars = syntheticBars(3, 2);
         const { ctxRef } = harnessWithCtx(bars, bars.length + 5, (bar) =>
             dema("slot", bar.close, 5),
         );
         const head = tick(ctxRef, bars[2], () => dema("slot", bars[2].close, 5).current);
-        expect(Number.isNaN(head)).toBe(true);
+        expect(Number.isFinite(head)).toBe(true);
     });
 
-    it("tick with NaN source carries the prior EMA forward (no spurious NaN)", () => {
+    it("tick with NaN source emits NaN", () => {
         const bars = syntheticBars(30, 1);
         const { ctxRef } = harnessWithCtx(bars, bars.length + 1, (bar) =>
             dema("slot", bar.close, 5),
         );
         const head = tick(ctxRef, bars[bars.length - 1], () => dema("slot", Number.NaN, 5).current);
-        // EMA forward-fills on NaN input; DEMA inherits that semantic.
-        expect(Number.isFinite(head)).toBe(true);
+        expect(Number.isNaN(head)).toBe(true);
     });
 });

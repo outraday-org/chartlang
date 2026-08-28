@@ -314,6 +314,21 @@
   stale visible emission. The `program.ts` shim mirrors both option bags in
   lockstep.
 
+- **`columns` is distinct from `histogram` in both `PlotKind` and
+  `PlotOptsStyle`.** Both carry an optional authoring `baseline` defaulted to
+  `0` by the runtime, but columns preserve separated-column presentation while
+  histogram preserves contiguous histogram intent. Never collapse one into
+  the other; adapters claim `columns` explicitly when they implement it.
+  Columns also preserve the sibling `PlotOpts.lineWidth` on the wire (default
+  `1`), so a converter-authored Pine linewidth cannot disappear between the
+  runtime and renderer. The compiler ambient shim mirrors both union arms and
+  the shared linewidth option in lockstep.
+
+- **Shape plot styles may carry `text?` and `textColor?`.** These fields retain
+  Pine `plotshape`'s glyph annotation separately from the top-level glyph
+  color; absence remains byte-identical. Runtime and compiler mirrors must
+  preserve both optional fields.
+
 - **`input.enum` / `EnumDescriptor` admit `T extends string | number`.** A
   numeric enum (`input.enum(21, [8, 21, 30])`) is a fixed-options dropdown over
   numbers, the string enum is unchanged. The widened bound is mirrored in three

@@ -46,7 +46,7 @@ describe("ta persistence", () => {
     });
 
     it("preserves NaN scalar fields as JSON-clean null values", () => {
-        const bars = syntheticBars(5, 3);
+        const bars = syntheticBars(5, 3).map((bar) => ({ ...bar, close: Number.NaN }));
         const { ctxRef } = harnessWithCtx(bars, 16, (bar) => {
             ema("ema-slot", bar.close, 13);
             rsi("rsi-slot", bar.close, 14);
@@ -55,8 +55,8 @@ describe("ta persistence", () => {
         const snapshot = serialiseTaSlots(ctxRef.ctx.stream);
         expect(snapshot["ta:ema-slot"]).toMatchObject({
             kind: "ta.ema",
-            prevEma: null,
-            prevClosedEma: null,
+            closedEma: null,
+            priorClosedEma: null,
         });
         expect(snapshot["ta:rsi-slot"]).toMatchObject({
             kind: "ta.rsi",
@@ -90,15 +90,28 @@ describe("ta persistence", () => {
             { kind: "ta.sma", length: 3, sum: 0, outBuffer: {}, window: {} },
             { kind: "ta.ema", length: 3 },
             { kind: "ta.ema", alpha: 0.5 },
-            { kind: "ta.ema", alpha: 0.5, length: 3, seedSum: 0 },
-            { kind: "ta.ema", alpha: 0.5, length: 3, seedSum: 0, seedCount: 1 },
             {
                 kind: "ta.ema",
                 alpha: 0.5,
                 length: 3,
-                seedSum: 0,
-                seedCount: 1,
-                prevEma: Number.NaN,
+                closedEma: Number.NaN,
+            },
+            {
+                kind: "ta.ema",
+                alpha: 0.25,
+                length: 3,
+                closedEma: Number.NaN,
+                priorClosedEma: Number.NaN,
+                outBuffer: buffer(),
+            },
+            {
+                kind: "ta.ema",
+                alpha: 0.5,
+                length: 3,
+                closedEma: 3,
+                priorClosedEma: 2,
+                seedCount: 3,
+                outBuffer: buffer(),
             },
             { kind: "ta.rsi", length: 14 },
             { kind: "ta.rsi", length: 14, seedGainSum: 0 },
@@ -180,22 +193,49 @@ describe("ta persistence", () => {
             {
                 kind: "ta.ema",
                 length: 13,
-                seedCount: 1,
                 outBuffer: buffer(),
                 alpha: "x",
-                seedSum: 0,
-                prevEma: null,
-                prevClosedEma: null,
+                closedEma: null,
+                priorClosedEma: null,
             },
             {
                 kind: "ta.ema",
                 length: 13,
-                seedCount: 1,
                 outBuffer: { headIndex: -1, filled: 1, values: [1] },
                 alpha: 2 / 14,
-                seedSum: 0,
-                prevEma: null,
-                prevClosedEma: null,
+                closedEma: null,
+                priorClosedEma: null,
+            },
+            {
+                kind: "ta.ema",
+                length: 13,
+                outBuffer: buffer(),
+                alpha: 0.5,
+                closedEma: 100,
+                priorClosedEma: 99,
+            },
+            {
+                kind: "ta.ema",
+                length: 13,
+                outBuffer: buffer(),
+                alpha: 2 / 14,
+                closedEma: 100,
+                priorClosedEma: 99,
+                seedSum: 100,
+                seedCount: 13,
+                prevEma: 100,
+                prevClosedEma: 99,
+            },
+            // Obsolete SMA-seed persistence is deliberately incompatible.
+            {
+                kind: "ta.ema",
+                length: 13,
+                seedCount: 1,
+                seedSum: 100,
+                outBuffer: buffer(),
+                alpha: 2 / 14,
+                prevEma: 100,
+                prevClosedEma: 100,
             },
             { kind: "ta.rsi" },
             {
@@ -236,12 +276,10 @@ describe("ta persistence", () => {
             "ta:empty": {
                 kind: "ta.ema",
                 length: 13,
-                seedCount: 0,
                 outBuffer: emptyBuffer(),
                 alpha: 2 / 14,
-                seedSum: 0,
-                prevEma: null,
-                prevClosedEma: null,
+                closedEma: null,
+                priorClosedEma: null,
             },
         });
         expect(serialiseTaSlots(stream)).toMatchObject({

@@ -1,0 +1,1094 @@
+[
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 432,
+            "startColumn": 63,
+            "endLine": 432,
+            "endColumn": 126
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 437,
+            "startColumn": 40,
+            "endLine": 437,
+            "endColumn": 63
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/transform/input-arg-not-mapped",
+        "severity": "warning",
+        "message": "The `group` input argument was dropped; its value is not a compile-time literal.",
+        "span": {
+            "startLine": 10,
+            "startColumn": 56,
+            "endLine": 10,
+            "endColumn": 71
+        },
+        "suggestion": "Remove the argument; chartlang inputs do not model it."
+    },
+    {
+        "code": "pine-converter/transform/inline-input-promoted",
+        "severity": "info",
+        "message": "An inline `input.*` call was promoted to a named top-level input.",
+        "span": {
+            "startLine": 347,
+            "startColumn": 89,
+            "endLine": 347,
+            "endColumn": 140
+        },
+        "suggestion": "Name the input explicitly (`len = input.int(20)`) to control its key."
+    },
+    {
+        "code": "pine-converter/transform/inline-input-promoted",
+        "severity": "info",
+        "message": "An inline `input.*` call was promoted to a named top-level input.",
+        "span": {
+            "startLine": 351,
+            "startColumn": 94,
+            "endLine": 351,
+            "endColumn": 144
+        },
+        "suggestion": "Name the input explicitly (`len = input.int(20)`) to control its key."
+    },
+    {
+        "code": "pine-converter/transform/inline-input-promoted",
+        "severity": "info",
+        "message": "An inline `input.*` call was promoted to a named top-level input.",
+        "span": {
+            "startLine": 355,
+            "startColumn": 87,
+            "endLine": 355,
+            "endColumn": 137
+        },
+        "suggestion": "Name the input explicitly (`len = input.int(20)`) to control its key."
+    },
+    {
+        "code": "pine-converter/transform/udf-emitted-function",
+        "severity": "info",
+        "message": "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        "span": {
+            "startLine": 189,
+            "startColumn": 1,
+            "endLine": 192,
+            "endColumn": 1
+        },
+        "suggestion": "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-emitted-function",
+        "severity": "info",
+        "message": "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        "span": {
+            "startLine": 328,
+            "startColumn": 1,
+            "endLine": 334,
+            "endColumn": 1
+        },
+        "suggestion": "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 433,
+            "startColumn": 5,
+            "endLine": 433,
+            "endColumn": 33
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/udf-emitted-function",
+        "severity": "info",
+        "message": "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        "span": {
+            "startLine": 425,
+            "startColumn": 1,
+            "endLine": 436,
+            "endColumn": 1
+        },
+        "suggestion": "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-emitted-function",
+        "severity": "info",
+        "message": "A pure (state-free) user-defined function was emitted as a reusable chartlang arrow function at the top of `compute`, and every call site reuses it (no inlining needed — a pure helper is referentially transparent).",
+        "span": {
+            "startLine": 436,
+            "startColumn": 1,
+            "endLine": 441,
+            "endColumn": 1
+        },
+        "suggestion": "No action needed — a single shared function is semantically identical to Pine's per-call evaluation for a state-free helper."
+    },
+    {
+        "code": "pine-converter/transform/request-security-gaps-dropped",
+        "severity": "info",
+        "message": "The `gaps` parameter on `request.security` has no chartlang analogue and was dropped; chartlang security feeds are gap-filled by default.",
+        "span": {
+            "startLine": 202,
+            "startColumn": 70,
+            "endLine": 202,
+            "endColumn": 94
+        },
+        "suggestion": "Remove the `gaps` argument; chartlang aligns the higher-timeframe feed onto every chart bar."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 203,
+            "startColumn": 14,
+            "endLine": 203,
+            "endColumn": 95
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 206,
+            "startColumn": 1,
+            "endLine": 206,
+            "endColumn": 95
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/nested-ta-lowered",
+        "severity": "info",
+        "message": "A `ta.*` call in a scalar position (a branch predicate, an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding expression reads the current bar's value instead of the `Series` object.",
+        "span": {
+            "startLine": 194,
+            "startColumn": 18,
+            "endLine": 194,
+            "endColumn": 44
+        },
+        "suggestion": "No action needed — the `.current` projection is the per-bar value Pine uses; the `ta.*` series keeps its own per-call-site history."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 227,
+            "startColumn": 8,
+            "endLine": 227,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 228,
+            "startColumn": 8,
+            "endLine": 228,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 229,
+            "startColumn": 8,
+            "endLine": 229,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 230,
+            "startColumn": 8,
+            "endLine": 230,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 231,
+            "startColumn": 8,
+            "endLine": 231,
+            "endColumn": 40
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 238,
+            "startColumn": 19,
+            "endLine": 238,
+            "endColumn": 47
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 239,
+            "startColumn": 19,
+            "endLine": 239,
+            "endColumn": 45
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 240,
+            "startColumn": 19,
+            "endLine": 240,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 242,
+            "startColumn": 1,
+            "endLine": 242,
+            "endColumn": 192
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 242,
+            "startColumn": 104,
+            "endLine": 242,
+            "endColumn": 132
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 242,
+            "startColumn": 134,
+            "endLine": 242,
+            "endColumn": 160
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 242,
+            "startColumn": 162,
+            "endLine": 242,
+            "endColumn": 189
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 269,
+            "startColumn": 14,
+            "endLine": 269,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 270,
+            "startColumn": 14,
+            "endLine": 270,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 271,
+            "startColumn": 14,
+            "endLine": 271,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 272,
+            "startColumn": 14,
+            "endLine": 272,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 273,
+            "startColumn": 14,
+            "endLine": 273,
+            "endColumn": 46
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 295,
+            "startColumn": 13,
+            "endLine": 295,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 296,
+            "startColumn": 13,
+            "endLine": 296,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 297,
+            "startColumn": 13,
+            "endLine": 297,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 298,
+            "startColumn": 13,
+            "endLine": 298,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 299,
+            "startColumn": 13,
+            "endLine": 299,
+            "endColumn": 48
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 303,
+            "startColumn": 18,
+            "endLine": 303,
+            "endColumn": 83
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 304,
+            "startColumn": 18,
+            "endLine": 304,
+            "endColumn": 83
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 305,
+            "startColumn": 18,
+            "endLine": 305,
+            "endColumn": 83
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 306,
+            "startColumn": 18,
+            "endLine": 306,
+            "endColumn": 83
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 312,
+            "startColumn": 16,
+            "endLine": 312,
+            "endColumn": 47
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 334,
+            "startColumn": 83,
+            "endLine": 334,
+            "endColumn": 87
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 334,
+            "startColumn": 101,
+            "endLine": 334,
+            "endColumn": 128
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 334,
+            "startColumn": 25,
+            "endLine": 334,
+            "endColumn": 129
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 335,
+            "startColumn": 83,
+            "endLine": 335,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 335,
+            "startColumn": 101,
+            "endLine": 335,
+            "endColumn": 114
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 335,
+            "startColumn": 25,
+            "endLine": 335,
+            "endColumn": 115
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 336,
+            "startColumn": 83,
+            "endLine": 336,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 336,
+            "startColumn": 101,
+            "endLine": 336,
+            "endColumn": 131
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 336,
+            "startColumn": 25,
+            "endLine": 336,
+            "endColumn": 132
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 338,
+            "startColumn": 56,
+            "endLine": 338,
+            "endColumn": 78
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 338,
+            "startColumn": 92,
+            "endLine": 338,
+            "endColumn": 98
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 338,
+            "startColumn": 27,
+            "endLine": 338,
+            "endColumn": 116
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 339,
+            "startColumn": 56,
+            "endLine": 339,
+            "endColumn": 73
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 339,
+            "startColumn": 92,
+            "endLine": 339,
+            "endColumn": 98
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 339,
+            "startColumn": 27,
+            "endLine": 339,
+            "endColumn": 118
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 340,
+            "startColumn": 56,
+            "endLine": 340,
+            "endColumn": 77
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-arg-hoisted",
+        "severity": "info",
+        "message": "A non-trivial argument to an inlined stateful user-defined function was hoisted to a temporary so it is evaluated exactly once (Pine evaluates each argument once; substituting it inline could re-evaluate it or duplicate its `ta.*` state).",
+        "span": {
+            "startLine": 340,
+            "startColumn": 92,
+            "endLine": 340,
+            "endColumn": 99
+        },
+        "suggestion": "No action needed — the temporary preserves Pine's evaluate-once argument semantics."
+    },
+    {
+        "code": "pine-converter/transform/udf-inlined",
+        "severity": "info",
+        "message": "A stateful user-defined function call was inline-expanded at its call site so each `ta.*`/`state.*` it contains gets an independent slot (Pine instances stateful helper state per call site; a shared function would cross-contaminate it).",
+        "span": {
+            "startLine": 340,
+            "startColumn": 27,
+            "endLine": 340,
+            "endColumn": 119
+        },
+        "suggestion": "No action needed — inlining reproduces Pine's per-call-site state instancing for a stateful helper."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 369,
+            "startColumn": 76,
+            "endLine": 369,
+            "endColumn": 102
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 370,
+            "startColumn": 76,
+            "endLine": 370,
+            "endColumn": 103
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 371,
+            "startColumn": 76,
+            "endLine": 371,
+            "endColumn": 102
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 372,
+            "startColumn": 76,
+            "endLine": 372,
+            "endColumn": 104
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 373,
+            "startColumn": 76,
+            "endLine": 373,
+            "endColumn": 103
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 374,
+            "startColumn": 87,
+            "endLine": 374,
+            "endColumn": 115
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 376,
+            "startColumn": 67,
+            "endLine": 376,
+            "endColumn": 93
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 377,
+            "startColumn": 67,
+            "endLine": 377,
+            "endColumn": 94
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 378,
+            "startColumn": 67,
+            "endLine": 378,
+            "endColumn": 93
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 379,
+            "startColumn": 67,
+            "endLine": 379,
+            "endColumn": 95
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 380,
+            "startColumn": 67,
+            "endLine": 380,
+            "endColumn": 94
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 383,
+            "startColumn": 60,
+            "endLine": 383,
+            "endColumn": 86
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 384,
+            "startColumn": 60,
+            "endLine": 384,
+            "endColumn": 87
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 385,
+            "startColumn": 60,
+            "endLine": 385,
+            "endColumn": 86
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 386,
+            "startColumn": 60,
+            "endLine": 386,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 387,
+            "startColumn": 60,
+            "endLine": 387,
+            "endColumn": 87
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 396,
+            "startColumn": 66,
+            "endLine": 396,
+            "endColumn": 94
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 398,
+            "startColumn": 44,
+            "endLine": 398,
+            "endColumn": 71
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 404,
+            "startColumn": 52,
+            "endLine": 404,
+            "endColumn": 73
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 409,
+            "startColumn": 58,
+            "endLine": 409,
+            "endColumn": 87
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 410,
+            "startColumn": 59,
+            "endLine": 410,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 411,
+            "startColumn": 64,
+            "endLine": 411,
+            "endColumn": 92
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 411,
+            "startColumn": 95,
+            "endLine": 411,
+            "endColumn": 124
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 413,
+            "startColumn": 111,
+            "endLine": 413,
+            "endColumn": 140
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 414,
+            "startColumn": 109,
+            "endLine": 414,
+            "endColumn": 138
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 415,
+            "startColumn": 110,
+            "endLine": 415,
+            "endColumn": 139
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/table-bucket-cap-adjusted",
+        "severity": "info",
+        "message": "The `other` drawing-bucket cap was raised to fit the converted tables.",
+        "span": {
+            "startLine": 422,
+            "startColumn": 24,
+            "endLine": 422,
+            "endColumn": 142
+        },
+        "suggestion": "No action needed; the cap was widened to match the table count."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 443,
+            "startColumn": 57,
+            "endLine": 443,
+            "endColumn": 85
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/table-formatting-not-mapped",
+        "severity": "warning",
+        "message": "Pine's `text_font_family` table-cell option has no chartlang analogue and was dropped.",
+        "span": {
+            "startLine": 443,
+            "startColumn": 112,
+            "endLine": 443,
+            "endColumn": 150
+        },
+        "suggestion": "chartlang `TableCell` models text, colors, alignment, and size only."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 444,
+            "startColumn": 57,
+            "endLine": 444,
+            "endColumn": 85
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 445,
+            "startColumn": 57,
+            "endLine": 445,
+            "endColumn": 85
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    }
+]

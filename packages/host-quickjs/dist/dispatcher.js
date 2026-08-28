@@ -3871,6 +3871,7 @@ var VALID_PLOT_STYLE_KINDS = /* @__PURE__ */ new Set([
   "step-line",
   "horizontal-line",
   "histogram",
+  "columns",
   "area",
   "filled-band",
   "label",
@@ -4056,6 +4057,13 @@ function validateHistogramStyle(style) {
   }
   return { ok: true };
 }
+function validateColumnsStyle(style) {
+  const baseline = validateHistogramStyle(style);
+  if (!baseline.ok)
+    return baseline;
+  const lineWidth = style.lineWidth;
+  return !isFiniteNumber(lineWidth) || lineWidth <= 0 ? bad("style.lineWidth: must be a finite positive number") : { ok: true };
+}
 function validateFilledBandStyle(style) {
   const upper = style.upper;
   if (upper !== null && !isFiniteNumber(upper)) {
@@ -4115,7 +4123,13 @@ function validatePlotShapeStyle(style) {
   if (!isFiniteNumber(size) || size <= 0) {
     return bad("style.size: must be a finite positive number");
   }
-  return validateOptionalLocation(style);
+  const location = validateOptionalLocation(style);
+  if (!location.ok)
+    return location;
+  if (style.text !== void 0 && typeof style.text !== "string") {
+    return bad("style.text: must be a string");
+  }
+  return validateOptionalColor(style.textColor, "style.textColor");
 }
 function validateCharacterStyle(style) {
   const char = style.char;
@@ -4262,6 +4276,8 @@ function validatePlotStyle(style) {
       return validateLineLikeStyle(style);
     case "histogram":
       return validateHistogramStyle(style);
+    case "columns":
+      return validateColumnsStyle(style);
     case "area":
       return validateAreaStyle(style);
     case "filled-band":
@@ -6744,6 +6760,12 @@ function buildStyle(opts) {
   switch (style.kind) {
     case "histogram":
       return { kind: "histogram", baseline: style.baseline ?? 0 };
+    case "columns":
+      return {
+        kind: "columns",
+        baseline: style.baseline ?? 0,
+        lineWidth: opts.lineWidth ?? 1
+      };
     case "marker":
       return { kind: "marker", shape: style.shape, size: style.size };
     case "shape":
@@ -6751,7 +6773,9 @@ function buildStyle(opts) {
         kind: "shape",
         shape: style.shape,
         size: style.size,
-        ...style.location === void 0 ? {} : { location: style.location }
+        ...style.location === void 0 ? {} : { location: style.location },
+        ...style.text === void 0 ? {} : { text: style.text },
+        ...style.textColor === void 0 ? {} : { textColor: style.textColor }
       };
     case "character":
       return {
@@ -9690,12 +9714,10 @@ function initSlot19(length, capacity) {
     kind: "ta.ema",
     outBuffer,
     series: makeSeriesView(outBuffer),
-    alpha: 2 / (length + 1),
+    alpha: Number.isInteger(length) && length > 0 ? 2 / (length + 1) : Number.NaN,
     length,
-    seedSum: 0,
-    seedCount: 0,
-    prevEma: Number.NaN,
-    prevClosedEma: Number.NaN,
+    closedEma: Number.NaN,
+    priorClosedEma: Number.NaN,
     shiftedViews: /* @__PURE__ */ new Map()
   };
 }
@@ -9709,36 +9731,20 @@ function viewForOffset6(slot, offset) {
   }
   return view;
 }
-function compute(slot, src, isTick) {
-  if (!Number.isFinite(src)) {
-    return isTick ? slot.prevEma : slot.prevClosedEma;
-  }
-  if (slot.seedCount < slot.length) {
-    if (isTick) {
-      const nextSum = slot.seedSum + src;
-      const nextCount = slot.seedCount + 1;
-      if (nextCount < slot.length)
-        return Number.NaN;
-      return nextSum / slot.length;
-    }
-    slot.seedSum += src;
-    slot.seedCount += 1;
-    if (slot.seedCount < slot.length) {
-      slot.prevClosedEma = Number.NaN;
-      return Number.NaN;
-    }
-    const seedValue = slot.seedSum / slot.length;
-    slot.prevClosedEma = seedValue;
-    slot.prevEma = seedValue;
-    return seedValue;
-  }
-  const prev = slot.prevClosedEma;
-  const next = src * slot.alpha + prev * (1 - slot.alpha);
-  if (!isTick) {
-    slot.prevClosedEma = next;
-    slot.prevEma = next;
-  }
+function nextEma(src, prior, alpha) {
+  if (!Number.isFinite(src) || !Number.isFinite(alpha))
+    return Number.NaN;
+  return Number.isFinite(prior) ? src * alpha + prior * (1 - alpha) : src;
+}
+function closeValue8(slot, src) {
+  slot.priorClosedEma = slot.closedEma;
+  const next = nextEma(src, slot.closedEma, slot.alpha);
+  if (Number.isFinite(next))
+    slot.closedEma = next;
   return next;
+}
+function tickValue8(slot, src) {
+  return nextEma(src, slot.priorClosedEma, slot.alpha);
 }
 function ema(slotId, source, length, opts) {
   const ctx = getCtx21();
@@ -9747,7 +9753,8 @@ function ema(slotId, source, length, opts) {
     slot = initSlot19(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const value = compute(slot, readSourceValue(source), ctx.isTick);
+  const src = readSourceValue(source);
+  const value = ctx.isTick ? tickValue8(slot, src) : closeValue8(slot, src);
   if (ctx.isTick)
     slot.outBuffer.replaceHead(value);
   else
@@ -9840,7 +9847,7 @@ function recomputeMaxExcludingHead(slot) {
   }
   return maxV;
 }
-function closeValue8(slot, src) {
+function closeValue9(slot, src) {
   slot.barCount += 1;
   const headIndex = slot.barCount - 1;
   slot.sourceWindow.append(src);
@@ -9867,7 +9874,7 @@ function closeValue8(slot, src) {
   }
   return slot.monoValues[0];
 }
-function tickValue8(slot, src) {
+function tickValue9(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src)) {
@@ -9887,9 +9894,9 @@ function highest(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue8(slot, src));
+    slot.outBuffer.replaceHead(tickValue9(slot, src));
   } else {
-    slot.outBuffer.append(closeValue8(slot, src));
+    slot.outBuffer.append(closeValue9(slot, src));
   }
   return slot.series;
 }
@@ -9925,7 +9932,7 @@ function recomputeMinExcludingHead(slot) {
   }
   return minV;
 }
-function closeValue9(slot, src) {
+function closeValue10(slot, src) {
   slot.barCount += 1;
   const headIndex = slot.barCount - 1;
   slot.sourceWindow.append(src);
@@ -9951,7 +9958,7 @@ function closeValue9(slot, src) {
     return Number.NaN;
   return slot.monoValues[0];
 }
-function tickValue9(slot, src) {
+function tickValue10(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src)) {
@@ -9971,9 +9978,9 @@ function lowest(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue9(slot, src));
+    slot.outBuffer.replaceHead(tickValue10(slot, src));
   } else {
-    slot.outBuffer.append(closeValue9(slot, src));
+    slot.outBuffer.append(closeValue10(slot, src));
   }
   return slot.series;
 }
@@ -10105,7 +10112,7 @@ function initSlot24(capacity, length, multiplier) {
     multiplier
   };
 }
-function compute2(hi, lo, atrValue, multiplier) {
+function compute(hi, lo, atrValue, multiplier) {
   if (!Number.isFinite(hi) || !Number.isFinite(lo) || !Number.isFinite(atrValue)) {
     return { long: Number.NaN, short: Number.NaN };
   }
@@ -10127,7 +10134,7 @@ function chandelier(slotId, opts) {
   const atrSeries = atr(`${slotId}/atr`, slot.length);
   const highSeries = highest(`${slotId}/highHigh`, bar.high, slot.length);
   const lowSeries = lowest(`${slotId}/lowLow`, bar.low, slot.length);
-  const result = compute2(highSeries.current, lowSeries.current, atrSeries.current, slot.multiplier);
+  const result = compute(highSeries.current, lowSeries.current, atrSeries.current, slot.multiplier);
   if (ctx.isTick) {
     slot.longBuffer.replaceHead(result.long);
     slot.shortBuffer.replaceHead(result.short);
@@ -10155,7 +10162,7 @@ function initSlot25(length, capacity) {
     sourceWindow: new Float64RingBuffer(length + 1)
   };
 }
-function closeValue10(slot, src) {
+function closeValue11(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
@@ -10165,7 +10172,7 @@ function closeValue10(slot, src) {
     return Number.NaN;
   return head - old;
 }
-function tickValue10(slot, src) {
+function tickValue11(slot, src) {
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
   const old = slot.sourceWindow.at(slot.length);
@@ -10183,9 +10190,9 @@ function change(slotId, source, opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue10(slot, src));
+    slot.outBuffer.replaceHead(tickValue11(slot, src));
   } else {
-    slot.outBuffer.append(closeValue10(slot, src));
+    slot.outBuffer.append(closeValue11(slot, src));
   }
   return slot.series;
 }
@@ -10237,7 +10244,7 @@ function chopValue(slot, upper, lower) {
     return 100;
   return raw;
 }
-function closeValue11(slot, high, low, close2, upper, lower) {
+function closeValue12(slot, high, low, close2, upper, lower) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
@@ -10255,7 +10262,7 @@ function closeValue11(slot, high, low, close2, upper, lower) {
   slot.barCount += 1;
   return chopValue(slot, upper, lower);
 }
-function tickValue11(slot, high, low, close2, upper, lower) {
+function tickValue12(slot, high, low, close2, upper, lower) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     return Number.NaN;
   }
@@ -10288,9 +10295,9 @@ function chop(slotId, length, _opts) {
   const low = +bar.low;
   const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue11(slot, high, low, close2, upper, lower));
+    slot.outBuffer.replaceHead(tickValue12(slot, high, low, close2, upper, lower));
   } else {
-    slot.outBuffer.append(closeValue11(slot, high, low, close2, upper, lower));
+    slot.outBuffer.append(closeValue12(slot, high, low, close2, upper, lower));
   }
   return slot.series;
 }
@@ -10403,7 +10410,7 @@ function cmoFromSums(sumGain, sumLoss) {
   const raw = 100 * (sumGain - sumLoss) / denom;
   return Math.min(100, Math.max(-100, raw));
 }
-function closeValue12(slot, src) {
+function closeValue13(slot, src) {
   if (!Number.isFinite(src)) {
     slot.closedHeadGain = 0;
     slot.closedHeadLoss = 0;
@@ -10440,7 +10447,7 @@ function closeValue12(slot, src) {
   slot.cmo = cmoFromSums(slot.sumGain, slot.sumLoss);
   return slot.cmo;
 }
-function tickValue12(slot, src) {
+function tickValue13(slot, src) {
   if (!Number.isFinite(src) || !Number.isFinite(slot.prevClosedSrc)) {
     return slot.cmo;
   }
@@ -10462,9 +10469,9 @@ function cmo(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue12(slot, src));
+    slot.outBuffer.replaceHead(tickValue13(slot, src));
   } else {
-    slot.outBuffer.append(closeValue12(slot, src));
+    slot.outBuffer.append(closeValue13(slot, src));
   }
   return slot.series;
 }
@@ -10509,7 +10516,7 @@ function rsiFromAvgs(avgGain, avgLoss) {
     return 100;
   return 100 - 100 / (1 + avgGain / avgLoss);
 }
-function closeValue13(slot, src) {
+function closeValue14(slot, src) {
   if (!Number.isFinite(src)) {
     if (Number.isFinite(slot.avgGain) && Number.isFinite(slot.avgLoss)) {
       return rsiFromAvgs(slot.avgGain, slot.avgLoss);
@@ -10543,7 +10550,7 @@ function closeValue13(slot, src) {
   slot.avgLoss = wilderStep(slot.avgLoss, loss, slot.length);
   return rsiFromAvgs(slot.avgGain, slot.avgLoss);
 }
-function tickValue13(slot, src) {
+function tickValue14(slot, src) {
   if (!Number.isFinite(src) || !Number.isFinite(slot.prevClosedSrc)) {
     if (Number.isFinite(slot.avgGain) && Number.isFinite(slot.avgLoss)) {
       return rsiFromAvgs(slot.avgGain, slot.avgLoss);
@@ -10582,9 +10589,9 @@ function rsi(slotId, source, length, opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue13(slot, src));
+    slot.outBuffer.replaceHead(tickValue14(slot, src));
   } else {
-    slot.outBuffer.append(closeValue13(slot, src));
+    slot.outBuffer.append(closeValue14(slot, src));
   }
   return viewForOffset8(slot, opts?.offset ?? 0);
 }
@@ -10788,14 +10795,14 @@ function computeRocSum(slot, src) {
     return Number.NaN;
   return roc1 + roc2;
 }
-function closeValue14(slot, src) {
+function closeValue15(slot, src) {
   slot.sourceWindow.append(src);
   slot.barCount += 1;
   const sum2 = computeRocSum(slot, src);
   slot.sumWindow.append(sum2);
   return wmaOverSumWindow(slot);
 }
-function tickValue14(slot, src) {
+function tickValue15(slot, src) {
   if (slot.sourceWindow.length === 0)
     return Number.NaN;
   slot.sourceWindow.replaceHead(src);
@@ -10815,9 +10822,9 @@ function coppock(slotId, source, opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue14(slot, src));
+    slot.outBuffer.replaceHead(tickValue15(slot, src));
   } else {
-    slot.outBuffer.append(closeValue14(slot, src));
+    slot.outBuffer.append(closeValue15(slot, src));
   }
   return slot.series;
 }
@@ -11251,7 +11258,7 @@ function initSlot40(length, capacity) {
     prevClosedSmma: Number.NaN
   };
 }
-function compute3(slot, src, isTick) {
+function compute2(slot, src, isTick) {
   if (!Number.isFinite(src)) {
     return isTick ? slot.prevSmma : slot.prevClosedSmma;
   }
@@ -11289,7 +11296,7 @@ function smma(slotId, source, length, _opts) {
     slot = initSlot40(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const value = compute3(slot, readSourceValue(source), ctx.isTick);
+  const value = compute2(slot, readSourceValue(source), ctx.isTick);
   if (ctx.isTick)
     slot.outBuffer.replaceHead(value);
   else
@@ -11325,13 +11332,13 @@ function weightedFromWindow2(slot) {
   }
   return sum2 / slot.denom;
 }
-function closeValue15(slot, src) {
+function closeValue16(slot, src) {
   slot.window.append(src);
   if (slot.window.length < slot.length)
     return Number.NaN;
   return weightedFromWindow2(slot);
 }
-function tickValue15(slot, src) {
+function tickValue16(slot, src) {
   if (slot.window.length < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src))
@@ -11354,9 +11361,9 @@ function wma(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue15(slot, src));
+    slot.outBuffer.replaceHead(tickValue16(slot, src));
   } else {
-    slot.outBuffer.append(closeValue15(slot, src));
+    slot.outBuffer.append(closeValue16(slot, src));
   }
   return slot.series;
 }
@@ -11582,13 +11589,13 @@ function monotonicOverWindow(slot, head) {
   slot.scratch[n] = head;
   return monotonic(slot.scratch, n, -1);
 }
-function closeValue16(slot, src) {
+function closeValue17(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length <= slot.length)
     return false;
   return monotonicOverWindow(slot, src);
 }
-function tickValue16(slot, src) {
+function tickValue17(slot, src) {
   if (slot.sourceWindow.length <= slot.length)
     return false;
   return monotonicOverWindow(slot, src);
@@ -11602,9 +11609,9 @@ function falling(slotId, source, length) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue16(slot, src));
+    slot.outBuffer.replaceHead(tickValue17(slot, src));
   } else {
-    slot.outBuffer.append(closeValue16(slot, src));
+    slot.outBuffer.append(closeValue17(slot, src));
   }
   return slot.series;
 }
@@ -11840,14 +11847,14 @@ function offsetToMax(slot, headValue) {
   }
   return bestOffset;
 }
-function closeValue17(slot, src) {
+function closeValue18(slot, src) {
   slot.barCount += 1;
   slot.sourceWindow.append(src);
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMax(slot, void 0);
 }
-function tickValue17(slot, src) {
+function tickValue18(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMax(slot, src);
@@ -11861,9 +11868,9 @@ function highestbars(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue17(slot, src));
+    slot.outBuffer.replaceHead(tickValue18(slot, src));
   } else {
-    slot.outBuffer.append(closeValue17(slot, src));
+    slot.outBuffer.append(closeValue18(slot, src));
   }
   return slot.series;
 }
@@ -11936,7 +11943,7 @@ function recomputeSums(slot) {
     slot.sumX2 = sumX2;
   }
 }
-function closeValue18(slot, src) {
+function closeValue19(slot, src) {
   const lr = logReturn(slot.prevSrc, src);
   if (slot.logReturnsWindow.length < slot.logReturnsWindow.capacity) {
     slot.logReturnsWindow.append(lr);
@@ -11968,7 +11975,7 @@ function closeValue18(slot, src) {
   const sd = windowStdDev(slot.logReturnsWindow, slot.sumX, slot.sumX2);
   return sd * Math.sqrt(slot.annualisationFactor) * 100;
 }
-function tickValue18(slot, src) {
+function tickValue19(slot, src) {
   if (slot.logReturnsWindow.length < slot.logReturnsWindow.capacity)
     return Number.NaN;
   const lr = logReturn(slot.prevSrc, src);
@@ -11994,9 +12001,9 @@ function historicalVolatility(slotId, source, length, opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue18(slot, src));
+    slot.outBuffer.replaceHead(tickValue19(slot, src));
   } else {
-    slot.outBuffer.append(closeValue18(slot, src));
+    slot.outBuffer.append(closeValue19(slot, src));
   }
   return viewForOffset14(slot, opts?.offset ?? 0);
 }
@@ -12525,14 +12532,14 @@ function offsetToMin(slot, headValue) {
   }
   return bestOffset;
 }
-function closeValue19(slot, src) {
+function closeValue20(slot, src) {
   slot.barCount += 1;
   slot.sourceWindow.append(src);
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMin(slot, void 0);
 }
-function tickValue19(slot, src) {
+function tickValue20(slot, src) {
   if (slot.barCount < slot.length)
     return Number.NaN;
   return offsetToMin(slot, src);
@@ -12546,9 +12553,9 @@ function lowestbars(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue19(slot, src));
+    slot.outBuffer.replaceHead(tickValue20(slot, src));
   } else {
-    slot.outBuffer.append(closeValue19(slot, src));
+    slot.outBuffer.append(closeValue20(slot, src));
   }
   return slot.series;
 }
@@ -12598,13 +12605,13 @@ function lsmaFromWindow(slot, headOverride) {
   const intercept = yMean - slope * slot.xMean;
   return intercept + slope * (slot.length - 1);
 }
-function closeValue20(slot, src) {
+function closeValue21(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   return lsmaFromWindow(slot);
 }
-function tickValue20(slot, src) {
+function tickValue21(slot, src) {
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src))
@@ -12620,9 +12627,9 @@ function lsma(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue20(slot, src));
+    slot.outBuffer.replaceHead(tickValue21(slot, src));
   } else {
-    slot.outBuffer.append(closeValue20(slot, src));
+    slot.outBuffer.append(closeValue21(slot, src));
   }
   return slot.series;
 }
@@ -12798,7 +12805,7 @@ function recomputeSum(slot) {
   }
   slot.sumRatio = anyNaN ? Number.NaN : sum2;
 }
-function closeValue21(slot, ratio) {
+function closeValue22(slot, ratio) {
   if (slot.ratioWindow.length < slot.ratioWindow.capacity) {
     slot.ratioWindow.append(ratio);
     if (Number.isFinite(ratio)) {
@@ -12819,7 +12826,7 @@ function closeValue21(slot, ratio) {
   }
   return slot.sumRatio;
 }
-function tickValue21(slot, ratio) {
+function tickValue22(slot, ratio) {
   if (slot.ratioWindow.length < slot.ratioWindow.capacity)
     return Number.NaN;
   const oldestInHead = slot.ratioWindow.at(0);
@@ -12841,9 +12848,9 @@ function massIndex(slotId, opts) {
   const e2 = ema2Series.current;
   const ratio = ratioValue(e1, e2);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue21(slot, ratio));
+    slot.outBuffer.replaceHead(tickValue22(slot, ratio));
   } else {
-    slot.outBuffer.append(closeValue21(slot, ratio));
+    slot.outBuffer.append(closeValue22(slot, ratio));
   }
   return viewForOffset15(slot, opts?.offset ?? 0);
 }
@@ -12874,7 +12881,7 @@ function step(src, prev, length) {
   const denom = length * ratio * ratio * ratio * ratio;
   return prev + (src - prev) / denom;
 }
-function compute4(slot, src, isTick) {
+function compute3(slot, src, isTick) {
   if (!Number.isFinite(src)) {
     return isTick ? slot.prevMc : slot.prevClosedMc;
   }
@@ -12909,7 +12916,7 @@ function mcginley(slotId, source, length, _opts) {
     slot = initSlot57(length, ctx.stream.ohlcv.close.capacity);
     ctx.stream.taSlots.set(slotId, slot);
   }
-  const value = compute4(slot, readSourceValue(source), ctx.isTick);
+  const value = compute3(slot, readSourceValue(source), ctx.isTick);
   if (ctx.isTick)
     slot.outBuffer.replaceHead(value);
   else
@@ -12954,13 +12961,13 @@ function medianOfWindow(slot, headOverride) {
     return view[k - 1 >> 1];
   return (view[(k >> 1) - 1] + view[k >> 1]) / 2;
 }
-function closeValue22(slot, src) {
+function closeValue23(slot, src) {
   slot.window.append(src);
   if (slot.window.length < slot.length)
     return Number.NaN;
   return medianOfWindow(slot, slot.window.at(0));
 }
-function tickValue22(slot, src) {
+function tickValue23(slot, src) {
   if (slot.window.length < slot.length)
     return Number.NaN;
   return medianOfWindow(slot, src);
@@ -12974,9 +12981,9 @@ function median(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue22(slot, src));
+    slot.outBuffer.replaceHead(tickValue23(slot, src));
   } else {
-    slot.outBuffer.append(closeValue22(slot, src));
+    slot.outBuffer.append(closeValue23(slot, src));
   }
   return slot.series;
 }
@@ -14312,13 +14319,13 @@ function monotonicOverWindow2(slot, head) {
   slot.scratch[n] = head;
   return monotonic(slot.scratch, n, 1);
 }
-function closeValue23(slot, src) {
+function closeValue24(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length <= slot.length)
     return false;
   return monotonicOverWindow2(slot, src);
 }
-function tickValue23(slot, src) {
+function tickValue24(slot, src) {
   if (slot.sourceWindow.length <= slot.length)
     return false;
   return monotonicOverWindow2(slot, src);
@@ -14332,9 +14339,9 @@ function rising(slotId, source, length) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue23(slot, src));
+    slot.outBuffer.replaceHead(tickValue24(slot, src));
   } else {
-    slot.outBuffer.append(closeValue23(slot, src));
+    slot.outBuffer.append(closeValue24(slot, src));
   }
   return slot.series;
 }
@@ -14361,7 +14368,7 @@ function rocValue(head, old) {
     return Number.NaN;
   return 100 * (head - old) / old;
 }
-function closeValue24(slot, src) {
+function closeValue25(slot, src) {
   slot.sourceWindow.append(src);
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
@@ -14369,7 +14376,7 @@ function closeValue24(slot, src) {
   const old = slot.sourceWindow.at(slot.length);
   return rocValue(head, old);
 }
-function tickValue24(slot, src) {
+function tickValue25(slot, src) {
   if (slot.sourceWindow.length <= slot.length)
     return Number.NaN;
   const old = slot.sourceWindow.at(slot.length);
@@ -14384,9 +14391,9 @@ function roc(slotId, source, length, _opts) {
   }
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue24(slot, src));
+    slot.outBuffer.replaceHead(tickValue25(slot, src));
   } else {
-    slot.outBuffer.append(closeValue24(slot, src));
+    slot.outBuffer.append(closeValue25(slot, src));
   }
   return slot.series;
 }
@@ -15361,7 +15368,7 @@ function drawdownSquared(src, maxSrc) {
   const dd = 100 * (src - maxSrc) / maxSrc;
   return dd * dd;
 }
-function closeValue25(slot, src, maxSrc) {
+function closeValue26(slot, src, maxSrc) {
   const ddSq = drawdownSquared(src, maxSrc);
   if (!Number.isFinite(ddSq)) {
     return Number.NaN;
@@ -15373,7 +15380,7 @@ function closeValue25(slot, src, maxSrc) {
   slot.sumDrawdownSq += ddSq;
   return Math.sqrt(slot.sumDrawdownSq / slot.drawdownSqWindow.length);
 }
-function tickValue25(slot, src, maxSrc) {
+function tickValue26(slot, src, maxSrc) {
   if (slot.drawdownSqWindow.length === 0)
     return Number.NaN;
   const ddSq = drawdownSquared(src, maxSrc);
@@ -15394,9 +15401,9 @@ function ulcerIndex(slotId, source, length, _opts) {
   const maxSeries = highest(slot.highestSub, source, length);
   const maxSrc = maxSeries.current;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue25(slot, src, maxSrc));
+    slot.outBuffer.replaceHead(tickValue26(slot, src, maxSrc));
   } else {
-    slot.outBuffer.append(closeValue25(slot, src, maxSrc));
+    slot.outBuffer.append(closeValue26(slot, src, maxSrc));
   }
   return slot.series;
 }
@@ -15466,7 +15473,7 @@ function uoFromSums(sumBpShort, sumTrShort, sumBpMedium, sumTrMedium, sumBpLong,
   const avgLong = sumBpLong / sumTrLong;
   return 100 * (4 * avgShort + 2 * avgMedium + avgLong) / 7;
 }
-function closeValue26(slot, high, low, close2) {
+function closeValue27(slot, high, low, close2) {
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
     if (slot.barCount < slot.longLength)
       return Number.NaN;
@@ -15498,7 +15505,7 @@ function closeValue26(slot, high, low, close2) {
     return Number.NaN;
   return uoFromSums(slot.sumBpShort, slot.sumTrShort, slot.sumBpMedium, slot.sumTrMedium, slot.sumBpLong, slot.sumTrLong);
 }
-function tickValue26(slot, high, low, close2) {
+function tickValue27(slot, high, low, close2) {
   if (slot.barCount < slot.longLength)
     return Number.NaN;
   if (!Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close2)) {
@@ -15522,9 +15529,9 @@ function ultimateOsc(slotId, opts) {
   const low = +bar.low;
   const close2 = +bar.close;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue26(slot, high, low, close2));
+    slot.outBuffer.replaceHead(tickValue27(slot, high, low, close2));
   } else {
-    slot.outBuffer.append(closeValue26(slot, high, low, close2));
+    slot.outBuffer.append(closeValue27(slot, high, low, close2));
   }
   return slot.series;
 }
@@ -15560,7 +15567,7 @@ function emitFromState(occurrence, ring, matchCount) {
     return Number.NaN;
   return ring[0];
 }
-function closeValue27(slot, src, fired) {
+function closeValue28(slot, src, fired) {
   slot.prevRing = slot.ring.slice();
   slot.prevMatchCount = slot.matchCount;
   if (fired) {
@@ -15571,7 +15578,7 @@ function closeValue27(slot, src, fired) {
   }
   return emitFromState(slot.occurrence, slot.ring, slot.matchCount);
 }
-function tickValue27(slot, src, fired) {
+function tickValue28(slot, src, fired) {
   const ring = slot.prevRing.slice();
   let count = slot.prevMatchCount;
   if (fired) {
@@ -15592,9 +15599,9 @@ function valuewhen(slotId, condition, source, occurrence = 0, opts = {}) {
   const fired = readBoolean(condition);
   const src = readSourceValue(source);
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue27(slot, src, fired));
+    slot.outBuffer.replaceHead(tickValue28(slot, src, fired));
   } else {
-    slot.outBuffer.append(closeValue27(slot, src, fired));
+    slot.outBuffer.append(closeValue28(slot, src, fired));
   }
   const offset = opts.offset ?? 0;
   if (offset === 0)
@@ -16110,14 +16117,14 @@ function weightedFromWindows(slot) {
   }
   return volSum > 0 ? pvSum / volSum : Number.NaN;
 }
-function closeValue28(slot, src, vol2) {
+function closeValue29(slot, src, vol2) {
   slot.sourceWindow.append(src);
   slot.volumeWindow.append(vol2);
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   return weightedFromWindows(slot);
 }
-function tickValue28(slot, src, vol2) {
+function tickValue29(slot, src, vol2) {
   if (slot.sourceWindow.length < slot.length)
     return Number.NaN;
   if (!Number.isFinite(src))
@@ -16146,9 +16153,9 @@ function vwma(slotId, source, length, _opts) {
   const src = readSourceValue(source);
   const vol2 = +ctx.stream.bar.volume;
   if (ctx.isTick) {
-    slot.outBuffer.replaceHead(tickValue28(slot, src, vol2));
+    slot.outBuffer.replaceHead(tickValue29(slot, src, vol2));
   } else {
-    slot.outBuffer.append(closeValue28(slot, src, vol2));
+    slot.outBuffer.append(closeValue29(slot, src, vol2));
   }
   return slot.series;
 }
@@ -17728,6 +17735,7 @@ function validateSnapshot(snap) {
 
 // ../runtime/dist/ta/persistence.js
 var TA_SLOT_PREFIX = "ta:";
+var OBSOLETE_EMA_FIELDS = ["seedSum", "seedCount", "prevEma", "prevClosedEma"];
 function restoreNumbers(fields) {
   const out = {};
   for (const key of Object.keys(fields)) {
@@ -17748,6 +17756,16 @@ function baseSlot(outBuffer) {
 function isFloat64RingBuffer(value) {
   return value instanceof Float64RingBuffer;
 }
+function hasObsoleteEmaFields(value) {
+  return OBSOLETE_EMA_FIELDS.some((field) => Object.hasOwn(value, field));
+}
+function isCanonicalEmaConfiguration(length, alpha) {
+  if (!isInteger(length) || typeof alpha !== "number")
+    return false;
+  if (length <= 0)
+    return Number.isNaN(alpha);
+  return alpha === 2 / (length + 1);
+}
 function serialiseSma(slot) {
   if (slot.kind !== "ta.sma" || typeof slot.length !== "number" || typeof slot.sum !== "number" || !isFloat64RingBuffer(slot.outBuffer) || !isFloat64RingBuffer(slot.window)) {
     return null;
@@ -17761,7 +17779,7 @@ function serialiseSma(slot) {
   };
 }
 function serialiseEma(slot) {
-  if (slot.kind !== "ta.ema" || typeof slot.alpha !== "number" || typeof slot.length !== "number" || typeof slot.seedSum !== "number" || typeof slot.seedCount !== "number" || typeof slot.prevEma !== "number" || typeof slot.prevClosedEma !== "number" || !isFloat64RingBuffer(slot.outBuffer)) {
+  if (slot.kind !== "ta.ema" || typeof slot.length !== "number" || typeof slot.alpha !== "number" || !isCanonicalEmaConfiguration(slot.length, slot.alpha) || hasObsoleteEmaFields(slot) || typeof slot.closedEma !== "number" || typeof slot.priorClosedEma !== "number" || !isFloat64RingBuffer(slot.outBuffer)) {
     return null;
   }
   return {
@@ -17769,10 +17787,8 @@ function serialiseEma(slot) {
     alpha: finiteOrNull(slot.alpha),
     length: slot.length,
     outBuffer: serialiseBuffer(slot.outBuffer),
-    seedSum: finiteOrNull(slot.seedSum),
-    seedCount: slot.seedCount,
-    prevEma: finiteOrNull(slot.prevEma),
-    prevClosedEma: finiteOrNull(slot.prevClosedEma)
+    closedEma: finiteOrNull(slot.closedEma),
+    priorClosedEma: finiteOrNull(slot.priorClosedEma)
   };
 }
 function serialiseRsi(slot) {
@@ -17815,17 +17831,17 @@ function restoreSma(snapshot6) {
 }
 function restoreEma(snapshot6) {
   const outSnapshot = snapshot6.outBuffer;
-  if (snapshot6.kind !== "ta.ema" || !isInteger(snapshot6.length) || !isInteger(snapshot6.seedCount) || !isBufferSnapshot(outSnapshot)) {
+  if (snapshot6.kind !== "ta.ema" || !isInteger(snapshot6.length) || hasObsoleteEmaFields(snapshot6) || !isBufferSnapshot(outSnapshot)) {
     return null;
   }
   const numbers = restoreNumbers({
     alpha: snapshot6.alpha,
-    seedSum: snapshot6.seedSum,
-    prevEma: snapshot6.prevEma,
-    prevClosedEma: snapshot6.prevClosedEma
+    closedEma: snapshot6.closedEma,
+    priorClosedEma: snapshot6.priorClosedEma
   });
-  if (numbers === null)
+  if (numbers === null || !isCanonicalEmaConfiguration(snapshot6.length, numbers.alpha)) {
     return null;
+  }
   const outBuffer = restoreBuffer(outSnapshot, outSnapshot.values.length);
   if (outBuffer === null)
     return null;
@@ -17834,10 +17850,8 @@ function restoreEma(snapshot6) {
     ...baseSlot(outBuffer),
     alpha: numbers.alpha,
     length: snapshot6.length,
-    seedSum: numbers.seedSum,
-    seedCount: snapshot6.seedCount,
-    prevEma: numbers.prevEma,
-    prevClosedEma: numbers.prevClosedEma
+    closedEma: numbers.closedEma,
+    priorClosedEma: numbers.priorClosedEma
   };
 }
 function restoreRsi(snapshot6) {

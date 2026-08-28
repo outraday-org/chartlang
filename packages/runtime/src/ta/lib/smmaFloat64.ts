@@ -12,8 +12,9 @@
  * the next `length` finite values, then runs the recurrence
  * `out[i] = (out[i − 1] * (length − 1) + source[i]) / length` —
  * equivalent to an EMA with `α = 1 / length`. A mid-stream NaN holds
- * the prior value forward (continuous output past gaps), matching
- * the recurrence-MA convention shared with {@link emaFloat64}.
+ * the prior value forward (continuous output past gaps). This differs
+ * from {@link emaFloat64}, which emits `NaN` at the missing position
+ * while retaining its recurrence state for the next finite input.
  *
  * Warmup `[0, length − 2]` is `NaN`; `out[length − 1]` is the first
  * defined value.

@@ -15,9 +15,10 @@ describe("ta.smi", () => {
             const s = smi("slot");
             return { smi: s.smi.current, signal: s.signal.current };
         });
-        // smi warmup ≥ kLength + firstSmoothing + secondSmoothing − 3 =
-        // 10 + 3 + 5 − 3 = 15 bars NaN at smi.
-        for (let i = 0; i < 15; i += 1) expect(Number.isNaN(out[i].smi)).toBe(true);
+        // EMA stages seed immediately; only the ten-bar high/low window warms.
+        for (let i = 0; i < 9; i += 1) expect(Number.isNaN(out[i].smi)).toBe(true);
+        expect(Number.isFinite(out[9].smi)).toBe(true);
+        expect(Number.isFinite(out[9].signal)).toBe(true);
         expect(Number.isFinite(out[bars.length - 1].smi)).toBe(true);
         expect(Number.isFinite(out[bars.length - 1].signal)).toBe(true);
     });

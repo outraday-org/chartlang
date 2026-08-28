@@ -352,6 +352,23 @@ export default defineIndicator({
         expect(codes).toContain("duplicate-output-title");
     });
 
+    it("permits duplicate display titles on glyph plots outside the output namespace", () => {
+        const graph = runDep(`
+import { defineIndicator, plot } from "@invinite-org/chartlang-core";
+export default defineIndicator({
+    name: "Main",
+    apiVersion: 1,
+    compute: ({ bar }) => {
+        plot(bar.close, { title: "Never Long C1 Cancel", style: { kind: "shape", shape: "xcross", size: 8, text: "1" } });
+        plot(bar.open, { title: "Never Long C1 Cancel", style: { kind: "shape", shape: "xcross", size: 8, text: "1" } });
+    },
+});
+`);
+        expect(graph.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
+            "duplicate-output-title",
+        );
+    });
+
     it("raises dep-dynamic for a non-object-literal withInputs argument", () => {
         const graph = runDep(
             `

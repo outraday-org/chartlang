@@ -73,6 +73,47 @@ plot hashes, alert counts, and diagnostic codes.
   binding gives TS the right context to flow each element to the
   union — keeping the `Scenario.assertions: ASSERTIONS` line a
   trivial reference.
+- **The Trend Wizard / MASM Pine-derived oracle is a separate two-layer
+  contract, not another plot hash.** `src/parityOracle.ts` compares engine
+  outputs against rows produced from canonical Pine by a standalone zero-import
+  reference evaluator and live-feed bars against frozen adjusted Massive inputs.
+  TradingView's authenticated Data Window is a rounded one-bar anchor, not the
+  bulk expected-output source. `null` is the only serialized NaN/unavailable
+  spelling; availability, events, direction, backgrounds, semantic colors,
+  plot kinds, and labels/anchors compare exactly. Only finite numeric values
+  use the fixture's named absolute/relative tolerance. Every failure reports
+  the first bar index, timestamp, field, expected value, and actual value.
+  `deriveMasmBackgroundIntervals` derives interval boundaries from the complete
+  pointwise background sequence so there is no second expected interval array
+  to drift. A fixture is certifiable only after
+  `validateTrendMasmParityOracle` verifies exactly 3,000 ascending unique bars,
+  equal timestamp-aligned output rows, finite-or-null numeric payloads, stable
+  complete plot maps, the required saved inputs, pointwise Trend-long-to-MASM
+  source binding, provider/reference metadata, presentation catalogs, threshold
+  distances, and all eight SHA-256 checksums (including the complete settings
+  and presentation snapshots). Its tolerance
+  safety gate applies the relative tolerance to the largest expected numeric
+  output before comparing it with the minimum decision distance; never compare
+  a dimensionless relative coefficient directly with that absolute distance.
+  `loadTrendMasmParityOracle()` owns the fail-closed on-disk contract:
+  `oracle.json` plus canonical raw artifacts under `raw/` (`Trend_Wizard.pine`,
+  `MASM_Strat.pine`, `massive-tqqq-1d-pages.json`, and the byte-frozen
+  `trendMasmPineReference.ts`). The evaluator imports no Chartlang package and
+  no shared numerical primitive; its focused test recomputes all 3,000 expected
+  rows and fails if the frozen/source copies diverge. Never generate expected
+  rows from Chartlang. TradingView Essential cannot bulk-export chart data, so
+  preserve that limitation in provenance rather than calling the anchor a bulk
+  TradingView capture. `compareTrendMasmPresentationParity` compares unique
+  logical identity, exact Pine title (which may be duplicated), plot order,
+  visibility, kind, style, line width, glyph, and constant hline/fill semantic
+  colors exactly; dynamic colors remain pointwise in the expected rows.
+  `trendMasmConvertedEngineParity.test.ts` is the release gate that consumes
+  this independent oracle: it converts both complete canonical Pine sources
+  from source, binds MASM's `lt_trend` input to the actual converted Trend
+  output, strict-compiles and executes all 3,000 bars, then adapts the real
+  runtime rows and presentation descriptors into these two comparators. Keep
+  its one-bar background, finite-white, glyph-style, and label-color mutations;
+  comparator self-tests alone are not evidence of converter/runtime parity.
 
 ## Phase-2 invariants
 
@@ -360,11 +401,10 @@ plot hashes, alert counts, and diagnostic codes.
   callback overload.** Both inline
   `plot(request.security({ interval: "1D" }, (bar) => ta.ema(bar.close, 2)))`
   and reuse `MTF_DAILY_FIXTURE_BARS` (the 3-bar daily fixture the data-form
-  `mtfRequestSecurityClose` uses). The EMA length is **2, not 10**: a length-10
-  EMA over only three HTF bars is all-NaN (Pine warmup), a degenerate golden
-  byte-identical to the NaN fallback that proves nothing. Length 2 warms in two
-  HTF closes, so the happy-path `plot-hash` (`e105d8e0…`) carries FINITE values
-  (565/675 — the HTF-clock EMA over the 510/620/730 secondary closes), which is
+  `mtfRequestSecurityClose` uses). The EMA length is **2** to keep the reference
+  recurrence compact; Pine-compatible EMA seeds on the first finite HTF close,
+  so the happy-path `plot-hash` (`9d7725a0…`) carries FINITE values
+  (510/583.333…/681.111… over the 510/620/730 secondary closes), which is
   also the conformance-side distinctness proof: those values live in a price
   band the main golden stream (~100) never reaches. Re-mint the hash via the
   harness's "expected vs actual" message exactly like every other scenario.
@@ -515,7 +555,7 @@ plot hashes, alert counts, and diagnostic codes.
   `orders: false` path now that no bundled adapter declines.
 - **`order-at-bar` compares ONLY the bars its `expected` list names.** Unlike
   `alert-condition-fired-at-bar` (whole channel, JSON-compared), the EMA-cross
-  strategy emits 152 orders over the golden bars, so a whole-list pin is
+  strategy emits 156 orders over the golden bars, so a whole-list pin is
   unmaintainable — the assertion is a spot check by construction and an order on
   an unnamed bar is invisible to it. `label` is compared **always**:
   `OrderEmission.label` is a required wire field that is `""` when the author gave
@@ -523,7 +563,7 @@ plot hashes, alert counts, and diagnostic codes.
   than skipping the field.
 - **`order-ema-cross`'s two marker hashes differ because the ANCHOR differs.** A
   buy's arrow sits at `bar.low`, a sell/close's at `bar.high`, and `plot-hash`
-  covers `{ bar, value }` — so the pair `7e061e47…` / `2020a4c4…` *is* the
+  covers `{ bar, value }` — so the pair `f62c15c4…` / `3fc9ddf2…` *is* the
   up/down anchor contract. Conversely each order slot's `#marker` and `#label`
   hashes are byte-identical **by construction** (same bars, same anchor value;
   the text rides `style`, outside the tuple) — that is expected, not a
@@ -535,10 +575,10 @@ plot hashes, alert counts, and diagnostic codes.
   `slotId` covers every plot the run emitted, which can only match if no marker
   or label plot was drawn. If a future run splits the two, the marker opt-out
   regressed — fix the runtime, do NOT re-pin them apart.
-- **`orders-gated`'s `candleLimit: 200` is load-bearing.** The first order attempt
-  is bar **162** (EMA(26) warmup + the first crossing), and `unsupported-orders`
-  fires once per slot per mount — a shorter slice would assert the diagnostic's
-  presence over a stream that never tried to trade.
+- **`orders-gated`'s `candleLimit: 200` is an intentionally shared slice.** The
+  first order attempt is now bar **1** because EMA seeds immediately; keeping
+  the 200-bar slice exercises repeated rejected crossings while
+  `unsupported-orders` still fires once per slot per mount.
 - **`phase2Coverage.test.ts` tracks the registry addition via
   `ORDER_NAMESPACE_ADDITIONS` (three `slot: true` emitters + `order.position`
   `slot: false`).** The `slot: false` expected set derives its entry from

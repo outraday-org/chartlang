@@ -60,8 +60,6 @@ describe("ta.ppo", () => {
             if (Number.isNaN(expected.ppo[i])) {
                 expect(Number.isNaN(actual[i].ppo)).toBe(true);
             } else {
-                // The runtime's `ta.ema` recurrence holds prior value
-                // on mid-stream NaN, while the reference does the same.
                 // Match within a tolerance for fp drift across the
                 // two-stage composition.
                 expect(actual[i].ppo).toBeCloseTo(expected.ppo[i], 8);
@@ -75,26 +73,24 @@ describe("ta.ppo", () => {
         }
     });
 
-    it("emits NaN through the warmup window (signal lands at slowLength + signalLength − 2)", () => {
+    it("emits a finite signal and histogram from bar zero", () => {
         const bars = syntheticBars(50, 5);
-        // Defaults (12, 26, 9): signal warmup ends at bar 26 + 9 − 2 = 33.
         const out = harness(bars, bars.length + 1, (bar) => {
             const p = ppo("slot", bar.close);
             return { signal: p.signal.current, hist: p.hist.current };
         });
-        for (let i = 0; i < 33; i += 1) {
-            expect(Number.isNaN(out[i].signal)).toBe(true);
-            expect(Number.isNaN(out[i].hist)).toBe(true);
-        }
-        expect(Number.isFinite(out[bars.length - 1].signal)).toBe(true);
+        expect(out[0].signal).toBe(0);
+        expect(out[0].hist).toBe(0);
+        expect(
+            out.every(({ signal, hist }) => Number.isFinite(signal) && Number.isFinite(hist)),
+        ).toBe(true);
     });
 
-    it("ppo line lands once the slow EMA seeds (bar slowLength - 1)", () => {
+    it("ppo line is finite from bar zero", () => {
         const bars = syntheticBars(40, 7);
         const out = harness(bars, bars.length + 1, (bar) => ppo("slot", bar.close).ppo.current);
-        // Slow EMA seeds at bar 25 (slowLength - 1 = 25 for default 26).
-        for (let i = 0; i < 25; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[25])).toBe(true);
+        expect(out[0]).toBe(0);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 
     it("returns the same PpoResult identity on every call (offset === 0)", () => {

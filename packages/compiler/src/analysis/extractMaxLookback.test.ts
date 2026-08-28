@@ -667,7 +667,7 @@ void wp;
         expect(result.diagnostics).toHaveLength(0);
     });
 
-    it("ignores a non-literal / dynamic bar.point offset", () => {
+    it("resolves const/computed negative bar.point offsets", () => {
         const result = run(`
 declare const bar: import("@invinite-org/chartlang-core").Bar;
 const k = 4;
@@ -675,7 +675,21 @@ const dyn = bar.point(-k, bar.close);
 const expr = bar.point(-(2 + 3), bar.close);
 void dyn; void expr;
 `);
+        expect(result.maxLookback).toBe(5);
+        expect(result.seriesCapacities).toEqual({});
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("uses the dynamic fallback for a runtime negative bar.point offset", () => {
+        const result = run(`
+declare const bar: import("@invinite-org/chartlang-core").Bar;
+let distance = 4;
+const wp = bar.point(-distance, bar.close);
+void wp;
+`);
         expect(result.maxLookback).toBe(0);
+        expect(result.seriesCapacities).toEqual({ dynamicFallback: 5000 });
+        expect(result.diagnostics[0]?.code).toBe("dynamic-series-index");
     });
 
     it("ignores a zero-argument bar.point() call", () => {
@@ -869,6 +883,20 @@ const y = b[5];
 void x; void y;
 `);
         expect(result.maxLookback).toBe(5);
+        expect(result.diagnostics).toHaveLength(0);
+    });
+
+    it("recognises bool and string state-series bindings as history-bearing", () => {
+        const result = run(`
+import { state } from "@invinite-org/chartlang-core";
+const flag = state.boolSeries(false);
+const label = state.stringSeries("");
+const priorFlag = flag[2];
+const priorLabel = label[5];
+void priorFlag; void priorLabel;
+`);
+        expect(result.maxLookback).toBe(5);
+        expect(result.seriesCapacities).toEqual({});
         expect(result.diagnostics).toHaveLength(0);
     });
 

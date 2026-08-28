@@ -84,7 +84,7 @@ describe("transformOther — control flow", () => {
 
     it("rejects a stateful body with a non-resolvable bound", () => {
         const src = "n = close\nfor i = 0 to n\n    plot(close[i])";
-        expect(stmts(src)).toEqual(["let n = bar.close;"]);
+        expect(stmts(src)).toEqual(["let n = bar.close.current;"]);
         expect(codes(src)).toContain(
             "pine-converter/transform/loop-bounds-not-literal-for-stateful-body",
         );
@@ -299,7 +299,7 @@ describe("transformOther — break / continue loops (no unroll)", () => {
     it("rejects a non-resolvable break-loop bound", () => {
         const src =
             "n = close\nc = 0\nfor i = 0 to n\n    if close[i] > 0\n        break\n    c += 1";
-        expect(stmts(src)).toEqual(["let n = bar.close;", "let c = 0;"]);
+        expect(stmts(src)).toEqual(["let n = bar.close.current;", "let c = 0;"]);
         expect(codes(src)).toContain(
             "pine-converter/transform/loop-bounds-not-literal-for-stateful-body",
         );
@@ -437,7 +437,7 @@ describe("transformOther — scalars", () => {
 
     it("emits let for a shadowing `=` declaration", () => {
         const out = stmts("a = close\nif true\n    a = open\nplot(a)");
-        expect(out.join(" ")).toContain("let a = bar.open;");
+        expect(out.join(" ")).toContain("let a = bar.open.current;");
     });
 });
 
@@ -450,8 +450,9 @@ describe("transformOther — series scalars (state.series)", () => {
             { name: "prev", initExpr: "state.series(Number.NaN)" },
         ]);
         expect(scaffold.computeBody.statements).toEqual([
+            "if (barstate.isnew && !barstate.isfirst) { prev.value = prev[1]; }",
             "let delta = bar.close - prev.value;",
-            "prev.value = bar.close;",
+            "prev.value = bar.close.current;",
             "plot(delta);",
             "plot(prev[1]);",
         ]);
@@ -461,6 +462,7 @@ describe("transformOther — series scalars (state.series)", () => {
         const { scaffold } = run("var float acc = 0.0\nacc := acc + close\nplot(acc[2])");
         expect(scaffold.stateSlots).toEqual([{ name: "acc", initExpr: "state.series(0.0)" }]);
         expect(scaffold.computeBody.statements).toEqual([
+            "if (barstate.isnew && !barstate.isfirst) { acc.value = acc[1]; }",
             "acc.value = acc.value + bar.close;",
             "plot(acc[2]);",
         ]);
@@ -498,6 +500,7 @@ describe("transformOther — series scalars (state.series)", () => {
         expect(scaffold.stateSlots).toEqual([{ name: "up", initExpr: "state.boolSeries(false)" }]);
         // The value write, value read, and bare `[n]` history read.
         expect(scaffold.computeBody.statements).toEqual([
+            "if (barstate.isnew && !barstate.isfirst) { up.value = up[1]; }",
             "up.value = bar.close > bar.open;",
             "plot(up[1] ? 1 : 0);",
         ]);
@@ -791,7 +794,9 @@ describe("transformOther — passthrough and skips", () => {
         expect(stmts("e = ta.ema(close, 9)\nplot(e)")).toContain(
             "let e = ta.ema(bar.close, 9).current;",
         );
-        expect(stmts("m = math.abs(close)\nplot(m)")).toContain("let m = Math.abs(bar.close);");
+        expect(stmts("m = math.abs(close)\nplot(m)")).toContain(
+            "let m = Math.abs(bar.close.current);",
+        );
     });
 
     it("passes a str.* warn value through verbatim", () => {

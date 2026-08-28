@@ -256,6 +256,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "`input.source(...)` default must be an OHLCV built-in; a computed source is not supported.",
         defaultSuggestion: "Pass `close`, `open`, `high`, `low`, `volume`, `hl2`, `hlc3`, etc.",
     },
+    "external-series-input-override-invalid": {
+        code: "pine-converter/transform/external-series-input-override-invalid",
+        severity: "error",
+        defaultMessage:
+            "An external-series input override is invalid; the source input was left unchanged.",
+        defaultSuggestion:
+            "Target one named Pine source input by its exact declaration name and use a unique, non-empty feed name.",
+    },
     "non-literal-input-default": {
         code: "pine-converter/transform/non-literal-input-default",
         severity: "error",
@@ -984,6 +992,14 @@ export const DIAGNOSTIC_CODE_ENTRIES = {
             "A `strategy.*` order call passed arguments the `order.*` market intent cannot honor (a resting `limit`/`stop`, a trailing stop, an OCA group, a partial `qty_percent`, a target entry id, …); they were dropped.",
         defaultSuggestion:
             "Model resting orders and protective stops in whatever consumes the `orders` channel — chartlang v1 emits market intents only.",
+    },
+    "plot-style-not-mapped": {
+        code: "pine-converter/transform/plot-style-not-mapped",
+        severity: "error",
+        defaultMessage:
+            "This Pine plot style cannot be represented by the converter, so the plot was omitted instead of silently falling back to a line.",
+        defaultSuggestion:
+            "Use plot.style_line, plot.style_stepline, plot.style_histogram, plot.style_columns, plot.style_circles, or a conditional expression whose branches use those styles.",
     },
 } as const satisfies Record<string, DiagnosticCodeEntry>;
 

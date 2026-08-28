@@ -13,6 +13,6 @@ describe("ta.rvi — golden", () => {
         const out = harness(bars, bars.length + 1, (bar) => rvi("slot", bar.close, 10).current);
         // Hash captured during implementation against syntheticBars(100, 42);
         // re-pin if the math intentionally changes.
-        expect(hashFloat64Array(out)).toBe("46f10e3e");
+        expect(hashFloat64Array(out)).toBe("09741685");
     });
 });

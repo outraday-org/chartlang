@@ -13,6 +13,7 @@ import {
     resetStateForHistoryReseed,
 } from "../createScriptRunner.js";
 import { ACTIVE_RUNTIME_CONTEXT } from "../runtimeContext.js";
+import type { RuntimeTaNamespace } from "../ta/index.js";
 
 function externalSeriesInput(value: unknown): Series<number> {
     return value as Series<number>;
@@ -477,6 +478,31 @@ describe("onHistory", () => {
 
         // No carry-over: the accumulator restarts at 0 on the re-seed.
         expect(first).toEqual([1, 2, 3]);
+        expect(second).toEqual(first);
+    });
+
+    it("re-seed: ta.ema restarts from the first source and reproduces the same sequence", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "ema-reseed",
+            apiVersion: 1,
+            compute: ({ bar, ta }) => {
+                const runtimeTa = ta as unknown as Pick<RuntimeTaNamespace, "ema">;
+                seen.push(runtimeTa.ema("ema:1:1#0", bar.close, 3).current);
+            },
+        });
+        const runner = createScriptRunner({
+            compiled: { ...compiled, manifest: { ...compiled.manifest, maxLookback: 10 } },
+            capabilities: makeCapabilities(),
+        });
+        const bars = [makeBar(0), makeBar(1), makeBar(2)];
+
+        await runner.onHistory(bars);
+        const first = seen.slice();
+        await runner.onHistory(bars);
+        const second = seen.slice(first.length);
+
+        expect(first[0]).toBe(bars[0].close);
         expect(second).toEqual(first);
     });
 

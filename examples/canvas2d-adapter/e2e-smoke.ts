@@ -91,12 +91,12 @@ function check(label: string, ok: boolean, detail = ""): void {
 
 const fast = plotsByTitle.get("EMA(12)") ?? [];
 const slow = plotsByTitle.get("EMA(26)") ?? [];
-// EMA(n) warms up for n-1 bars (null values), then emits every bar.
-check("EMA(12) plotted after 11-bar warmup", fast.length === bars.length - 11, `${fast.length}/${bars.length - 11}`);
-check("EMA(26) plotted after 25-bar warmup", slow.length === bars.length - 25, `${slow.length}/${bars.length - 25}`);
+// Pine-compatible EMA seeds on the first finite close and plots every bar.
+check("EMA(12) plotted from bar zero", fast.length === bars.length, `${fast.length}/${bars.length}`);
+check("EMA(26) plotted from bar zero", slow.length === bars.length, `${slow.length}/${bars.length}`);
 check(
-    "EMA values finite after warmup",
-    fast.slice(30).every(Number.isFinite) && slow.slice(30).every(Number.isFinite),
+    "EMA values finite from bar zero",
+    fast.every(Number.isFinite) && slow.every(Number.isFinite),
 );
 const lastClose = bars[bars.length - 1].close;
 check(

@@ -19,7 +19,7 @@ out  = 2 · ema1 − ema2
 
 ## Warmup
 
-2 · length − 2
+0 on a finite source
 
 ## Signature
 

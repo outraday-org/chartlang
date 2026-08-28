@@ -22,7 +22,7 @@ rvi[t]    = 100 · upEma[t] / (upEma[t] + downEma[t])
 
 ## Warmup
 
-2 · length − 1
+length − 1 (the rolling standard-deviation window)
 
 ## Signature
 

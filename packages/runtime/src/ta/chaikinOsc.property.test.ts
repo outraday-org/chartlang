@@ -24,7 +24,7 @@ describe("ta.chaikinOsc — property invariants", () => {
         );
     });
 
-    it("warmup respects slowLength: bars 0..slowLength-2 are NaN", () => {
+    it("is finite from bar zero for finite bars", () => {
         fc.assert(
             fc.property(
                 fc.integer({ min: 3, max: 15 }),
@@ -36,8 +36,7 @@ describe("ta.chaikinOsc — property invariants", () => {
                         bars.length + 1,
                         () => chaikinOsc("slot", { fastLength: 2, slowLength: slow }).current,
                     );
-                    for (let i = 0; i < slow - 1; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-                    expect(Number.isFinite(out[slow - 1])).toBe(true);
+                    expect(out.every(Number.isFinite)).toBe(true);
                 },
             ),
             { numRuns: 20 },

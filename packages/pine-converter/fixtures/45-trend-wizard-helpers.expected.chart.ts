@@ -15,7 +15,7 @@ export default defineIndicator({
             other: 0,
         },
         compute({ bar, ta, plot }) {
-            let src = bar.close;
+            let src = bar.close.current;
             let ma_1 = ta.ema(src, 8).current;
             let ma_2 = ta.ema(src, 21).current;
             let ma_1_dist = ta.sma((((src - ma_1) / ma_1) * 100), 3).current;

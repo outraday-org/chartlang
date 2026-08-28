@@ -61,6 +61,12 @@ function buildStyle(opts: PlotOpts): PlotStyle {
     switch (style.kind) {
         case "histogram":
             return { kind: "histogram", baseline: style.baseline ?? 0 };
+        case "columns":
+            return {
+                kind: "columns",
+                baseline: style.baseline ?? 0,
+                lineWidth: opts.lineWidth ?? 1,
+            };
         case "marker":
             return { kind: "marker", shape: style.shape, size: style.size };
         case "shape":
@@ -69,6 +75,8 @@ function buildStyle(opts: PlotOpts): PlotStyle {
                 shape: style.shape,
                 size: style.size,
                 ...(style.location === undefined ? {} : { location: style.location }),
+                ...(style.text === undefined ? {} : { text: style.text }),
+                ...(style.textColor === undefined ? {} : { textColor: style.textColor }),
             };
         case "character":
             return {

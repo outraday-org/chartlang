@@ -346,11 +346,11 @@ describe("order semantics — the RFC 0002 EMA-cross probe", () => {
         });
         const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
 
-        // Down, up, down. The opening decline outlasts the slow EMA's warmup so
-        // `fast < slow` is established before the first real cross; the rally
+        // Down, up, down. The opening decline establishes `fast < slow` before
+        // the first real cross; the rally
         // then crosses up (entry) and the final decline crosses back under
         // (exit). A monotone rise from bar 0 would never cross at all — both
-        // EMAs leave warmup with fast already above slow.
+        // seeded EMAs move together before fast separates above slow.
         const closes = [
             ...Array.from({ length: 10 }, (_, i) => 20 - i),
             ...Array.from({ length: 10 }, (_, i) => 12 + i),

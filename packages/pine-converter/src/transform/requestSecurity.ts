@@ -51,6 +51,26 @@ export function isRequestSecurityCall(call: CallExpression): boolean {
     return isRequestSecurity(call);
 }
 
+/**
+ * Whether a call reads TradingView's unsupported proprietary earnings feed.
+ * This is the single request-shape predicate shared by the call emitter and by
+ * series-read lowering, which must replace both current and history reads with
+ * the same stable zero.
+ *
+ * @since 0.10
+ * @stable
+ * @example
+ *     declare const call: CallExpression;
+ *     isUnsupportedEarningsRequest(call); // boolean
+ */
+export function isUnsupportedEarningsRequest(call: CallExpression): boolean {
+    if (!isRequestSecurity(call)) {
+        return false;
+    }
+    const symbol = call.args.find((arg) => arg.name === null)?.value;
+    return symbol !== undefined && isUnsupportedEarningsFeed(symbol);
+}
+
 // A REJECTED `request.security` (out-of-subset symbol/timeframe, missing args)
 // emits this safe placeholder instead of the verbatim broken call, so the rest
 // of the file still type-checks; the loud `request-security-not-mapped` error
@@ -149,7 +169,7 @@ export function emitRequestSecurity(
         diagnostics.pushCode("request-security-not-mapped", call.span);
         return REJECTED_SECURITY_PLACEHOLDER;
     }
-    if (isUnsupportedEarningsFeed(symbol)) {
+    if (isUnsupportedEarningsRequest(call)) {
         diagnostics.pushCode("request-security-earnings-feed-disabled", call.span);
         return DISABLED_EARNINGS_PLACEHOLDER;
     }

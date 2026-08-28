@@ -24,6 +24,6 @@ describe("ta.tsi — golden", () => {
         });
         const combined = [...ts, ...ss];
         // Captured on first deterministic green run.
-        expect(hashFloat64Array(combined)).toBe("cde92bc0");
+        expect(hashFloat64Array(combined)).toBe("1ef57c73");
     });
 });

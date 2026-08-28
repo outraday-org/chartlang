@@ -27,7 +27,7 @@ hist   = pvo − signal
 
 ## Warmup
 
-slowLength + signalLength − 2
+0 when volume and the slow EMA are nonzero
 
 ## Signature
 

@@ -23,7 +23,7 @@ import {
 import type { MultiReturnTaMapping, PineDrawingConstructor } from "../mapping/index.js";
 import type { SecurityTupleAnnotation, SemanticResult } from "../semantic/index.js";
 import { BUILTIN_SYMBOLS, inferQualifier } from "../semantic/index.js";
-import { collectUdfBodyFacts } from "../semantic/statefulness.js";
+import { collectUdfBodyFacts, collectUdfCallSites } from "../semantic/statefulness.js";
 import { emitAlertCall } from "./alertCall.js";
 import { convertColorWith, isTranspColorForm } from "./colorConvert.js";
 import { type BodyEmitter, emitFor, emitIf, emitSwitch } from "./controlFlow.js";
@@ -42,7 +42,11 @@ import { type NameAllocator, isComputeContextName } from "./nameAllocator.js";
 import type { NumericArrayScan } from "./numericArray.js";
 import { scanNumericArrays } from "./numericArray.js";
 import { emitHlineValue, emitPlotFamily, isPlotFamilyCall } from "./plotFamily.js";
-import { emitRequestSecurity, isRequestSecurityCall } from "./requestSecurity.js";
+import {
+    emitRequestSecurity,
+    isRequestSecurityCall,
+    isUnsupportedEarningsRequest,
+} from "./requestSecurity.js";
 import { appendComputeStatement, appendStateSlot } from "./scaffoldMutators.js";
 import { collectCaptureHoist } from "./securityCapture.js";
 import {
@@ -1523,6 +1527,131 @@ function collectPureUdfs(analysis: SemanticResult): Map<string, FunctionDeclarat
     return pure;
 }
 
+// Parameter positions that a PURE UDF either history-indexes directly or
+// forwards into a series-typed parameter of another pure UDF. Pure helpers
+// remain reusable emitted functions rather than being inlined, so the series
+// requirement must propagate to a fixed point across the call graph: otherwise
+// `outer(v) => inner(v)` would type `v` as `number` and collapse the caller's
+// host series before `inner(x) => x - x[1]` can index it. Scalar reads are
+// projected to `.current` by `EmitContext.seriesValueAliases`.
+function pureUdfSeriesParams(analysis: SemanticResult): ReadonlyMap<string, ReadonlySet<number>> {
+    const pure = collectPureUdfs(analysis);
+    const result = new Map<string, Set<number>>();
+    const paramIndices = new Map<string, ReadonlyMap<string, number>>();
+    const callSites = new Map<string, readonly CallExpression[]>();
+    for (const decl of pure.values()) {
+        const paramIndex = new Map<string, number>();
+        decl.params.forEach((param, index) => paramIndex.set(param.name, index));
+        paramIndices.set(decl.name, paramIndex);
+        callSites.set(decl.name, collectUdfCallSites(decl.body));
+        const indexed = new Set<number>();
+        walkHistoryAccesses(decl.body.body, (history) => {
+            if (history.receiver.kind !== "identifier-expression") {
+                return;
+            }
+            const index = paramIndex.get(history.receiver.name);
+            if (index !== undefined) {
+                indexed.add(index);
+            }
+        });
+        result.set(decl.name, indexed);
+    }
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const decl of pure.values()) {
+            const callerSeriesParams = result.get(decl.name);
+            const callerParamIndices = paramIndices.get(decl.name);
+            const callerCallSites = callSites.get(decl.name);
+            if (
+                callerSeriesParams === undefined ||
+                callerParamIndices === undefined ||
+                callerCallSites === undefined
+            ) {
+                continue;
+            }
+            for (const call of callerCallSites) {
+                if (call.callee.kind !== "identifier-expression") {
+                    continue;
+                }
+                const calleeSeriesParams = result.get(call.callee.name);
+                if (calleeSeriesParams === undefined || calleeSeriesParams.size === 0) {
+                    continue;
+                }
+                const positional = call.args.filter((arg) => arg.name === null);
+                for (const calleeParamIndex of calleeSeriesParams) {
+                    const argument = positional[calleeParamIndex]?.value;
+                    if (argument?.kind !== "identifier-expression") {
+                        continue;
+                    }
+                    const callerParamIndex = callerParamIndices.get(argument.name);
+                    if (
+                        callerParamIndex !== undefined &&
+                        !callerSeriesParams.has(callerParamIndex)
+                    ) {
+                        callerSeriesParams.add(callerParamIndex);
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+// Names reassigned through `:=` anywhere in the top-level control-flow tree.
+// Function bodies own separate parameter/local scopes and are deliberately not
+// descended. A disabled feed declaration is constant-folded only when no later
+// reassignment can change the local's value.
+function collectTopLevelReassignments(statements: readonly Statement[], names: Set<string>): void {
+    for (const stmt of statements) {
+        if (stmt.kind === "assignment" && stmt.operator !== "=") {
+            names.add(stmt.name);
+        } else if (stmt.kind === "if-statement") {
+            collectTopLevelReassignments(stmt.thenBody.body, names);
+            for (const clause of stmt.elseIfClauses) {
+                collectTopLevelReassignments(clause.body.body, names);
+            }
+            if (stmt.elseBody !== null) {
+                collectTopLevelReassignments(stmt.elseBody.body, names);
+            }
+        } else if (stmt.kind === "for-statement") {
+            collectTopLevelReassignments(stmt.body.body, names);
+        } else if (stmt.kind === "switch-statement") {
+            for (const clause of stmt.cases) {
+                collectTopLevelReassignments(clause.body, names);
+            }
+        } else if (stmt.kind === "block-statement") {
+            collectTopLevelReassignments(stmt.body, names);
+        }
+    }
+}
+
+// Top-level series declarations sourced directly from the unsupported earnings
+// request and never reassigned. The request emitter writes zero, and this map
+// makes every current/history READ the same zero; otherwise the first bar's
+// unavailable `[1]` slot would turn `0 != NaN` into a false earnings event.
+function disabledSeriesValues(analysis: SemanticResult): ReadonlyMap<string, number> {
+    const reassigned = new Set<string>();
+    collectTopLevelReassignments(analysis.script.body, reassigned);
+    const values = new Map<string, number>();
+    for (const stmt of analysis.script.body) {
+        if (stmt.kind !== "assignment" && stmt.kind !== "variable-declaration") {
+            continue;
+        }
+        const initializer = stmt.kind === "assignment" ? stmt.value : stmt.initializer;
+        if (
+            !reassigned.has(stmt.name) &&
+            initializer.kind === "call-expression" &&
+            isUnsupportedEarningsRequest(initializer)
+        ) {
+            values.set(stmt.name, 0);
+        }
+    }
+    return values;
+}
+
 // Order the pure UDFs callee-before-caller (post-order DFS over the call graph)
 // so a pure UDF that calls another is emitted AFTER its callee — both precede
 // the first call site. A bare callee that is not a pure UDF (a `math.*` member
@@ -1604,23 +1733,32 @@ function emitUdfBodyStatement(
 // sibling-UDF call keeps its bare name. `number` is the sound annotation for the
 // numeric helper case: every realistic pure helper uses its params in
 // scalar/number positions (arithmetic, `math.*`, comparison), and a `PriceSeries`
-// call-site arg (`bar.close`) is `number & Series<…>`, assignable to `number`. A
-// pure helper that history-indexes a param (`p[1]`) genuinely needs a series-typed
-// param — the same `state.series` promotion the stateful-inline path defers — and
-// stays a documented gap. A single-expression body becomes an expression-bodied
-// arrow; any other body becomes a block arrow whose locals lower to `let`s and
-// whose last statement yields the `return`.
+// call-site arg (`bar.close`) is `number & Series<…>`, assignable to `number`.
+// A pure helper that directly or transitively history-indexes a param uses the
+// propagated `Series<number>` contract below. A single-expression body becomes
+// an expression-bodied arrow; any other body becomes a block arrow whose locals
+// lower to `let`s and whose last statement yields the `return`.
 function emitPureUdf(decl: FunctionDeclaration, ctx: EmitContext, walk: Walk): string {
     const params = decl.params.map((param) => param.name);
+    const seriesParams = ctx.udfSeriesParams?.get(decl.name) ?? new Set<number>();
     const body = decl.body.body;
     const bodyLocals = body.flatMap((stmt) =>
         stmt.kind === "assignment" || stmt.kind === "variable-declaration" ? [stmt.name] : [],
     );
+    const seriesValueAliases = new Map(ctx.seriesValueAliases);
+    params.forEach((param, index) => {
+        if (seriesParams.has(index)) {
+            seriesValueAliases.set(param, param);
+        }
+    });
     const childCtx: EmitContext = {
         ...ctx,
         localNames: new Set([...ctx.localNames, ...params, ...bodyLocals]),
+        seriesValueAliases,
     };
-    const paramList = params.map((param) => `${param}: number`).join(", ");
+    const paramList = params
+        .map((param, index) => `${param}: ${seriesParams.has(index) ? "Series<number>" : "number"}`)
+        .join(", ");
     if (body.length === 1 && body[0].kind === "expression-statement") {
         return `const ${decl.name} = (${paramList}) => ${emitCallValue(body[0].expression, childCtx, walk)};`;
     }
@@ -1757,11 +1895,16 @@ export function transformOther(
     const inputNames = new Set(scaffold.inputs.map((input) => input.name));
     const inputCasts = new Map<string, string>();
     const sourceInputs = new Set<string>();
+    const externalSeriesInputs = new Set<string>();
     for (const input of scaffold.inputs) {
         // A source input reads as `bar[inputs.<name>]` (a `PriceSeries`), so it
         // takes no scalar cast — it is indexable + number-coercible on its own.
         if (input.code.startsWith("input.source(")) {
             sourceInputs.add(input.name);
+            continue;
+        }
+        if (input.code.startsWith("input.externalSeries<")) {
+            externalSeriesInputs.add(input.name);
             continue;
         }
         const cast = inputCastType(input.code);
@@ -1800,6 +1943,9 @@ export function transformOther(
         stateSlots: slots,
         inputCasts,
         sourceInputs,
+        externalSeriesInputs,
+        disabledSeriesValues: disabledSeriesValues(analysis),
+        udfSeriesParams: pureUdfSeriesParams(analysis),
         securityFeedInputs: collectSecurityFeedInputs(analysis.script),
         promotedInline,
         tupleFieldAliases: registerTupleFields(analysis, scaffold.names),
@@ -1935,10 +2081,21 @@ function emitDeclaration(
     ctx: EmitContext,
     walk: Walk,
 ): readonly string[] {
+    const stateSlot = ctx.stateSlots.get(stmt.name);
+    if (stateSlot !== undefined) {
+        // A history-promoted Pine `var` still carries its last value into the
+        // new bar. Runtime `state.*Series` heads intentionally start each close
+        // at their element default so ordinary per-bar series can expose gaps;
+        // seed only converter-owned persistent vars from `[1]`. Do not run this
+        // on ticks: the runtime has already reset the live head to the current
+        // bar's committed value, while `[1]` is the preceding bar.
+        return ctx.seriesSlots?.has(stmt.name) === true
+            ? [`if (barstate.isnew && !barstate.isfirst) { ${stateSlot}.value = ${stateSlot}[1]; }`]
+            : [];
+    }
     if (
         walk.owned.has(stmt.name) ||
         isDrawingConstructorValue(stmt.initializer) ||
-        ctx.stateSlots.has(stmt.name) ||
         isInputCall(stmt.initializer) ||
         // A malformed / array-typed handle decl the parser modelled as a
         // scalar with no initializer — the drawing transforms own its effect.
@@ -2032,7 +2189,12 @@ function emitCallValue(value: ExpressionNode, ctx: EmitContext, walk: Walk): str
             return convertColorWith(value, (sub) => emitWithContext(sub, ctx));
         }
     }
-    return emitWithContext(value, ctx);
+    // Declarations, assignments, and UDF return expressions consume the
+    // current BAR VALUE. This differs from plot/ta/history consumers, which
+    // call `emitWithContext` directly for a series root. The distinction is
+    // observable for `input.externalSeries`: `copy = bound` must store
+    // `bound.current`, not the Series view object itself.
+    return emitScalar(value, ctx);
 }
 
 // Whether a call is an input primitive — an `input.*` member call OR the bare

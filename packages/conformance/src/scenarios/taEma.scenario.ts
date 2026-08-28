@@ -15,6 +15,11 @@ export default defineIndicator({
 `;
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
+    {
+        kind: "plot-hash",
+        slotId: "<inline:ta-ema>.chart.ts:7:9#0",
+        sha256: "6a819224112d875c8d11802fb113478d7545ec7d40e1873f73fe7dc75c3e838c",
+    },
     { kind: "alert-count", count: 0 },
     { kind: "diagnostic-code-absent", code: "lookback-exceeded" },
     { kind: "diagnostic-code-absent", code: "malformed-emission" },

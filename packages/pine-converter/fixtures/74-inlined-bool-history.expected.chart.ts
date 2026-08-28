@@ -16,7 +16,7 @@ export default defineIndicator({
         compute({ bar, ta, plot, state }) {
             const ma_cross2 = state.boolSeries(false);
             const ma_cross3 = state.boolSeries(false);
-            let src = bar.close;
+            let src = bar.close.current;
             let ma_a = ta.sma(src, 5).current;
             let ma_b = ta.sma(src, 20).current;
             ma_cross2.value = ta.crossover(ma_a, ma_b).current;

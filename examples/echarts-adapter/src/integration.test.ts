@@ -77,9 +77,9 @@ function bar(i: number, close: number): Bar {
     };
 }
 
-// A downtrend (bars 0-19) settles EMA(5) below EMA(12) post-warmup, then an
+// A downtrend (bars 0-19) settles EMA(5) below EMA(12), then an
 // uptrend (bars 20-39) accelerates EMA(5) up THROUGH EMA(12) — a clean
-// post-warmup crossover so the script's `alert` fires.
+// crossover so the script's `alert` fires.
 const HISTORY_BARS: ReadonlyArray<Bar> = Array.from({ length: 40 }, (_, i) => {
     const close = i < 20 ? 120 - i : 100 + (i - 20);
     return bar(i, close);
@@ -243,4 +243,6 @@ describe("echarts adapter integration (worker host)", () => {
 // `value`s changed; and the first frame is RE-APPLIED once (a second setOption)
 // so graphics projected against the pre-layout fallback re-project against the
 // real grid — both deliberate correctness changes.
-const PINNED_HASH = "f96c628c1f8ef1fb620b7e416b8be4eb10caf8c7035e1b5241d7e3f6fbde1a5f";
+// Re-pinned for Pine-compatible EMA initialization: the series now contains
+// finite EMA values from the first finite source bar.
+const PINNED_HASH = "c453ebcb206b38768cbfeb26ddf86870efc7be9cfc938f33e1b4e2dab9c895fb";

@@ -9,11 +9,11 @@ export default defineIndicator({
     overlay: true,
     compute({ bar, ta, plot }) {
         // Idiom: warmup NaN renders as a GAP, not a zero
-        // (docs/language/series-and-indexing.md § "Warmup and NaN"). `ta.ema(_, 50)`
+        // (docs/language/series-and-indexing.md § "Warmup and NaN"). `ta.sma(_, 50)`
         // returns NaN for its first 49 bars; the plot of a NaN value is emitted as
         // `value: null` and adapters draw nothing there, so the line simply starts
         // once the average has warmed — never a misleading drop to 0.
-        const ema = ta.ema(bar.close, 50);
-        plot(ema, { title: "EMA(50)", color: "#ab47bc" });
+        const sma = ta.sma(bar.close, 50);
+        plot(sma, { title: "SMA(50)", color: "#ab47bc" });
     },
 });

@@ -49,7 +49,7 @@ const LANGUAGE_IDIOMS_FRAGMENT: ReadonlyArray<ExampleMeta> = [
         id: "idiom-warmup-gap",
         label: "Idiom · Warmup Gap",
         description:
-            "Warmup `NaN` renders as a plot gap, not a zero: `ta.ema(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.",
+            "Warmup `NaN` renders as a plot gap, not a zero: `ta.sma(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.",
         category: "language",
         primitives: [],
         idioms: ["lang.warmupGap"],

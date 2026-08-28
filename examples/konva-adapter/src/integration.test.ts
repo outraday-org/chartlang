@@ -71,9 +71,9 @@ function bar(i: number, close: number): Bar {
     };
 }
 
-// A downtrend (bars 0-19) settles EMA(5) below EMA(12) post-warmup, then an
+// A downtrend (bars 0-19) settles EMA(5) below EMA(12), then an
 // uptrend (bars 20-39) accelerates EMA(5) up THROUGH EMA(12) — a clean
-// post-warmup crossover so the script's `alert` fires.
+// crossover so the script's `alert` fires.
 const HISTORY_BARS: ReadonlyArray<Bar> = Array.from({ length: 40 }, (_, i) => {
     const close = i < 20 ? 120 - i : 100 + (i - 20);
     return bar(i, close);
@@ -217,4 +217,6 @@ describe("konva adapter integration (worker host)", () => {
 
 // Pinned by the integration test; update only when a deliberate change
 // re-shapes the emitted node tree.
-const PINNED_HASH = "b3c0e906c79c92ac52defd252587d8fcb9c6c317cd50418ca0b9250975a57869";
+// Re-pinned for Pine-compatible EMA initialization: the line-node coordinates
+// now include finite EMA values from the first finite source bar.
+const PINNED_HASH = "9ad340a87191ad805099d1dab807e24093f7ef29d3d58c14dfbbe624f6f1dfda";

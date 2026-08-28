@@ -1,0 +1,446 @@
+[
+    {
+        "code": "pine-converter/parse/pine-version-downlevel",
+        "severity": "warning",
+        "message": "Pine v5 is converted on a best-effort basis through the v6 subset; un-modelled v5/v6 semantic differences may not be reflected.",
+        "span": {
+            "startLine": 1,
+            "startColumn": 1,
+            "endLine": 1,
+            "endColumn": 13
+        },
+        "suggestion": "Review the converted output, or migrate the source to `//@version=6`."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 440,
+            "startColumn": 56,
+            "endLine": 440,
+            "endColumn": 102
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 457,
+            "startColumn": 72,
+            "endLine": 457,
+            "endColumn": 145
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 458,
+            "startColumn": 86,
+            "endLine": 458,
+            "endColumn": 189
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 482,
+            "startColumn": 74,
+            "endLine": 482,
+            "endColumn": 149
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 483,
+            "startColumn": 88,
+            "endLine": 483,
+            "endColumn": 193
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/parse/chained-ternary-warning",
+        "severity": "info",
+        "message": "Chained ternary; chartlang codegen prefers an if/else.",
+        "span": {
+            "startLine": 553,
+            "startColumn": 126,
+            "endLine": 553,
+            "endColumn": 198
+        },
+        "suggestion": "Consider rewriting `a ? b : c ? d : e` as nested if/else."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 158,
+            "startColumn": 41,
+            "endLine": 158,
+            "endColumn": 52
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 553,
+            "startColumn": 150,
+            "endLine": 553,
+            "endColumn": 173
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 579,
+            "startColumn": 75,
+            "endLine": 579,
+            "endColumn": 93
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 582,
+            "startColumn": 91,
+            "endLine": 582,
+            "endColumn": 110
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 585,
+            "startColumn": 71,
+            "endLine": 585,
+            "endColumn": 90
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/semantic/history-on-non-series",
+        "severity": "warning",
+        "message": "History access `[n]` applied to a non-series value.",
+        "span": {
+            "startLine": 588,
+            "startColumn": 70,
+            "endLine": 588,
+            "endColumn": 88
+        },
+        "suggestion": "History can only be taken on a series; check the operand's type."
+    },
+    {
+        "code": "pine-converter/transform/input-arg-not-mapped",
+        "severity": "warning",
+        "message": "The `group` input argument was dropped; its value is not a compile-time literal.",
+        "span": {
+            "startLine": 10,
+            "startColumn": 42,
+            "endLine": 10,
+            "endColumn": 61
+        },
+        "suggestion": "Remove the argument; chartlang inputs do not model it."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 120,
+            "startColumn": 39,
+            "endLine": 120,
+            "endColumn": 64
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 127,
+            "startColumn": 40,
+            "endLine": 127,
+            "endColumn": 65
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/nested-ta-lowered",
+        "severity": "info",
+        "message": "A `ta.*` call in a scalar position (a branch predicate, an operator operand, a ternary arm, or a `math.*` argument) was projected to its per-bar `.current` scalar so the surrounding expression reads the current bar's value instead of the `Series` object.",
+        "span": {
+            "startLine": 170,
+            "startColumn": 34,
+            "endLine": 170,
+            "endColumn": 58
+        },
+        "suggestion": "No action needed — the `.current` projection is the per-bar value Pine uses; the `ta.*` series keeps its own per-call-site history."
+    },
+    {
+        "code": "pine-converter/transform/request-security-earnings-feed-disabled",
+        "severity": "warning",
+        "message": "TradingView's proprietary earnings pseudo-feed is not available in chartlang; the feed was disabled with a stable value so optional earnings-change exits remain inactive.",
+        "span": {
+            "startLine": 191,
+            "startColumn": 12,
+            "endLine": 191,
+            "endColumn": 105
+        },
+        "suggestion": "No action is needed when the earnings exit is optional. Remove the earnings branch, or supply earnings data through an application-owned feed if it is required."
+    },
+    {
+        "code": "pine-converter/transform/loop-unroll-frozen-at-input-default",
+        "severity": "info",
+        "message": "A `for` loop bound came from an `input.int` default; the unrolled iteration count is frozen at that default and will not follow the input at runtime.",
+        "span": {
+            "startLine": 206,
+            "startColumn": 1,
+            "endLine": 213,
+            "endColumn": 1
+        },
+        "suggestion": "Use a literal bound if the iteration count must stay fixed, or accept the frozen default."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 244,
+            "startColumn": 23,
+            "endLine": 244,
+            "endColumn": 98
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/request-security-different-symbol",
+        "severity": "info",
+        "message": "`request.security` on a different symbol was mapped to chartlang multi-symbol (`{ symbol, interval }`); the adapter must advertise the `multiSymbol` capability or the series degrades to NaN.",
+        "span": {
+            "startLine": 246,
+            "startColumn": 23,
+            "endLine": 246,
+            "endColumn": 97
+        },
+        "suggestion": "Confirm your adapter supports `multiSymbol`; otherwise drop the cross-symbol read or request the chart's own symbol."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 515,
+            "startColumn": 104,
+            "endLine": 515,
+            "endColumn": 132
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 521,
+            "startColumn": 77,
+            "endLine": 521,
+            "endColumn": 125
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 526,
+            "startColumn": 220,
+            "endLine": 526,
+            "endColumn": 232
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 527,
+            "startColumn": 226,
+            "endLine": 527,
+            "endColumn": 238
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 527,
+            "startColumn": 174,
+            "endLine": 527,
+            "endColumn": 202
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 527,
+            "startColumn": 131,
+            "endLine": 527,
+            "endColumn": 160
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 531,
+            "startColumn": 220,
+            "endLine": 531,
+            "endColumn": 232
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 532,
+            "startColumn": 226,
+            "endLine": 532,
+            "endColumn": 238
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 532,
+            "startColumn": 174,
+            "endLine": 532,
+            "endColumn": 202
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 532,
+            "startColumn": 131,
+            "endLine": 532,
+            "endColumn": 160
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 536,
+            "startColumn": 202,
+            "endLine": 536,
+            "endColumn": 214
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 540,
+            "startColumn": 119,
+            "endLine": 540,
+            "endColumn": 131
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/plot-display-approximated",
+        "severity": "warning",
+        "message": "A plot-family `display=` target carries placement information chartlang cannot represent; its chart-pane visibility was preserved through `{ visible }`, but the other placement was dropped.",
+        "span": {
+            "startLine": 541,
+            "startColumn": 119,
+            "endLine": 541,
+            "endColumn": 131
+        },
+        "suggestion": "Use `display.all`/`display.none` when only visibility matters; chartlang does not model `status_line`/`price_scale`/`pane`/`data_window` placement independently."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 550,
+            "startColumn": 68,
+            "endLine": 550,
+            "endColumn": 96
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/color-transp-approximated",
+        "severity": "info",
+        "message": "A `color.new(base, transp)` / `color.rgb(r, g, b, transp)` plot/hline/table colour was lowered with its Pine transparency converted to an alpha channel — a `#RRGGBBAA` hex for a literal base, or a `color.withAlpha(...)` call for a dynamic base.",
+        "span": {
+            "startLine": 551,
+            "startColumn": 60,
+            "endLine": 551,
+            "endColumn": 88
+        },
+        "suggestion": "No action needed; the alpha preserves the Pine transparency."
+    },
+    {
+        "code": "pine-converter/transform/alert-frequency-not-mapped",
+        "severity": "info",
+        "message": "An `alert(message, alert.freq_*)` frequency argument was dropped: chartlang's `AlertOpts` has no firing-frequency contract, so the cadence cannot be honored. The message and its enclosing `if` are preserved.",
+        "span": {
+            "startLine": 606,
+            "startColumn": 5,
+            "endLine": 606,
+            "endColumn": 37
+        },
+        "suggestion": "No action needed for a once-per-bar-close trigger inside an `if`; if you need explicit deduplication, gate the `alert(...)` behind your own `state.*` flag."
+    }
+]

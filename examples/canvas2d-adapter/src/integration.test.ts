@@ -88,7 +88,7 @@ function bar(i: number, open: number, high: number, low: number, close: number):
  * 120-bar dataset shaped so a 12-bar EMA crosses a 26-bar EMA in
  * both directions. The series starts with a 40-bar downtrend
  * (settles both EMAs aligned with falling price, fast EMA pinned
- * below slow EMA post-warmup), then a 40-bar uptrend (fast EMA
+ * below slow EMA after the opening decline), then a 40-bar uptrend (fast EMA
  * accelerates upward through the slow — crossover), then a 40-bar
  * downtrend (fast EMA falls back through the slow — crossunder).
  */
@@ -1017,7 +1017,9 @@ describe("canvas2d adapter integration", () => {
 // Re-pinned for nice-number y-axis ticks: `drawYAxis` now places gridlines +
 // labels at round 1/2/5×10ⁿ price levels (via `niceTicks`) instead of dividing
 // the padded range into 5 even slices, so the axis call sequence re-shapes.
-const PINNED_HASH = "3a46f9f4218196b462687228cb46af53bfc2f6e393336832c0b98245497dea7b";
+// Re-pinned for Pine-compatible EMA initialization: the line coordinates now
+// include finite EMA values from the first finite source bar.
+const PINNED_HASH = "93574e947ea1984b9ab29f935368cc63debc6aeb7f5a329b5e960a45937e6d8e";
 
 // §22.10 indicator-composition: a hand-crafted multi-export bundle
 // equivalent to a `MULTI_EXPORT_COMPOSITION`-shaped `.chart.ts` file

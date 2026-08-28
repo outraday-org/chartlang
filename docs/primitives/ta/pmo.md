@@ -25,7 +25,8 @@ signal[t] = EMA(signalLength)(pmo)
 
 ## Warmup
 
-firstSmoothing + secondSmoothing − 1 (pmo line); firstSmoothing + secondSmoothing + signalLength − 3 (signal line)
+firstSmoothing + secondSmoothing − 1 for both lines (the
+signal EMA seeds on the first finite PMO value)
 
 ## Signature
 

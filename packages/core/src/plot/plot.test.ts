@@ -160,6 +160,7 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "step-line",
             "horizontal-line",
             "histogram",
+            "columns",
             "area",
             "filled-band",
             "label",
@@ -173,12 +174,20 @@ describe("PlotKind and PlotOptsStyle types", () => {
             "bar-color",
             "horizontal-histogram",
         ];
-        expect(kinds).toHaveLength(16);
+        expect(kinds).toHaveLength(17);
     });
 
     it("accepts each new PlotOptsStyle variant", () => {
         const styles: ReadonlyArray<PlotOptsStyle> = [
-            { kind: "shape", shape: "flag", size: 8, location: "below" },
+            { kind: "columns", baseline: 0 },
+            {
+                kind: "shape",
+                shape: "flag",
+                size: 8,
+                location: "below",
+                text: "1",
+                textColor: "#ffffff",
+            },
             { kind: "character", char: "A", size: 12, location: "above" },
             { kind: "arrow", direction: "up", size: 10 },
             { kind: "candle-override", bull: "#26a69a", bear: "#ef5350", doji: "#999999" },
@@ -188,6 +197,7 @@ describe("PlotKind and PlotOptsStyle types", () => {
             { kind: "horizontal-histogram", buckets: [{ price: 100, volume: 20 }] },
         ];
         expect(styles.map((style) => style.kind)).toEqual([
+            "columns",
             "shape",
             "character",
             "arrow",

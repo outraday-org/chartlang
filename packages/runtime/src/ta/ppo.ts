@@ -107,7 +107,7 @@ function ppoValue(fast: number, slow: number): number {
  *           ppo    = 100 · (fast − slow) / slow ; NaN if slow === 0 ;
  *           signal = ema(ppo, signalLength) ;
  *           hist   = ppo − signal
- * @warmup   slowLength + signalLength − 2
+ * @warmup   0 on a finite source with nonzero slow EMA
  * @since 0.2
  * @stable
  *

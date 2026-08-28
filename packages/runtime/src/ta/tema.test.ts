@@ -39,12 +39,11 @@ describe("ta.tema", () => {
         }
     });
 
-    it("emits NaN until 3·length − 3 closed bars", () => {
+    it("is finite from the first finite source bar", () => {
         const bars = syntheticBars(30, 5);
         const out = harness(bars, bars.length + 1, (bar) => tema("slot", bar.close, 4).current);
-        // 3·4 − 3 = 9; first defined at index 9.
-        for (let i = 0; i < 9; i += 1) expect(Number.isNaN(out[i])).toBe(true);
-        expect(Number.isFinite(out[9])).toBe(true);
+        expect(out[0]).toBe(bars[0].close);
+        expect(out.every(Number.isFinite)).toBe(true);
     });
 
     it("returns the same Series identity on every call", () => {
@@ -64,7 +63,7 @@ describe("ta.tema", () => {
         );
     });
 
-    it("equals the constant for a constant-input stream past warmup", () => {
+    it("equals the constant for a constant-input stream from bar zero", () => {
         const bars = Array.from({ length: 20 }, (_, i) => ({
             time: 1_700_000_000_000 + i * 60_000,
             open: 7,
@@ -76,8 +75,7 @@ describe("ta.tema", () => {
             interval: "1m",
         }));
         const out = harness(bars, bars.length + 1, (bar) => tema("slot", bar.close, 3).current);
-        // 3·3 − 3 = 6 warmup bars; first defined at index 6.
-        for (let i = 6; i < bars.length; i += 1) {
+        for (let i = 0; i < bars.length; i += 1) {
             expect(out[i]).toBeCloseTo(7, 12);
         }
     });
@@ -111,12 +109,12 @@ describe("ta.tema tick-mode", () => {
         expect(b).toBeCloseTo(a, 12);
     });
 
-    it("tick during warmup returns NaN", () => {
+    it("tick remains finite before length bars have closed", () => {
         const bars = syntheticBars(5, 2);
         const { ctxRef } = harnessWithCtx(bars, bars.length + 5, (bar) =>
             tema("slot", bar.close, 5),
         );
         const head = tick(ctxRef, bars[4], () => tema("slot", bars[4].close, 5).current);
-        expect(Number.isNaN(head)).toBe(true);
+        expect(Number.isFinite(head)).toBe(true);
     });
 });

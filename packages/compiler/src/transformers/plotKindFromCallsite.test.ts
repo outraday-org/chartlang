@@ -71,6 +71,10 @@ describe("plotKindFromCallsite", () => {
         );
     });
 
+    it("plot with literal style.kind columns ⇒ columns", () => {
+        expect(kindOf(wrap('plot(v, { style: { kind: "columns" } });'), "plot")).toBe("columns");
+    });
+
     it("plot with literal style.kind area ⇒ area", () => {
         expect(kindOf(wrap('plot(v, { style: { kind: "area" } });'), "plot")).toBe("area");
     });

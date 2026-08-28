@@ -31,7 +31,8 @@ see above
 
 ## Warmup
 
-firstSmoothing + secondSmoothing + signalLength − 3
+1 for both lines on a finite source (one prior source is
+required for momentum; all EMA stages seed immediately)
 
 ## Signature
 

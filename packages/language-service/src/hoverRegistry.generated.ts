@@ -4829,7 +4829,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "fqn": "PlotKind",
         "kind": "type",
         "title": "PlotKind",
-        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`; `candle` and\n`ohlc-bar` (1.8) carry a per-bar OHLC quad for a *derived* candle / bar\nseries (distinct from the color-only `candle-override` / `bar-override`\nrecolors of the primary candles). Every expansion is additive — the\n`apiVersion: 1` script header stays unchanged.",
+        "summary": "Rendered-shape discriminator for `plot` emissions reaching the adapter.\nThe full 0.5 inventory is `line`, `step-line`, `horizontal-line`,\n`histogram`, `columns`, `area`, `filled-band`, `label`, `marker`,\n`shape`, `character`, `arrow`, `candle-override`, `bar-override`,\n`bg-color`, `bar-color`, and `horizontal-histogram`; `candle` and\n`ohlc-bar` (1.8) carry a per-bar OHLC quad for a *derived* candle / bar\nseries (distinct from the color-only `candle-override` / `bar-override`\nrecolors of the primary candles). Every expansion is additive — the\n`apiVersion: 1` script header stays unchanged.",
         "examples": [
             "const k: PlotKind = \"line\";\nconst histogram: PlotKind = \"histogram\";\nconst shape: PlotKind = \"shape\";\nvoid k; void histogram; void shape;"
         ],

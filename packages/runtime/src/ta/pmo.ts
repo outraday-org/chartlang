@@ -140,7 +140,8 @@ function computeRoc1(src: number, prevSrc: number): number {
  *           ema1[t]   = SwenlinEMA(firstSmoothing)(roc1) ;
  *           pmo[t]    = SwenlinEMA(secondSmoothing)(ema1 × 10) ;
  *           signal[t] = EMA(signalLength)(pmo)
- * @warmup   firstSmoothing + secondSmoothing − 1 (pmo line); firstSmoothing + secondSmoothing + signalLength − 3 (signal line)
+ * @warmup   firstSmoothing + secondSmoothing − 1 for both lines (the
+ *           signal EMA seeds on the first finite PMO value)
  * @since 0.2
  * @stable
  *

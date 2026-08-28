@@ -784,6 +784,7 @@ declare module "@invinite-org/chartlang-core" {
         | "step-line"
         | "horizontal-line"
         | "histogram"
+        | "columns"
         | "area"
         | "filled-band"
         | "label"
@@ -814,6 +815,7 @@ declare module "@invinite-org/chartlang-core" {
         | { readonly kind: "step-line" }
         | { readonly kind: "horizontal-line" }
         | { readonly kind: "histogram"; readonly baseline?: number }
+        | { readonly kind: "columns"; readonly baseline?: number }
         | { readonly kind: "area"; readonly fillAlpha?: number }
         | {
               readonly kind: "marker";
@@ -825,6 +827,8 @@ declare module "@invinite-org/chartlang-core" {
               readonly shape: PlotShapeGlyph;
               readonly size: number;
               readonly location?: PlotLocation;
+              readonly text?: string;
+              readonly textColor?: Color;
           }
         | {
               readonly kind: "character";

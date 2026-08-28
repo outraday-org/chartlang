@@ -21,7 +21,7 @@ out  = 3 · ema1 − 3 · ema2 + ema3
 
 ## Warmup
 
-3 · length − 3
+0 on a finite source
 
 ## Signature
 

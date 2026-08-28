@@ -13,8 +13,9 @@ export default defineIndicator({
             polylines: 50,
             other: 0,
         },
-        compute({ bar, plot, state }) {
+        compute({ bar, plot, state, barstate }) {
             const phase = state.stringSeries("-");
+            if (barstate.isnew && !barstate.isfirst) { phase.value = phase[1]; }
             phase.value = (bar.close > bar.open) ? "up" : "down";
             let prevPhase = phase[1];
             plot((prevPhase == "up") ? 1 : 0, { title: "PrevUp" });

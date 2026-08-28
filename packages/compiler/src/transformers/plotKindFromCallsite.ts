@@ -9,6 +9,7 @@ const PLOT_KINDS: ReadonlySet<PlotKind> = new Set<PlotKind>([
     "step-line",
     "horizontal-line",
     "histogram",
+    "columns",
     "area",
     "filled-band",
     "label",

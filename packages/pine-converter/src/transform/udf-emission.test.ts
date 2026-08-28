@@ -52,7 +52,7 @@ describe("transformOther — pure UDF emission", () => {
     it("emits a single-expression pure UDF as an expression-bodied arrow before its call site", () => {
         expect(stmts("cf_add(a, b) => a + b\nv = close\ny = cf_add(v, 2)\nplot(y)")).toEqual([
             "const cf_add = (a: number, b: number) => a + b;",
-            "let v = bar.close;",
+            "let v = bar.close.current;",
             "let y = cf_add(v, 2);",
             "plot(y);",
         ]);

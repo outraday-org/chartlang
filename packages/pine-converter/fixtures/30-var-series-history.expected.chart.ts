@@ -14,10 +14,11 @@ export default defineIndicator({
             polylines: 50,
             other: 0,
         },
-        compute({ bar, plot, state }) {
+        compute({ bar, plot, state, barstate }) {
             const prev = state.series(Number.NaN);
+            if (barstate.isnew && !barstate.isfirst) { prev.value = prev[1]; }
             let delta = bar.close - prev.value;
-            prev.value = bar.close;
+            prev.value = bar.close.current;
             plot(delta);
             plot(prev[1]);
         },

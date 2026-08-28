@@ -12,6 +12,6 @@ describe("ta.dema — golden", () => {
         const bars = syntheticBars(100, 42);
         const out = harness(bars, bars.length + 1, (bar) => dema("slot", bar.close, 20).current);
         const h = hashFloat64Array(out);
-        expect(h).toBe("b4f5c203");
+        expect(h).toBe("1f9bb4ec");
     });
 });

@@ -504,6 +504,53 @@ function displayOption(
     return null;
 }
 
+// Lower the Pine `plot.style_*` value into one typed chartlang style object.
+// Ternaries stay dynamic: Chartlang evaluates the options expression per bar,
+// so the selected style reaches the runtime without choosing a branch during
+// conversion. Anything outside the exact supported set rejects the whole plot
+// via `plot-style-not-mapped`; silently omitting `style` would turn it into a
+// plausible but wrong line.
+function plotStyleOption(
+    node: ExpressionNode,
+    baseline: string,
+    ctx: EmitContext,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    if (node.kind === "paren-expression") {
+        const inner = plotStyleOption(node.expression, baseline, ctx, diagnostics);
+        return inner === null ? null : `(${inner})`;
+    }
+    if (node.kind === "ternary-expression") {
+        const yes = plotStyleOption(node.consequent, baseline, ctx, diagnostics);
+        const no = plotStyleOption(node.alternate, baseline, ctx, diagnostics);
+        if (yes === null || no === null) {
+            return null;
+        }
+        return `${emitScalar(node.condition, ctx)} ? ${yes} : ${no}`;
+    }
+    if (node.kind === "member-access-expression" && node.head === null) {
+        const mapping = enumLookup(node.chain.join("."));
+        switch (mapping?.chartlang) {
+            case "line":
+                return `{ kind: "line" }`;
+            case "step-line":
+                return `{ kind: "step-line" }`;
+            case "histogram":
+                return `{ kind: "histogram", baseline: ${baseline} }`;
+            case "columns":
+                return `{ kind: "columns", baseline: ${baseline} }`;
+            case "circles":
+                // Pine's circle presentation maps to chartlang's existing
+                // discrete marker glyph. The plot-level linewidth is retained
+                // independently by `commonOptionPairs`; 8 CSS px is the
+                // converter's compact circle-marker presentation.
+                return `{ kind: "marker", shape: "circle", size: 8 }`;
+        }
+    }
+    diagnostics.pushCode("plot-style-not-mapped", node.span);
+    return null;
+}
+
 function emitPlot(
     args: readonly CallArgument[],
     pos: readonly ExpressionNode[],
@@ -514,11 +561,24 @@ function emitPlot(
     if (value === undefined) {
         return null;
     }
+    const styleNode = named(args, "style") ?? pos[4] ?? null;
+    const baselineNode = named(args, "histbase") ?? pos[6] ?? null;
+    const baseline = baselineNode === null ? "0" : emitWithContext(baselineNode, ctx);
+    const style =
+        styleNode === null ? null : plotStyleOption(styleNode, baseline, ctx, diagnostics);
+    if (styleNode !== null && style === null) {
+        return null;
+    }
     const visiblePair: readonly [string, string | null] = [
         "visible",
         displayOption(args, pos, 11, ctx, diagnostics),
     ];
-    const opts = options([...commonOptionPairs(args, pos, ctx, diagnostics), visiblePair]);
+    const stylePair: readonly [string, string | null] = ["style", style];
+    const opts = options([
+        ...commonOptionPairs(args, pos, ctx, diagnostics),
+        visiblePair,
+        stylePair,
+    ]);
     const valueSource = emitPlotValue(value, args, ctx, diagnostics);
     return opts === "" ? `plot(${valueSource});` : `plot(${valueSource}, ${opts});`;
 }
@@ -540,6 +600,37 @@ function enumValue(node: ExpressionNode | null | undefined): string | null {
     }
     const mapping = enumLookup(node.chain.join("."));
     return mapping !== null && typeof mapping.chartlang === "string" ? mapping.chartlang : null;
+}
+
+const PLOT_GLYPH_SIZE_PX: ReadonlyMap<string, number> = new Map([
+    ["tiny", 8],
+    ["small", 10],
+    ["normal", 12],
+    ["large", 16],
+    ["huge", 24],
+]);
+
+// Resolve Pine's static `size.*` enum to the same CSS-pixel ladder used by the
+// shared chartlang text/table presentation layer. Plot glyph size is static in
+// Pine; an opaque expression cannot be converted to chartlang's numeric size.
+function plotGlyphSize(
+    node: ExpressionNode | null,
+    defaultSize: number,
+    diagnostics: DiagnosticCollector,
+): string | null {
+    if (node === null) {
+        // Keep each plot family's established default when Pine omits `size`.
+        // Task 4 needs exact explicit `size.tiny` preservation for MASM; it
+        // must not also resize existing style-less plotshape/plotchar output.
+        return String(defaultSize);
+    }
+    const mapped = enumValue(node);
+    const size = mapped === null ? undefined : PLOT_GLYPH_SIZE_PX.get(mapped);
+    if (size === undefined) {
+        diagnostics.pushCode("plot-style-not-mapped", node.span);
+        return null;
+    }
+    return String(size);
 }
 
 function emitConditional(
@@ -564,29 +655,54 @@ function emitConditional(
     const cond = emitScalar(condition, ctx);
     const displayPosition = name === "plotarrow" ? 9 : 11;
     const visible = displayOption(args, pos, displayPosition, ctx, diagnostics);
-    const location = enumArg(args, "location");
+    const titleNode = named(args, "title") ?? pos[1] ?? null;
+    const titlePart = titleNode === null ? "" : `title: ${emitWithContext(titleNode, ctx)}, `;
+    const location = enumValue(named(args, "location") ?? pos[3]);
     const locPart = location === null ? "" : `, location: "${location}"`;
     let style: string;
     if (name === "plotshape") {
         // chartlang's `shape` style requires a `PlotShapeGlyph` + `size`; the
-        // Pine `style=shape.*` glyph maps through `enumLookup` (default circle).
-        const glyph = enumArg(args, "style") ?? "circle";
-        style = `{ kind: "shape", shape: "${glyph}", size: 8${locPart} }`;
+        // Pine `style=shape.*` glyph maps through `enumLookup`; an omitted
+        // style uses Pine's documented `shape.xcross` default.
+        // Pine's optional overlaid text + independent text color stay on the
+        // typed shape descriptor so a renderer can reproduce `1`/`2`/`sl1`.
+        const glyphNode = named(args, "style") ?? pos[2] ?? null;
+        const glyph = glyphNode === null ? "xcross" : enumValue(glyphNode);
+        if (glyph === null) {
+            diagnostics.pushCode("plot-style-not-mapped", glyphNode.span);
+            return null;
+        }
+        const size = plotGlyphSize(named(args, "size") ?? pos[9] ?? null, 8, diagnostics);
+        if (size === null) {
+            return null;
+        }
+        const textNode = named(args, "text") ?? pos[6] ?? null;
+        const textPart = textNode === null ? "" : `, text: ${emitWithContext(textNode, ctx)}`;
+        const textColorNode = named(args, "textcolor") ?? pos[7] ?? null;
+        const textColorPart =
+            textColorNode === null
+                ? ""
+                : `, textColor: ${styleValue(textColorNode, ctx, diagnostics)}`;
+        style = `{ kind: "shape", shape: "${glyph}", size: ${size}${locPart}${textPart}${textColorPart} }`;
     } else if (name === "plotchar") {
-        const charNode = named(args, "char");
+        const charNode = named(args, "char") ?? pos[2] ?? null;
         const char = charNode === null ? '"•"' : emitWithContext(charNode, ctx);
-        style = `{ kind: "character", char: ${char}, size: 12${locPart} }`;
+        const size = plotGlyphSize(named(args, "size") ?? pos[9] ?? null, 12, diagnostics);
+        if (size === null) {
+            return null;
+        }
+        style = `{ kind: "character", char: ${char}, size: ${size}${locPart} }`;
     } else {
         // Pine `plotarrow` direction follows the series sign at runtime, which
         // is not statically known; default to "up".
         style = `{ kind: "arrow", direction: "up", size: 10 }`;
     }
     // The glyph styles carry no `color`; preserve a `color=` arg at plot level.
-    const colorNode = named(args, "color");
+    const colorNode = named(args, "color") ?? (name === "plotarrow" ? null : (pos[4] ?? null));
     const colorPart =
         colorNode === null ? "" : `color: ${styleValue(colorNode, ctx, diagnostics)}, `;
     const visiblePart = visible === null ? "" : `visible: ${visible}, `;
-    return `plot(${cond} ? bar.close : Number.NaN, { ${colorPart}${visiblePart}style: ${style} });`;
+    return `plot(${cond} ? bar.close : Number.NaN, { ${titlePart}${colorPart}${visiblePart}style: ${style} });`;
 }
 
 function emitCandle(

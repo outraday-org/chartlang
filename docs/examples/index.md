@@ -229,7 +229,7 @@ back to run it in your browser.
 - [Idiom · Series Indexing](/examples/idiom-series-index) — Reading a `Series<T>` by index: plot an EMA's bar-over-bar delta (`ema.current − ema[1]`) using `.current` / `[n]` / `.length`.
 - [Idiom · Bar Series Indexing](/examples/idiom-bar-series-index) — Indexing the price series directly (`bar.close[1]`) plus the raw-number coercion caveat — `+bar.close` for the scalar a comparison or `state.*` slot needs.
 - [Idiom · Plot Offset](/examples/idiom-plot-offset) — The bidirectional `ta.*` `offset` display shift: an SMA drawn unshifted plus `+5` (right/future) and `−5` (left/past) copies, while the numeric value stays unshifted.
-- [Idiom · Warmup Gap](/examples/idiom-warmup-gap) — Warmup `NaN` renders as a plot gap, not a zero: `ta.ema(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.
+- [Idiom · Warmup Gap](/examples/idiom-warmup-gap) — Warmup `NaN` renders as a plot gap, not a zero: `ta.sma(_, 50)` is `NaN` for its first 49 bars and the line simply starts late.
 - [Idiom · Bounded Loop Window](/examples/idiom-bounded-loop) — A rolling mean expressed as a bounded `for (i < N) bar.close[i]` loop — the loop form of an unrolled `series[0] + … + series[N]`, sized identically by the compiler.
 - [Idiom · Bar Point Anchors](/examples/idiom-bar-point) — `bar.point(offset, price)` drawing anchors spanning past and future: one line from `bar.point(-20, …)` to `bar.point(+20, …)`.
 - [Idiom · Dependency Output](/examples/idiom-dep-output) — Consume another indicator's titled plot as a `Series<number>` via `<dep>.output("title")` — a private `const` producer read by the default export.

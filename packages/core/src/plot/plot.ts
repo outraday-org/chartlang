@@ -6,7 +6,7 @@ import type { Color, LineStyle, Series } from "../types.js";
 /**
  * Rendered-shape discriminator for `plot` emissions reaching the adapter.
  * The full 0.5 inventory is `line`, `step-line`, `horizontal-line`,
- * `histogram`, `area`, `filled-band`, `label`, `marker`,
+ * `histogram`, `columns`, `area`, `filled-band`, `label`, `marker`,
  * `shape`, `character`, `arrow`, `candle-override`, `bar-override`,
  * `bg-color`, `bar-color`, and `horizontal-histogram`; `candle` and
  * `ohlc-bar` (1.8) carry a per-bar OHLC quad for a *derived* candle / bar
@@ -35,6 +35,7 @@ export type PlotKind =
     | "step-line"
     | "horizontal-line"
     | "histogram"
+    | "columns"
     | "area"
     | "filled-band"
     | "label"
@@ -104,7 +105,8 @@ export type HorizontalHistogramBucket = Readonly<{
  * from sibling {@link PlotOpts} fields (`lineWidth` / `lineStyle`) for
  * line-like styles.
  *
- * `histogram.baseline` defaults to `0` when omitted; `area.fillAlpha`
+ * `histogram.baseline` and `columns.baseline` default to `0` when omitted;
+ * `area.fillAlpha`
  * defaults to `0.2`.
  *
  * @formula  N/A — script-facing style input
@@ -120,6 +122,17 @@ export type PlotOptsStyle =
     | { readonly kind: "step-line" }
     | { readonly kind: "horizontal-line" }
     | { readonly kind: "histogram"; readonly baseline?: number }
+    /**
+     * Discrete columns rising from `baseline` to the plotted value. Unlike a
+     * histogram, columns retain Pine's separated-column presentation intent;
+     * the sibling `PlotOpts.lineWidth` controls their authored width.
+     *
+     * @since 1.13
+     * @stable
+     * @example
+     *     plot(bar.volume, { style: { kind: "columns", baseline: 0 } });
+     */
+    | { readonly kind: "columns"; readonly baseline?: number }
     /**
      * Filled area under the plotted line — the polyline stroked on top of
      * a translucent fill down to the adapter's baseline. `fillAlpha` is
@@ -152,6 +165,10 @@ export type PlotOptsStyle =
           readonly shape: PlotShapeGlyph;
           readonly size: number;
           readonly location?: PlotLocation;
+          /** Optional text drawn with the Pine-style glyph. @since 1.13 */
+          readonly text?: string;
+          /** Optional text color, independent of the glyph color. @since 1.13 */
+          readonly textColor?: Color;
       }
     /**
      * Text glyph at world-anchor — Pine's `plotchar`. `char` may be any

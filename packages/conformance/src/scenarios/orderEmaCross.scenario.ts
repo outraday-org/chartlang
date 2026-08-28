@@ -15,17 +15,18 @@ const BUY_SLOT_ID = "<inline:order-ema-cross>.chart.ts:13:32#0";
 const CLOSE_SLOT_ID = "<inline:order-ema-cross>.chart.ts:14:35#0";
 
 const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
-    // 76 entries + 76 exits over the 10 000 golden bars. The paired count is a
+    // 78 entries + 78 exits over the 10 000 golden bars. The paired count is a
     // consequence of the script's own gate (it never buys while long, never
     // closes while flat), not a coincidence of the fixture.
-    { kind: "order-count", count: 152 },
-    // Spot check of the first round trip. The 162-bar delay to the first entry
-    // is the EMA(26) warmup plus the first real crossing.
+    { kind: "order-count", count: 156 },
+    // Spot check of the first round trip. Pine-compatible EMA seeding makes
+    // the first comparison available immediately; bar zero cannot cross
+    // because crossover/crossunder require a prior bar.
     {
         kind: "order-at-bar",
         expected: [
-            { action: "buy", bar: 162, label: "Long" },
-            { action: "close", bar: 264, label: "Exit" },
+            { action: "buy", bar: 1, label: "Long" },
+            { action: "close", bar: 3, label: "Exit" },
         ],
     },
     // The auto-render proof. A buy's arrow anchors at `bar.low`, a close's at
@@ -35,12 +36,12 @@ const ASSERTIONS: ReadonlyArray<ScenarioAssertion> = Object.freeze([
     {
         kind: "plot-hash",
         slotId: `${BUY_SLOT_ID}${ORDER_MARKER_SLOT_SUFFIX}`,
-        sha256: "7e061e47b76099b8c0abf9f694a4b8ea1f3ae0fefaabb5aa12eb6958cf15ac18",
+        sha256: "f62c15c4cab91c7e2b46810be94967e1b99f92fef2f548ec4457a86702c51be6",
     },
     {
         kind: "plot-hash",
         slotId: `${CLOSE_SLOT_ID}${ORDER_MARKER_SLOT_SUFFIX}`,
-        sha256: "2020a4c434d239fc1dbaa77b56997bdcac5fc1644585f28e15a1eeb8e26a12b8",
+        sha256: "3fc9ddf2d1dc3241b4de6bbe66c87b732ca47025e5eaf55f7f5375042f4728a1",
     },
     { kind: "diagnostic-code-absent", code: "unsupported-orders" },
 ]);

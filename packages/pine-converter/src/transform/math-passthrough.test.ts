@@ -46,13 +46,13 @@ function run(body: string): { statements: readonly string[]; codes: string[] } {
 describe("math.* passthrough", () => {
     it("maps a 1:1 math.* member to Math.*", () => {
         expect(run("x = math.abs(close)\nplot(x)").statements[0]).toBe(
-            "let x = Math.abs(bar.close);",
+            "let x = Math.abs(bar.close.current);",
         );
     });
 
     it("keeps math.sign on bare Math.sign (no-rewrap decision)", () => {
         expect(run("x = math.sign(close)\nplot(x)").statements[0]).toBe(
-            "let x = Math.sign(bar.close);",
+            "let x = Math.sign(bar.close.current);",
         );
     });
 
@@ -64,7 +64,7 @@ describe("math.* passthrough", () => {
                 continue;
             }
             const { statements } = run(`x = ${pine}(close)\nplot(x)`);
-            expect(statements[0]).toBe(`let x = ${mapping.chartlang}(bar.close);`);
+            expect(statements[0]).toBe(`let x = ${mapping.chartlang}(bar.close.current);`);
         }
     });
 
@@ -82,7 +82,9 @@ describe("math.* passthrough", () => {
     describe("math.round_to_mintick", () => {
         it("injects syminfo.mintick as the explicit step argument", () => {
             const { statements } = run("x = math.round_to_mintick(close)\nplot(x)");
-            expect(statements[0]).toBe("let x = math.roundToMintick(bar.close, syminfo.mintick);");
+            expect(statements[0]).toBe(
+                "let x = math.roundToMintick(bar.close.current, syminfo.mintick);",
+            );
         });
 
         it("imports `math` and destructures `syminfo` in the emitted source", () => {
@@ -99,13 +101,15 @@ describe("math.* passthrough", () => {
     describe("math.avg / math.sum arity", () => {
         it("maps the variadic scalar math.avg to the chartlang math.avg", () => {
             const { statements, codes } = run("x = math.avg(close, open, high)\nplot(x)");
-            expect(statements[0]).toBe("let x = math.avg(bar.close, bar.open, bar.high);");
+            expect(statements[0]).toBe(
+                "let x = math.avg(bar.close.current, bar.open.current, bar.high.current);",
+            );
             expect(codes).not.toContain("pine-converter/transform/math-rolling-window-unmapped");
         });
 
         it("maps a single-arg math.sum to the scalar math.sum", () => {
             const { statements } = run("x = math.sum(close)\nplot(x)");
-            expect(statements[0]).toBe("let x = math.sum(bar.close);");
+            expect(statements[0]).toBe("let x = math.sum(bar.close.current);");
         });
 
         it("does NOT collapse rolling math.sum(source, length) to the scalar form", () => {

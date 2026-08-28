@@ -80,7 +80,7 @@ describe("smmaFloat64 — property invariants", () => {
                     const smma = smmaFloat64(series, N);
                     const emaLen = 2 * N - 1;
                     const ema = computeEmaOfFloat64(series, emaLen);
-                    // Both arrays should converge after the EMA warmup completes.
+                    // Both recurrences converge after their distinct seeds decay.
                     const startIdx = Math.max(N - 1, emaLen - 1) + 5;
                     for (let i = startIdx; i < series.length; i += 1) {
                         if (Number.isFinite(smma[i]) && Number.isFinite(ema[i])) {
