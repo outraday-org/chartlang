@@ -2,14 +2,21 @@
 // See the LICENSE file in the repo root for full license text.
 
 /**
- * Standalone closed-bar reference translation of the Pine subset exercised by
- * Trend_Wizard.md and MASM_Strat.md. This module deliberately has ZERO imports:
- * no Chartlang runtime/compiler/converter/adapter/host and no shared numerical
- * primitive participates in expected-value production.
+ * JSON-safe number emitted by the independent Pine reference; `null` represents `na`.
+ * @since 1.7
+ * @example
+ *     const value: ReferenceNumber = null;
+ *     void value;
  */
-
 export type ReferenceNumber = number | null;
 
+/**
+ * One adjusted daily OHLCV input bar consumed by the standalone reference.
+ * @since 1.7
+ * @example
+ *     const bar: ReferenceBar = { time: 0, open: 1, high: 2, low: 0, close: 1, volume: 10 };
+ *     void bar;
+ */
 export type ReferenceBar = {
     readonly time: number;
     readonly open: number;
@@ -19,12 +26,26 @@ export type ReferenceBar = {
     readonly volume: number;
 };
 
+/**
+ * Independently computed value, semantic color, and plot kind for one bar.
+ * @since 1.7
+ * @example
+ *     const point: ReferencePlotPoint = { value: 1, semanticColor: null, kind: "line" };
+ *     void point;
+ */
 export type ReferencePlotPoint = {
     readonly value: ReferenceNumber;
     readonly semanticColor: string | null;
     readonly kind: string;
 };
 
+/**
+ * Independently computed MASM label descriptor.
+ * @since 1.7
+ * @example
+ *     declare const label: ReferenceLabel;
+ *     void label;
+ */
 export type ReferenceLabel = {
     readonly id: string;
     readonly text: string;
@@ -36,6 +57,13 @@ export type ReferenceLabel = {
     readonly pane: "script";
 };
 
+/**
+ * All independently evaluated Trend and MASM outputs for one source bar.
+ * @since 1.7
+ * @example
+ *     declare const row: ReferenceExpectedRow;
+ *     void row;
+ */
 export type ReferenceExpectedRow = {
     readonly time: number;
     readonly trend: {
@@ -59,6 +87,13 @@ export type ReferenceExpectedRow = {
     };
 };
 
+/**
+ * Presentation descriptor translated directly from one canonical Pine plot call.
+ * @since 1.7
+ * @example
+ *     declare const definition: ReferencePlotDefinition;
+ *     void definition;
+ */
 export type ReferencePlotDefinition = {
     readonly name: string;
     readonly title: string;
@@ -72,6 +107,13 @@ export type ReferencePlotDefinition = {
     readonly semanticColor: string | null;
 };
 
+/**
+ * Complete output of the import-free Trend/MASM Pine reference evaluator.
+ * @since 1.7
+ * @example
+ *     declare const evaluation: ReferenceEvaluation;
+ *     void evaluation;
+ */
 export type ReferenceEvaluation = {
     readonly expected: ReadonlyArray<ReferenceExpectedRow>;
     readonly presentation: {
@@ -155,7 +197,13 @@ function change(values: ReadonlyArray<number>): number[] {
     return values.map((value, index) => subtract(value, valueAt(values, index - 1)));
 }
 
-/** Pine ta.sma: consumes `length` non-na observations. */
+/**
+ * Evaluate Pine `ta.sma`, consuming `length` non-`na` observations.
+ * @since 1.7
+ * @example
+ *     const values = pineSma([1, 2, 3], 2);
+ *     void values;
+ */
 export function pineSma(values: ReadonlyArray<number>, length: number): number[] {
     const window: number[] = [];
     return values.map((value) => {
@@ -168,7 +216,13 @@ export function pineSma(values: ReadonlyArray<number>, length: number): number[]
     });
 }
 
-/** Pine ta.ema: first usable source value seeds the recurrence. */
+/**
+ * Evaluate Pine `ta.ema`, seeded by the first finite source observation.
+ * @since 1.7
+ * @example
+ *     const values = pineEma([1, 2, 3], 2);
+ *     void values;
+ */
 export function pineEma(values: ReadonlyArray<number>, length: number): number[] {
     const alpha = 2 / (length + 1);
     let previous = NA;
@@ -179,7 +233,13 @@ export function pineEma(values: ReadonlyArray<number>, length: number): number[]
     });
 }
 
-/** Pine ta.rma: SMA seed, then alpha=1/length recurrence. */
+/**
+ * Evaluate Pine `ta.rma` with an SMA seed and `alpha = 1 / length`.
+ * @since 1.7
+ * @example
+ *     const values = pineRma([1, 2, 3], 2);
+ *     void values;
+ */
 export function pineRma(values: ReadonlyArray<number>, length: number): number[] {
     const seed: number[] = [];
     let previous = NA;
@@ -196,6 +256,13 @@ export function pineRma(values: ReadonlyArray<number>, length: number): number[]
     });
 }
 
+/**
+ * Evaluate Pine `ta.wma` with linearly increasing weights.
+ * @since 1.7
+ * @example
+ *     const values = pineWma([1, 2, 3], 2);
+ *     void values;
+ */
 export function pineWma(values: ReadonlyArray<number>, length: number): number[] {
     const window: number[] = [];
     const denominator = (length * (length + 1)) / 2;
@@ -1266,6 +1333,13 @@ function materializeTrendPlots(
     return plots;
 }
 
+/**
+ * Evaluate the canonical Trend Wizard and MASM Pine logic without Chartlang dependencies.
+ * @since 1.7
+ * @example
+ *     const evaluation = evaluateTrendMasmPineReference([]);
+ *     void evaluation;
+ */
 export function evaluateTrendMasmPineReference(
     bars: ReadonlyArray<ReferenceBar>,
 ): ReferenceEvaluation {
