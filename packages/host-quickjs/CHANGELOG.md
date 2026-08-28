@@ -1,5 +1,21 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.7.7
+
+### Patch Changes
+
+- 3dd0dc4: Make canonical EMA Pine-compatible: seed on the first finite source, emit gaps
+  without losing recurrence state, and isolate tentative ticks from later closes.
+  Re-pin EMA-composed primitives and conformance scenarios to the new recurrence.
+  Regenerate the QuickJS dispatcher so its inlined runtime uses the same EMA.
+- Updated dependencies [d0d425a]
+- Updated dependencies [3dd0dc4]
+- Updated dependencies [3dd0dc4]
+  - @invinite-org/chartlang-host-worker@1.7.1
+  - @invinite-org/chartlang-core@1.14.0
+  - @invinite-org/chartlang-adapter-kit@1.13.0
+  - @invinite-org/chartlang-runtime@1.14.0
+
 ## 1.7.6
 
 ### Patch Changes
