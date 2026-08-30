@@ -23,6 +23,13 @@ function codes(source: string): string[] {
     return run(source).diagnostics.map((d) => d.code);
 }
 
+// Every `naKind` stamped on a node of `kind`, in walk order.
+function naKindsOf(result: ReturnType<typeof run>, kind: string): (string | undefined)[] {
+    return [...result.annotations.entries()]
+        .filter(([node]) => node.kind === kind)
+        .map(([, ann]) => ann.naKind);
+}
+
 const HEADER = "//@version=6\nindicator('a')\n";
 
 describe("analyze — scope + symbols", () => {
@@ -138,6 +145,37 @@ describe("analyze — qualifier + na-kind annotations", () => {
         const kinds = callAnns.map(([, ann]) => ann.naKind);
         expect(kinds).toContain("handle");
         expect(kinds).toContain("numeric");
+    });
+
+    it("infers na into a typed string var as string kind, on the init and a := reset", () => {
+        const decl = run(`${HEADER}string msg = na\n`);
+        expect(naKindsOf(decl, "na-expression")).toEqual(["string"]);
+
+        // `var`/`varip` typed string declarations take the same flavour, and so
+        // does a later `:= na` reset — without it the reset would emit
+        // `Number.NaN` into a binding TypeScript has already inferred as string.
+        const kept = run(`${HEADER}var string kept = na\nkept := na\n`);
+        expect(naKindsOf(kept, "na-expression")).toEqual(["string", "string"]);
+
+        const tick = run(`${HEADER}varip string tick = na\n`);
+        expect(naKindsOf(tick, "na-expression")).toEqual(["string"]);
+    });
+
+    // The emitter reads the na flavour off the CALLEE node, not the call node:
+    // `emitContext.rewriteTree` rebuilds every call expression, so only the
+    // callee's identity survives into the annotation lookup.
+    it("stamps the receiver-derived flavour on the `na(...)` CALLEE node", () => {
+        const result = run(
+            `${HEADER}var line lvl = na\nstring msg = na\na = na(lvl)\nb = na(msg)\nc = na(close)\nd = na(ghost)\n`,
+        );
+        const callees = [...result.annotations.entries()]
+            .filter(([node]) => node.kind === "call-expression")
+            .map(([node]) => (node.kind === "call-expression" ? node.callee : null))
+            .filter((callee): callee is ExpressionNode => callee !== null)
+            .map((callee) => result.annotations.get(callee)?.naKind);
+        // Source order: na(lvl), na(msg), na(close), na(ghost). An unresolved
+        // receiver has no declared type and stays numeric.
+        expect(callees).toEqual(["handle", "string", "numeric", "numeric"]);
     });
 });
 

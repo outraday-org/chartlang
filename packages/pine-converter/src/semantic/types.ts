@@ -232,6 +232,22 @@ export type SecurityTupleAnnotation = Readonly<{
 }>;
 
 /**
+ * The flavour of a Pine `na` — the ONE vocabulary shared by the semantic
+ * walk that resolves it and the transform that lowers it. Each flavour owns
+ * a different missing-value sentinel and a different `na(x)` predicate:
+ * `numeric` → `Number.NaN` / `!Number.isFinite(x)`, `handle` → `null` /
+ * `x === null`, `color` → the transparent CSS string (the runtime
+ * synthesizes no color default), `string` → `""` / `x === ""`.
+ *
+ * @since 0.1
+ * @stable
+ * @example
+ *     const kind: NaKind = "string";
+ *     void kind;
+ */
+export type NaKind = "numeric" | "handle" | "color" | "string";
+
+/**
  * Per-node semantic facts attached during the walk: the inferred qualifier
  * for expression nodes, the resolved `na` flavour for `na`/`na(...)` nodes,
  * the declaration/reassignment verdict for assignment statements, and the
@@ -245,7 +261,7 @@ export type SecurityTupleAnnotation = Readonly<{
  */
 export type SemanticAnnotation = Readonly<{
     qualifier?: TypeQualifier;
-    naKind?: "numeric" | "handle" | "color";
+    naKind?: NaKind;
     assignment?: AssignmentAnnotation;
     securityTuple?: SecurityTupleAnnotation;
 }>;

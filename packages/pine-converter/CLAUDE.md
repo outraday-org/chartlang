@@ -635,10 +635,27 @@ that has no byte-identical chartlang analogue.
   bound name → `reassignment` (lifetime reassignment recorded for handles);
   an unbound name → `unknown-identifier`.
 - **`na` flavour is computed up front in `walkExpression`** (no separate
-  annotate pass): a bare `na` keyword takes `handle` when its assignment
-  context is a handle var, else `numeric`; an `na(receiver)` call takes its
-  flavour from the receiver's resolved `handleType`. Transforms read
+  annotate pass) and the vocabulary is named ONCE as `NaKind`
+  (`semantic/types.ts`): `numeric` | `handle` | `color` | `string`. A bare `na`
+  keyword takes its flavour from the assignment context — `handleType` wins,
+  then the DECLARED named type through the one `declaredNaContext` helper
+  (`color`/`string`; every other name is numeric), then the `valueIsColor`
+  heuristic. An `na(receiver)` call takes its flavour from the RECEIVER through
+  `naKindOfReceiver` — handle type first, then a declared `string`; a `color`
+  receiver deliberately stays `numeric` (`na(color)` is not a corpus idiom and
+  inventing its predicate would be an unmeasured change). Transforms read
   `SemanticAnnotation.naKind` rather than re-inferring.
+- **The `na(...)` flavour is stamped on the CALLEE node, in `walkCall`, AFTER
+  the generic callee walk — and that placement is load-bearing.**
+  `emitContext.rewriteTree` REBUILDS every call expression
+  (`{ ...node, callee, args }`), so the call node's identity is gone from the
+  annotation map by the time `exprEmit` runs, while `rewriteTree`'s
+  `na-expression` case returns the node unchanged. The callee is therefore the
+  only node the emitter can look up. The generic walk visits that callee with a
+  `null` context and stamps the context-free `numeric` default, which is why the
+  re-stamp must run after it — before this was fixed the `handle` arm of the
+  `na(x)` predicate had NEVER run: `na(lineHandle)` emitted
+  `!Number.isFinite(handle)`.
 - **Tuple-LHS multi-return (`[a, b, c] = ta.macd(...)`) IS parsed + wired.**
   A statement-leading `[` whose head matches `[ ident (, ident)* ] =`
   (`looksLikeTupleDeclaration`, `parser/statements.ts`) parses to a
@@ -814,7 +831,19 @@ that has no byte-identical chartlang analogue.
   identifier map.** `BUILTIN_IDENTIFIER_MAP` (`src/mapping/builtinIdentifiers
   .ts`) maps OHLCV/`time` → `bar.*` and `bar_index` → the internal `__barIndexBridge()` sentinel (renamed to `barIndex()` at codegen) but
   deliberately OMITS `na`: the emitter reads `SemanticAnnotation.naKind` per
-  node and emits `null` (handle) or `Number.NaN` (numeric/absent).
+  node and emits `null` (handle), `""` (string), the transparent CSS string
+  (color) or `Number.NaN` (numeric/absent).
+- **`na(x)` tests the SAME sentinel `emitNa` writes for that flavour** —
+  `x === null` (handle), `x === ""` (string), `!Number.isFinite(x)`
+  (numeric/absent). A numeric test over a string is `true` for EVERY string,
+  `""` included, so `if not na(alert_msg)` used to lower to
+  `if (!!Number.isFinite(alert_msg))` — permanently false. That converted
+  cleanly, compiled cleanly, ran cleanly and never fired; it is pinned by
+  `src/tests/string-na.test.ts`, which asserts the PREDICATE (and compiles the
+  full `99-masm-strat-full` golden), never merely that the fixture regenerated.
+  The string sentinel is the empty string in BOTH directions and in both
+  places that write it — `emitNa` here and the typed-declaration branch in
+  `other.ts::emitVariableDeclaration`.
 - **A `literal == literal` / `literal != literal` comparison WIDENS its left
   operand with a same-base `as` cast (`exprEmit.ts` binary case).** When an
   inlined UDF / value-`switch` substitutes literals onto BOTH sides of an

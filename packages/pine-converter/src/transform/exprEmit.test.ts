@@ -120,6 +120,12 @@ describe("emitExpr", () => {
             [na, { naKind: "color" }],
         ]);
         expect(emitExpr(na, colorAnn)).toBe('"#00000000"');
+        // A `string x = na` lowers to the empty-string sentinel — Pine's string
+        // `na` behaves like `""`, and `Number.NaN` would poison the binding.
+        const stringAnn: ReadonlyMap<AstNode, SemanticAnnotation> = new Map([
+            [na, { naKind: "string" }],
+        ]);
+        expect(emitExpr(na, stringAnn)).toBe('""');
     });
 
     it("lowers `na(x)` to a real predicate by the callee's na flavour", () => {
@@ -137,6 +143,13 @@ describe("emitExpr", () => {
             [naCallee, { naKind: "handle" }],
         ]);
         expect(emitExpr(numericCall, handleAnn)).toBe("(ph === null)");
+        // String flavour: empty-string test. `!Number.isFinite(<string>)` is
+        // `true` for EVERY string, `""` included, so the numeric arm would make
+        // `not na(msg)` permanently false.
+        const stringAnn: ReadonlyMap<AstNode, SemanticAnnotation> = new Map([
+            [naCallee, { naKind: "string" }],
+        ]);
+        expect(emitExpr(numericCall, stringAnn)).toBe('(ph === "")');
         // No argument → falls back to the structural call emit (`Number.NaN()`).
         const noArgCall: ExpressionNode = {
             kind: "call-expression",
