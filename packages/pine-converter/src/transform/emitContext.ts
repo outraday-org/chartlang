@@ -889,11 +889,16 @@ function rewriteTree(node: ExpressionNode, ctx: EmitContext, scalar: boolean): E
             // sentinel must be the bare `NaN` global, NOT `Number.NaN`: the
             // chartlang compiler's `validateSecurityExpr` allows `NaN` (a pure
             // value global) but rejects `Number` as a captured outer binding.
-            // The handle/`color` na flavours never reach a security callback (a
-            // drawing/color value is not a security source), so only the numeric
-            // flavour is remapped.
+            // The handle/`color`/`string` na flavours never reach a security
+            // callback (a drawing/color/message value is not a security source),
+            // so only the numeric flavour is remapped.
             const naKind = ctx.annotations.get(node)?.naKind;
-            if (ctx.securityExpr === true && naKind !== "handle" && naKind !== "color") {
+            if (
+                ctx.securityExpr === true &&
+                naKind !== "handle" &&
+                naKind !== "color" &&
+                naKind !== "string"
+            ) {
                 return { kind: "identifier-expression", name: "NaN", span: node.span };
             }
             return node;

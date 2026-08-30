@@ -67,13 +67,18 @@ function emitColorLiteral(value: string): string {
 function emitNa(node: ExpressionNode, annotations: AnnotationLookup): string {
     // `na` is the drawing-handle `null` sentinel in a handle context, the
     // transparent CSS string in a `var color` context (the runtime synthesizes
-    // no color default), else the numeric `Number.NaN` sentinel.
+    // no color default), the empty string in a `string` context (Pine's string
+    // `na` behaves like `""` at runtime, and a `Number.NaN` there would poison
+    // the binding's inferred type), else the numeric `Number.NaN` sentinel.
     const naKind = annotations.get(node)?.naKind;
     if (naKind === "handle") {
         return "null";
     }
     if (naKind === "color") {
         return JSON.stringify(PINE_NA_COLOR);
+    }
+    if (naKind === "string") {
+        return '""';
     }
     return "Number.NaN";
 }
@@ -203,17 +208,27 @@ export function emitExpr(
             );
         case "call-expression": {
             // `na(x)` is the Pine "is missing" test, NOT a call of the `na`
-            // sentinel. Lower it to a real predicate: a handle context tests
-            // `=== null`, a numeric context tests `!Number.isFinite(...)`
-            // (true for NaN / null / undefined). Without this the callee `na`
-            // lowers to the `Number.NaN` value and emits `Number.NaN(x)`.
+            // sentinel. Lower it to a real predicate against the SAME sentinel
+            // `emitNa` writes for that flavour: a handle tests `=== null`, a
+            // string tests `=== ""`, and a numeric tests `!Number.isFinite(...)`
+            // (true for NaN / null / undefined). A numeric test over a string
+            // is `true` for EVERY string including `""`, which is why the
+            // flavour has to reach here. Without this whole branch the callee
+            // `na` lowers to the `Number.NaN` value and emits `Number.NaN(x)`.
+            // The flavour is read off the CALLEE because `emitContext` rebuilds
+            // the call node — see `analyze.ts::walkCall`.
             if (node.callee.kind === "na-expression") {
                 const first = node.args[0];
                 if (first !== undefined) {
                     const arg = emitExpr(first.value, annotations, enumTypes);
-                    return annotations.get(node.callee)?.naKind === "handle"
-                        ? `(${arg} === null)`
-                        : `!Number.isFinite(${arg})`;
+                    const naKind = annotations.get(node.callee)?.naKind;
+                    if (naKind === "handle") {
+                        return `(${arg} === null)`;
+                    }
+                    if (naKind === "string") {
+                        return `(${arg} === "")`;
+                    }
+                    return `!Number.isFinite(${arg})`;
                 }
             }
             const emittedArgs = node.args.map((arg) => emitExpr(arg.value, annotations, enumTypes));

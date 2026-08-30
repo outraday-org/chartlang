@@ -35,6 +35,7 @@ import type {
     AstNode,
     EnumTypeInfo,
     HandleType,
+    NaKind,
     Scope,
     SemanticAnnotation,
     SemanticResult,
@@ -53,13 +54,25 @@ const HANDLE_TYPE_NAMES: ReadonlySet<HandleType> = new Set<HandleType>([
 
 // The `na` context a value is being stored into: a drawing-handle type (a bare
 // `na` lowers to the handle `null`), the `"color"` flavour (a `var color x = na`
-// lowers to the transparent CSS string, not `Number.NaN`), or `null` (numeric).
-type NaContext = HandleType | "color" | null;
+// lowers to the transparent CSS string, not `Number.NaN`), the `"string"`
+// flavour (a `string x = na` lowers to the empty-string sentinel, so a later
+// `x := na` reset stays a string instead of poisoning the binding with
+// `Number.NaN`), or `null` (numeric).
+type NaContext = HandleType | "color" | "string" | null;
 
-// Whether a type annotation declares a persistent `color` scalar — the signal
-// the `color` na-flavour keys on (`var color c = na`).
-function isColorTyped(annotation: TypeAnnotation | null): boolean {
-    return annotation !== null && annotation.kind === "named-type" && annotation.name === "color";
+// The `na` flavour a DECLARED named type implies, or `null` when the type says
+// nothing (every other named type keeps the numeric `NaN` sentinel). This is
+// the ONE place a type name maps to a non-numeric `na` flavour — the
+// declaration context, the assignment context and the `na(receiver)` classifier
+// all read it rather than re-spelling the test.
+function declaredNaContext(annotation: TypeAnnotation | null): "color" | "string" | null {
+    if (annotation?.kind !== "named-type") {
+        return null;
+    }
+    if (annotation.name === "color") {
+        return "color";
+    }
+    return annotation.name === "string" ? "string" : null;
 }
 
 type WalkState = {
@@ -119,23 +132,36 @@ function valueIsColor(expr: ExpressionNode): boolean {
     }
 }
 
-function naKindOfReceiver(receiver: ExpressionNode, resolve: (n: string) => SymbolInfo | null) {
+function naKindOfReceiver(
+    receiver: ExpressionNode,
+    resolve: (n: string) => SymbolInfo | null,
+): NaKind {
     const root = rootIdentifier(receiver);
     const symbol = root === null ? null : resolve(root);
-    return symbol?.handleType != null ? "handle" : "numeric";
+    if (symbol?.handleType != null) {
+        return "handle";
+    }
+    // A declared `string` receiver tests the empty-string sentinel. A declared
+    // `color` receiver deliberately stays on the numeric arm: `na(color)` is
+    // not an idiom the corpus carries, and inventing a predicate for it would
+    // be an unmeasured behaviour change riding along with this one.
+    return declaredNaContext(symbol?.typeAnnotation ?? null) === "string" ? "string" : "numeric";
 }
 
 // The `na` flavour of an expression node, or `undefined` for non-`na` nodes:
 // a bare `na` keyword takes its kind from the assignment context (handle var
-// → `handle`, color var → `color`, else `numeric`); an `na(receiver)` call
-// takes it from the receiver's type.
+// → `handle`, color var → `color`, string var → `string`, else `numeric`); an
+// `na(receiver)` call takes it from the receiver's type.
 function naKindOf(
     expr: ExpressionNode,
     context: NaContext,
     resolve: (n: string) => SymbolInfo | null,
-): "numeric" | "handle" | "color" | undefined {
+): NaKind | undefined {
     if (expr.kind === "na-expression") {
-        return context === null ? "numeric" : context === "color" ? "color" : "handle";
+        if (context === null) {
+            return "numeric";
+        }
+        return context === "color" || context === "string" ? context : "handle";
     }
     if (
         expr.kind === "call-expression" &&
@@ -283,6 +309,21 @@ function walkCall(
         }
         walkExpression(state, scope, arg.value, contextHandle);
     }
+    // `na(receiver)` is the "is missing" TEST, so its flavour comes from the
+    // RECEIVER, not from the context this call sits in. The flavour must land
+    // on the CALLEE node: `emitContext.rewriteTree` rebuilds every call
+    // (`{ ...node, callee, args }`), which destroys the call node's identity in
+    // the annotation map, while its `na-expression` case returns the node
+    // unchanged — so the callee is the only node the emitter can still look up.
+    // The generic callee walk above stamped the context-free `numeric` default,
+    // which is why this re-stamp runs AFTER it.
+    const naReceiver = call.callee.kind === "na-expression" ? call.args[0] : undefined;
+    if (naReceiver !== undefined) {
+        state.annotations.set(call.callee, {
+            ...state.annotations.get(call.callee),
+            naKind: naKindOfReceiver(naReceiver.value, (name) => resolveSymbol(scope, name)),
+        });
+    }
     checkUdfArity(state, scope, call);
 }
 
@@ -325,7 +366,8 @@ function declareVariable(state: WalkState, scope: ScopeBuilder, decl: VariableDe
     const handleType = handleTypeOf(decl);
     const naContext: NaContext =
         handleType ??
-        (isColorTyped(decl.typeAnnotation) || valueIsColor(decl.initializer) ? "color" : null);
+        declaredNaContext(decl.typeAnnotation) ??
+        (valueIsColor(decl.initializer) ? "color" : null);
     walkExpression(state, scope, decl.initializer, naContext);
     const symbol: SymbolInfo = {
         name: decl.name,
@@ -346,9 +388,8 @@ function walkAssignment(state: WalkState, scope: ScopeBuilder, assignment: Assig
     const existing = resolveSymbol(scope, assignment.name);
     const contextHandle: NaContext =
         existing?.handleType ??
-        (isColorTyped(existing?.typeAnnotation ?? null) || valueIsColor(assignment.value)
-            ? "color"
-            : null);
+        declaredNaContext(existing?.typeAnnotation ?? null) ??
+        (valueIsColor(assignment.value) ? "color" : null);
     walkExpression(state, scope, assignment.value, contextHandle);
 
     const shadows = isBoundInUserScopes(scope, assignment.name) ? existing : null;

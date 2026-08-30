@@ -298,6 +298,6 @@ export default defineIndicator({
             let alert_trigger_flatten_long = (((is_window && long_exit_conditions) && long_pos_active[1]) && (!(inputs.trades_short as boolean))) && (!alerted_this_session.value);
             let alert_msg = "";
             if (alert_trigger_go_long) { alert_msg = ((('{"symbol": "' + syminfo.ticker) + '", "action": "buy",           "apiKey": "') + (inputs.api_token as string)) + '"}'; } else if (alert_trigger_go_short) { alert_msg = ((('{"symbol": "' + syminfo.ticker) + '", "action": "sell",          "apiKey": "') + (inputs.api_token as string)) + '"}'; } else if (alert_trigger_flatten_short) { alert_msg = ((('{"symbol": "' + syminfo.ticker) + '", "action": "close_short",   "apiKey": "') + (inputs.api_token as string)) + '"}'; } else if (alert_trigger_flatten_long) { alert_msg = ((('{"symbol": "' + syminfo.ticker) + '", "action": "close_long",    "apiKey": "') + (inputs.api_token as string)) + '"}'; }
-            if (!!Number.isFinite(alert_msg)) { alert(alert_msg); alerted_this_session.value = true; }
+            if (!(alert_msg === "")) { alert(alert_msg); alerted_this_session.value = true; }
         },
 });
