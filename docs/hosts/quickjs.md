@@ -67,10 +67,17 @@ behave identically to the Worker host:
 | --- | --- | --- |
 | `maxHeapBytes` | 64 MiB | Mapped to `quickjs-emscripten`'s `runtime.setMemoryLimit(...)`. OOM is reported as a `quickjs-oom` host error. |
 | `maxStepMs` | 1 ms | Drives the host-side interrupt handler. Step overshoots are reported via `onHostError`. |
-| `maxLoadTimeoutMs` | 30 s | Informational. QuickJS evaluates the dispatcher inline on first `load()` — there is no async boot. The value is surfaced on `host.limits` to keep the cross-host shape uniform. |
+| `maxLoadTimeoutMs` | 30 s | Wall-clock budget of `load()` (the module's top level). |
+| `maxSteps` | `Infinity` | Deterministic budget per guest call (`load()` and each `push()`): QuickJS polls the interrupt handler once per `QUICKJS_STEPS_PER_INTERRUPT_POLL` (10,000) interrupt checkpoints — backward jumps and function calls — and each poll spends that many steps. Independent of machine speed: the same script on the same bars aborts at the same place everywhere. |
 
 Per-call overrides land in `CreateQuickJsHostOpts.limits` as a partial
 `QuickJsHostLimits` and are merged over the defaults.
+
+A call the interrupt cuts short throws (or, for `push`, reports and then
+makes `drain` throw) `QuickJsStepAbortedError`, whose `reason` says which
+budget fired: `"time"` (`maxStepMs` / `maxLoadTimeoutMs`) or `"steps"`
+(`maxSteps`). The host is then poisoned — dispose and rebuild it. For
+alerts, the [alert runner](./alert-runner.md) wraps all of this.
 
 ## Session calendar
 
@@ -108,7 +115,7 @@ the package's invariants):
 | Dynamic `import(...)` | No host module resolver — surfaces as a host error. |
 | `globalThis` writes | Confined to the QuickJS realm. Host globals are not reachable. |
 | Host-object capture | The JSON-string membrane drops non-JSON members, including live external-series feed updates. |
-| Infinite loops | Bounded by the interrupt handler at `maxStepMs`. |
+| Infinite loops | Bounded by the interrupt handler at `maxStepMs`, and deterministically at `maxSteps`. |
 | OOM attempts | Bounded by `maxHeapBytes`; reported as `quickjs-oom`. |
 | Realm reflection | Stays in the QuickJS realm; host-only methods remain unavailable. |
 | `Symbol.iterator` prototype hijacks | Emission serialisation does not iterate guest objects directly. |
@@ -131,6 +138,7 @@ identical inputs.
 ## Cross-links
 
 - The Worker host: [`host-worker`](./worker.md).
+- Hosted alerts on top of this host: [Alert runner](./alert-runner.md).
 - The author-side contract: [Writing a host](./writing-a-host.md).
 - The wire shapes the QuickJS host re-validates on drain:
   [Emission payloads](../spec/emissions.md).

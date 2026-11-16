@@ -125,6 +125,16 @@ after one `runtime-log-budget-exceeded` diagnostic.
 `runtime-error-thrown` diagnostic. The script stays mounted; the next
 bar runs normally.
 
+## Hosted alerts
+
+To evaluate a script's alerts on a server — with no chart open, for many
+users' scripts — use the alert runner
+(`@invinite-org/chartlang-alert-runner`): it runs the script in the QuickJS
+sandbox, keeps its state in a snapshot you store, and delivers `alert()` and
+fired-condition events with an explicit frequency (`once`, `once_per_bar`,
+`once_per_bar_close`, `every_time`). See
+[Hosts § Alert runner](../hosts/alert-runner.md).
+
 ## Cross-links
 
 - Wire shapes: [Emission payloads § AlertEmission, AlertConditionEmission, LogEmission](../spec/emissions.md#alertemission).

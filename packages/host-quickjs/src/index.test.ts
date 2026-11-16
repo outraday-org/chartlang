@@ -12,7 +12,10 @@ describe("public surface", () => {
             maxHeapBytes: 64 * 1024 * 1024,
             maxStepMs: 1,
             maxLoadTimeoutMs: 30_000,
+            maxSteps: Number.POSITIVE_INFINITY,
         });
+        expect(publicSurface.QUICKJS_STEPS_PER_INTERRUPT_POLL).toBe(10_000);
+        expect(new publicSurface.QuickJsStepAbortedError("x", "steps").reason).toBe("steps");
     });
 
     it("removes the placeholder package version export", () => {

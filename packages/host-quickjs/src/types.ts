@@ -45,6 +45,22 @@ export type QuickJsHostLimits = Readonly<{
     maxHeapBytes: number;
     maxStepMs: number;
     maxLoadTimeoutMs: number;
+    /**
+     * Deterministic instruction budget per guest call (`load()` and every
+     * `push()`), independent of machine speed. QuickJS polls the interrupt
+     * handler once per {@link QUICKJS_STEPS_PER_INTERRUPT_POLL} interrupt
+     * checkpoints (backward jumps and function calls); each poll spends that
+     * many steps, and the call aborts with a `QuickJsStepAbortedError` whose
+     * `reason` is `"steps"` once the spent total exceeds this budget. So the
+     * same script on the same bars aborts at the same place on a laptop and on
+     * a loaded CI runner, which `maxStepMs` cannot promise.
+     *
+     * Optional so a three-field literal stays a valid `QuickJsHostLimits`;
+     * absent and `Infinity` (the default) both mean "no step budget".
+     *
+     * @since 1.8
+     */
+    maxSteps?: number;
 }>;
 
 /**

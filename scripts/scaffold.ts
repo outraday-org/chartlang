@@ -18,6 +18,7 @@ const PACKAGE_DIRS = [
     "packages/runtime",
     "packages/host-worker",
     "packages/host-quickjs",
+    "packages/alert-runner",
     "packages/adapter-kit",
     "packages/language-service",
     "packages/editor",
@@ -40,6 +41,8 @@ const DESCRIPTIONS: Record<string, string> = {
     "packages/runtime": "Execution engine, Series ring buffers, ta.* math primitives",
     "packages/host-worker": "Web Worker ScriptHost for the browser",
     "packages/host-quickjs": "QuickJS-WASM ScriptHost for untrusted / server-side execution",
+    "packages/alert-runner":
+        "Headless alert evaluator for compiled chartlang scripts (QuickJS, snapshots, frequencies)",
     "packages/adapter-kit": "SDK for writing chartlang adapters in consumer repos",
     "packages/language-service":
         "Headless editor intelligence — hover, completions, diagnostics, signature help",
@@ -70,6 +73,8 @@ const PUBLIC_SURFACE: Record<string, string> = {
         "`createScriptRunner(compiled, ctx) → ScriptRunner`; types for `ScriptHost`, `Adapter`, `Capabilities`.",
     "packages/host-worker": "`createWorkerHost() → ScriptHost`.",
     "packages/host-quickjs": "`createQuickJsHost() → ScriptHost`.",
+    "packages/alert-runner":
+        "`createAlertRunner(opts) → AlertRunner` (`warmUp`, `onBarClose`, `onPreClose`, `exportSnapshot`); `createBarAggregator`; `validateAlertInputs`.",
     "packages/adapter-kit":
         "`defineAdapter(opts) → Adapter`; types `Adapter`, `Capabilities`, `CandleEvent`; capability builders (`capabilities.line()`, `capabilities.histogram()`, …); `validateEmission`, `decodeDrawing`; mock candle sources; base classes `PassThroughAdapter`, `BufferingAdapter`.",
     "packages/language-service":
@@ -101,6 +106,7 @@ const DOCS_LINKS: Record<string, string> = {
     "packages/runtime": "docs/spec/semantics.md",
     "packages/host-worker": "docs/hosts/worker.md",
     "packages/host-quickjs": "docs/hosts/quickjs.md",
+    "packages/alert-runner": "docs/hosts/alert-runner.md",
     "packages/adapter-kit": "docs/adapters/contract.md",
     "packages/language-service": "docs/reference/",
     "packages/editor": "docs/getting-started/embed-in-our-chart.md",

@@ -68,6 +68,19 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   silent stall, the worst failure shape this package has. Bound: this holds for
   guest-settled promises only; a host-resolved promise would need its own
   wall-clock deadline.
+- **`maxSteps` is the deterministic half of the budget, charged per interrupt
+  POLL.** QuickJS calls the interrupt handler once per
+  `QUICKJS_STEPS_PER_INTERRUPT_POLL` (10,000, the engine's
+  `JS_INTERRUPT_COUNTER_INIT`) checkpoints; the handler charges that many
+  steps per poll while a call is ARMED (`armDeadline` resets the count), and
+  checks steps BEFORE the clock so a step abort is labelled `"steps"` even
+  when the deadline also passed. `interrupted` records the reason
+  (`"time"` | `"steps"`), `asAbort` stamps it on the `QuickJsStepAbortedError`
+  (with a `step budget exceeded (maxSteps N)` message prefix for steps), and
+  `poisonReason` carries it onto every later refusal. `maxSteps` is optional
+  in `QuickJsHostLimits` (default `Infinity`) so three-field literals stay
+  valid. The dispatcher never reads limits (`Infinity` crosses the membrane
+  as `null` harmlessly).
 - **An abort is what the INTERRUPT FIRED on, never merely a slow step.** The
   interrupt handler records that it returned `true`, and that flag (armed per
   call next to the deadline) is what classifies a failure — not "has the

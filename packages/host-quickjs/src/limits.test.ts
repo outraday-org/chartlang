@@ -11,6 +11,7 @@ describe("DEFAULT_QUICKJS_LIMITS", () => {
             maxHeapBytes: 64 * 1024 * 1024,
             maxStepMs: 1,
             maxLoadTimeoutMs: 30_000,
+            maxSteps: Number.POSITIVE_INFINITY,
         });
     });
 

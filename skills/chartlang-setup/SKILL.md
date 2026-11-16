@@ -70,7 +70,7 @@ constructor swap (see § 5).
 | Get a working app fast (editor + chart already wired) | § 3 — `npm create @invinite-org/chartlang@latest` | scaffolds the starter |
 | Run user scripts inside an existing chart UI | [`references/embed.md`](./references/embed.md) | `-compiler`, `-host-worker`, `-adapter-kit` |
 | Render chartlang on a new chart vendor | [`references/adapter.md`](./references/adapter.md) | `-adapter-kit` |
-| Fire alerts server-side with no browser | [`references/server-alerts.md`](./references/server-alerts.md) | `-compiler`, `-host-quickjs` |
+| Fire alerts server-side with no browser | [`references/server-alerts.md`](./references/server-alerts.md) | `-compiler`, `-host-quickjs` or `-alert-runner` |
 
 **Recommended starting point — clone the starter.** If you want a real,
 runnable app instead of hand-wiring the boundaries below, scaffold the

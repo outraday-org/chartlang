@@ -589,3 +589,27 @@ plot hashes, alert counts, and diagnostic codes.
   fifth registration site beyond the four-edit scenario ritual: a new
   `ScenarioAssertion` kind used by a bundled scenario must be added there or
   "every assertion declares a valid kind" fails.
+
+## Alert-runner pass
+
+- **`src/alertRunner.test.ts` drives the suite through
+  `@invinite-org/chartlang-alert-runner` (a devDependency — the published
+  package does not depend on it).** Every scenario the runner can drive
+  (close stream, no external series, one file, chart-symbol secondaries) and
+  whose source mentions an alert surface (`alert`, `signal`, `defineAlert`;
+  a script without one cannot emit an event) runs 200 golden bars — 100 as warm-up, 100 as closes — through the runner under
+  `every_time` and through the in-process runtime under the runner's own
+  capability bag; the delivered alerts / fired conditions must equal the
+  drained ones. The harness lives in `src/__fixtures__/alertRunnerHarness.ts`
+  (excluded from build and coverage). The runner imports the BUILT
+  `alert-runner` `dist`, so rebuild it after changing its source.
+- **`QUICKJS_UNLOADABLE` pins the scenarios the QuickJS host cannot load**
+  (private-`const` dependency bundles: `export { x as default, … }` is not
+  recognised by `moduleSourceToScript`); the pass tolerates exactly these, and
+  a separate case asserts they still fail. A host fix makes that case fail —
+  shrink the list then.
+- **Frequency scenarios** (`src/__fixtures__/alertRunnerFrequencyScenarios.ts`)
+  pin delivered counts per phase for each frequency, with and without a
+  pre-close evaluation before every close; re-pin from the failure message
+  only when the semantics change on purpose.
+

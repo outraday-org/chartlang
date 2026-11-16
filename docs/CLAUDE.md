@@ -183,7 +183,7 @@ already wired and enforces the `primitives/ta/` byte equality today.
 | `primitives/<area>/` | Auto-generated from JSDoc. | `.gitkeep` only |
 | `adapters/` | Adapter contract + author guide. `gallery.md` is auto-generated from the adapters registry via `pnpm adapters:generate`; gated by `adapters:gate`. Do not hand-edit it. | 4 |
 | `adapters/reference/` | Per-adapter pages (consumer repos). | `.gitkeep` only |
-| `hosts/` | Host implementations + author guide. | 3 |
+| `hosts/` | Host implementations + author guide + the alert runner. | 4 |
 | `spec/` | Canonical language spec. | 5 |
 | `reference/` | Glossary + FAQ. | 2 |
 | `skills/` | Hand-written overview of the `skills/` Agent Skills (index + one page per skill). Not auto-generated, not gated. | 3 |

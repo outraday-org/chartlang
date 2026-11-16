@@ -582,6 +582,31 @@ importers:
         specifier: ^20.0.0
         version: 20.19.41
 
+  packages/alert-runner:
+    dependencies:
+      '@invinite-org/chartlang-adapter-kit':
+        specifier: workspace:*
+        version: link:../adapter-kit
+      '@invinite-org/chartlang-core':
+        specifier: workspace:*
+        version: link:../core
+      '@invinite-org/chartlang-host-quickjs':
+        specifier: workspace:*
+        version: link:../host-quickjs
+    devDependencies:
+      '@invinite-org/chartlang-compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@jitl/quickjs-wasmfile-release-sync':
+        specifier: 0.31.0
+        version: 0.31.0
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
+      quickjs-emscripten-core:
+        specifier: 0.31.0
+        version: 0.31.0
+
   packages/cli:
     dependencies:
       '@invinite-org/chartlang-compiler':
@@ -638,6 +663,9 @@ importers:
         specifier: workspace:^
         version: link:../runtime
     devDependencies:
+      '@invinite-org/chartlang-alert-runner':
+        specifier: workspace:*
+        version: link:../alert-runner
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.41
