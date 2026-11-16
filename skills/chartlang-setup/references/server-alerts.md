@@ -116,6 +116,26 @@ was. Only a truncated computation poisons.
 OOM is different by design: the heap is exhausted, not the computation cut
 short, so it stays a `quickjs-oom` host error and the host lives on.
 
+**A deterministic budget for untrusted scripts.** `maxStepMs` is wall-clock,
+so the same script can pass on a fast box and abort on a loaded one. Set
+`limits.maxSteps` (default `Infinity`) to bound each `load` / `push` by
+QuickJS interrupt checkpoints instead — counted
+`QUICKJS_STEPS_PER_INTERRUPT_POLL` (10,000) per poll, so a script aborts at the
+same place on every machine. The abort's `QuickJsStepAbortedError.reason` is
+`"steps"` (or `"time"` for the wall clock).
+
+## Or let the alert runner do all of this
+
+`@invinite-org/chartlang-alert-runner` wraps the QuickJS host for hosted
+alerts: `createAlertRunner({ compiled, symInfo, interval, inputs, frequency })`,
+then `warmUp(history)` (or restore a stored `snapshot`), `onBarClose(bar)` →
+delivered events, `onPreClose(bar, offsetMs)` for an evaluation before the
+close, `exportSnapshot()` to store. It validates inputs against the manifest,
+keys snapshots on every spec identity field, applies the `once` /
+`once_per_bar` / `once_per_bar_close` / `every_time` frequency, fails closed on
+a budget abort, and runs in `node:worker_threads`. See
+[`docs/hosts/alert-runner.md`](https://github.com/outraday-org/chartlang/blob/main/docs/hosts/alert-runner.md).
+
 ## Holidays and half days
 
 An alert that gates on `session.isOpen` fires on a post-13:00 Black Friday tick

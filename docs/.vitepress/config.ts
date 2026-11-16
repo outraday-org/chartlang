@@ -349,6 +349,7 @@ export default defineConfig({
                     items: [
                         { text: "Worker", link: "/hosts/worker" },
                         { text: "QuickJS", link: "/hosts/quickjs" },
+                        { text: "Alert runner", link: "/hosts/alert-runner" },
                         { text: "Writing a host", link: "/hosts/writing-a-host" },
                     ],
                 },

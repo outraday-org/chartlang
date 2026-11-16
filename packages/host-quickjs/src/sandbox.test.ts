@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { createQuickJsHost } from "./createQuickJsHost.js";
 import { QuickJsStepAbortedError } from "./errors.js";
+import { QUICKJS_STEPS_PER_INTERRUPT_POLL } from "./limits.js";
 
 type RunResult = Readonly<{
     emissions: RunnerEmissions;
@@ -96,7 +97,11 @@ const NO_EMISSIONS: RunnerEmissions = {
 async function run(
     name: string,
     compute: string,
-    opts: { readonly maxHeapBytes?: number; readonly maxStepMs?: number } = {},
+    opts: {
+        readonly maxHeapBytes?: number;
+        readonly maxStepMs?: number;
+        readonly maxSteps?: number;
+    } = {},
 ): Promise<RunResult> {
     const hostErrors: string[] = [];
     const compiled = source(name, compute);
@@ -312,6 +317,48 @@ export default {
 
         await expect(loading).rejects.toBeInstanceOf(QuickJsStepAbortedError);
         expect(performance.now() - startedAt).toBeLessThan(1_500);
+        host.dispose();
+    });
+
+    it("bounds a heavy loop by maxSteps, independent of the wall clock", async () => {
+        // A one-minute wall-clock budget: time can never be the cause here, so
+        // whether the loop finishes depends only on the deterministic step
+        // count — the same answer on a fast laptop and a loaded CI runner. One
+        // million iterations need a few hundred interrupt polls.
+        const heavy = `({ plot }) => {
+            let s = 0;
+            for (let i = 0; i < 1000000; i += 1) { s += i; }
+            plot("sandbox.heavy-loop:1:1#0", s, {});
+        }`;
+
+        const tight = await run("heavy loop tight", heavy, {
+            maxStepMs: 60_000,
+            maxSteps: 100 * QUICKJS_STEPS_PER_INTERRUPT_POLL,
+        });
+        expect(tight.hostErrors[0]).toMatch(/^step budget exceeded \(maxSteps 1000000\)/);
+        expect(tight.hostErrors.join("\n")).toMatch(/drain refused/);
+        expect(tight.emissions.plots).toEqual([]);
+
+        const roomy = await run("heavy loop roomy", heavy, {
+            maxStepMs: 60_000,
+            maxSteps: 2_000 * QUICKJS_STEPS_PER_INTERRUPT_POLL,
+        });
+        expect(roomy.hostErrors).toEqual([]);
+        expect(roomy.emissions.plots.map((p) => p.value)).toEqual([499_999_500_000]);
+    });
+
+    it("reports the steps reason on the refusals of a step-aborted host", async () => {
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxStepMs: 60_000, maxSteps: 10 * QUICKJS_STEPS_PER_INTERRUPT_POLL },
+        });
+        await host.load(source("endless", "() => { for (;;) {} }"));
+        await host.push({ kind: "close", bar: bar() });
+
+        await expect(host.drain()).rejects.toMatchObject({
+            name: "QuickJsStepAbortedError",
+            reason: "steps",
+        });
         host.dispose();
     });
 

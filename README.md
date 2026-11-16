@@ -162,6 +162,10 @@ portable across charts.
   Worker, and a server-side QuickJS sandbox — all returning
   byte-identical plot and alert streams (the
   [`parity-smoke.mts`](./parity-smoke.mts) script demonstrates).
+- **Hosted alerts.** `@invinite-org/chartlang-alert-runner` evaluates a
+  script's alerts headless in the QuickJS sandbox: snapshot / restore,
+  alert frequencies, a deterministic step budget, `worker_threads`-ready.
+  See [Alert runner](./docs/hosts/alert-runner.md).
 - **220-scenario conformance suite.** `pnpm conformance` runs every
   adapter against the same battery of plot, drawing, alert, and
   budget-overflow scenarios. The
@@ -223,6 +227,7 @@ linked from there. Published announcements are on
   CI gate: `pnpm docs:gate`).
 - **Adapter author guide:** [`./docs/adapters/writing-an-adapter.md`](./docs/adapters/writing-an-adapter.md).
 - **Host author guide:** [`./docs/hosts/writing-a-host.md`](./docs/hosts/writing-a-host.md).
+- **Hosted alerts:** [`./docs/hosts/alert-runner.md`](./docs/hosts/alert-runner.md).
 - **Examples:** [`./examples/`](./examples/) — one runnable script per
   primitive (full coverage, enforced by `pnpm examples:coverage`), wired into
   the live demo and the docs Examples section.

@@ -8,6 +8,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { type CreateQuickJsHostOpts, createQuickJsHost } from "./createQuickJsHost.js";
 import { QuickJsStepAbortedError } from "./errors.js";
+import { QUICKJS_STEPS_PER_INTERRUPT_POLL } from "./limits.js";
 import type {
     QuickJsContextLike,
     QuickJsHandleLike,
@@ -1126,5 +1127,193 @@ describe("createQuickJsHost poisoned-host refusals", () => {
         // Not poisoned — `drain()` would throw `QuickJsStepAbortedError` if it were.
         await expect(host.drain()).resolves.toMatchObject({ plots: [] });
         host.dispose();
+    });
+
+    describe("step budget (maxSteps)", () => {
+        function stepHost(
+            maxSteps: number,
+            onPush: (interrupt: () => boolean) => void,
+            extra: Partial<QuickJsHostLimits> = {},
+        ): { host: ScriptHost; errors: string[]; context: FakeContext } {
+            const context = new FakeContext();
+            let interrupt: (() => boolean) | null = null;
+            const errors: string[] = [];
+            context.onPush = () => {
+                if (interrupt === null) throw new Error("no interrupt handler");
+                onPush(interrupt);
+            };
+            const host = createQuickJsHost({
+                capabilities: makeCapabilities(),
+                quickJsLike: () => ({
+                    newRuntime: () => ({
+                        setMemoryLimit: () => undefined,
+                        setInterruptHandler: (cb) => {
+                            interrupt = cb;
+                        },
+                        executePendingJobs: () => undefined,
+                        newContext: () => context,
+                    }),
+                }),
+                limits: { maxStepMs: 60_000, maxSteps, ...extra },
+                onHostError: (message) => {
+                    errors.push(message);
+                },
+            });
+            return { host, errors, context };
+        }
+
+        it("charges one poll interval per interrupt and aborts with reason steps", async () => {
+            const verdicts: boolean[] = [];
+            const { host, errors } = stepHost(2 * QUICKJS_STEPS_PER_INTERRUPT_POLL, (interrupt) => {
+                verdicts.push(interrupt(), interrupt(), interrupt());
+                throw new Error("interrupted");
+            });
+            await host.load(compiled(plotSource()));
+
+            await host.push({ kind: "close", bar: bar(1, 1) });
+
+            // Two polls fit the budget exactly; the third exceeds it.
+            expect(verdicts).toEqual([false, false, true]);
+            expect(errors.join("\n")).toMatch(
+                /step budget exceeded \(maxSteps 20000\): interrupted/,
+            );
+            const refusal = await host.drain().catch((err: unknown) => err);
+            expect(refusal).toBeInstanceOf(QuickJsStepAbortedError);
+            expect((refusal as QuickJsStepAbortedError).reason).toBe("steps");
+            await expect(host.exportSnapshot()).rejects.toMatchObject({ reason: "steps" });
+            host.dispose();
+            // A disposed host forgets the poison and its reason.
+            await host.load(compiled(plotSource()));
+            await expect(host.drain()).resolves.toMatchObject({ plots: [] });
+            host.dispose();
+        });
+
+        it("treats an explicitly undefined maxSteps as no step budget", async () => {
+            const verdicts: boolean[] = [];
+            const { host } = stepHost(undefined as unknown as number, (interrupt) => {
+                verdicts.push(interrupt(), interrupt(), interrupt());
+            });
+            await host.load(compiled(plotSource()));
+
+            await host.push({ kind: "close", bar: bar(1, 1) });
+
+            expect(verdicts).toEqual([false, false, false]);
+            host.dispose();
+        });
+
+        it("resets the spent steps on every armed call", async () => {
+            const verdicts: boolean[] = [];
+            const { host } = stepHost(QUICKJS_STEPS_PER_INTERRUPT_POLL, (interrupt) => {
+                verdicts.push(interrupt());
+            });
+            await host.load(compiled(plotSource()));
+
+            await host.push({ kind: "close", bar: bar(1, 1) });
+            await host.push({ kind: "close", bar: bar(2, 2) });
+
+            expect(verdicts).toEqual([false, false]);
+            await expect(host.drain()).resolves.toMatchObject({ plots: [] });
+            host.dispose();
+        });
+
+        it("never charges an unarmed call", async () => {
+            let captured: (() => boolean) | null = null;
+            const { host } = stepHost(0, (interrupt) => {
+                captured = interrupt;
+            });
+            await host.load(compiled(plotSource()));
+            // Load armed the budget at 0 steps but the fake never polled, so
+            // the host is healthy; after the call the deadline is cleared.
+            await host.push({ kind: "close", bar: bar(1, 1) });
+            const after = captured as (() => boolean) | null;
+            expect(after).not.toBeNull();
+            expect(after?.()).toBe(false);
+            host.dispose();
+        });
+
+        it("labels a wall-clock interrupt as reason time", async () => {
+            const { host, errors } = stepHost(
+                Number.POSITIVE_INFINITY,
+                (interrupt) => {
+                    expect(interrupt()).toBe(true);
+                    throw new Error("interrupted");
+                },
+                { maxStepMs: -1 },
+            );
+            await host.load(compiled(plotSource()));
+
+            await host.push({ kind: "close", bar: bar(1, 1) });
+
+            expect(errors).toContain("interrupted");
+            await expect(host.drain()).rejects.toMatchObject({ reason: "time" });
+            host.dispose();
+        });
+
+        it("adds the reason to a stopped job queue during an interrupted load", async () => {
+            const context = new FakeContext();
+            let interrupt: (() => boolean) | null = null;
+            const host = createQuickJsHost({
+                capabilities: makeCapabilities(),
+                quickJsLike: () => ({
+                    newRuntime: () => ({
+                        setMemoryLimit: () => undefined,
+                        setInterruptHandler: (cb) => {
+                            interrupt = cb;
+                        },
+                        executePendingJobs: () => {
+                            // The interrupt fires on the step budget, then the
+                            // queue reports the failure it caused.
+                            interrupt?.();
+                            return { error: { message: "interrupted" } };
+                        },
+                        newContext: () => context,
+                    }),
+                }),
+                limits: { maxSteps: 0 },
+            });
+
+            const failure = await host.load(compiled(plotSource())).catch((err: unknown) => err);
+
+            expect(failure).toBeInstanceOf(QuickJsStepAbortedError);
+            expect((failure as QuickJsStepAbortedError).reason).toBe("steps");
+            expect((failure as Error).message).toMatch(
+                /step budget exceeded \(maxSteps 0\): guest job queue stopped/,
+            );
+            host.dispose();
+        });
+
+        it("keeps a queue-stop error that already carries a reason", async () => {
+            const context = new FakeContext();
+            let interrupt: (() => boolean) | null = null;
+            context.onPush = () => {
+                interrupt?.();
+                throw new QuickJsStepAbortedError("pre-labelled", "time");
+            };
+            const errors: string[] = [];
+            const host = createQuickJsHost({
+                capabilities: makeCapabilities(),
+                quickJsLike: () => ({
+                    newRuntime: () => ({
+                        setMemoryLimit: () => undefined,
+                        setInterruptHandler: (cb) => {
+                            interrupt = cb;
+                        },
+                        executePendingJobs: () => undefined,
+                        newContext: () => context,
+                    }),
+                }),
+                limits: { maxSteps: 0, maxStepMs: 60_000 },
+                onHostError: (message) => {
+                    errors.push(message);
+                },
+            });
+            await host.load(compiled(plotSource()));
+
+            await host.push({ kind: "close", bar: bar(1, 1) });
+
+            expect(errors).toContain("pre-labelled");
+            await expect(host.drain()).rejects.toMatchObject({ reason: "time" });
+            host.dispose();
+        });
     });
 });

@@ -21,8 +21,9 @@ import { getQuickJS } from "quickjs-emscripten";
 // has no `node:fs` / `node:path` / `node:url` imports and loads in any runtime
 // — Cloudflare Durable Object, browser, or Node.
 import { DISPATCHER_SOURCE } from "./dispatcherSource.generated.js";
+import type { QuickJsAbortReason } from "./errors.js";
 import { QuickJsStepAbortedError } from "./errors.js";
-import { DEFAULT_QUICKJS_LIMITS } from "./limits.js";
+import { DEFAULT_QUICKJS_LIMITS, QUICKJS_STEPS_PER_INTERRUPT_POLL } from "./limits.js";
 import type { HostToQuickJs, QuickJsToHost } from "./protocol.js";
 import type {
     QuickJsContextLike,
@@ -352,19 +353,46 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
     // are governed by different limits — and `load()` was governed by none.
     let deadline: { readonly startedAtMs: number; readonly budgetMs: number } | null = null;
     // Set by the interrupt handler, and ONLY by it: the record that the runtime
-    // was actually told to cut this call short. Armed per call by
-    // `armDeadline`.
-    let interrupted = false;
+    // was actually told to cut this call short, and which budget it enforced.
+    // Armed per call by `armDeadline`.
+    let interrupted: QuickJsAbortReason | null = null;
+    // The deterministic half of the budget: steps spent by the armed call,
+    // charged one interrupt-poll interval at a time. Reset with the deadline.
+    let stepsSpent = 0;
+    const maxSteps = limits.maxSteps ?? Number.POSITIVE_INFINITY;
+    // Why the host is poisoned, so every later refusal carries the same reason.
+    let poisonReason: QuickJsAbortReason | undefined;
     let poisoned = false;
     let nonceCounter = 0;
 
     function armDeadline(budgetMs: number): void {
         deadline = { startedAtMs: performance.now(), budgetMs };
-        interrupted = false;
+        interrupted = null;
+        stepsSpent = 0;
     }
 
     function deadlineExceeded(): boolean {
         return deadline !== null && performance.now() - deadline.startedAtMs > deadline.budgetMs;
+    }
+
+    /**
+     * The interrupt handler's verdict. Only an ARMED call is charged — the
+     * synchronous verbs (`drain`, snapshots, overrides) and `dispose()` run
+     * unarmed and are never interrupted. Steps are charged before the clock is
+     * read, so a step-budget abort is classified as `"steps"` even when the
+     * same poll would also have found the deadline passed: the deterministic
+     * reason wins, which is what makes it reproducible across machines.
+     */
+    function interruptVerdict(): QuickJsAbortReason | null {
+        if (deadline === null) return null;
+        stepsSpent += QUICKJS_STEPS_PER_INTERRUPT_POLL;
+        if (stepsSpent > maxSteps) return "steps";
+        return deadlineExceeded() ? "time" : null;
+    }
+
+    function poison(abort: QuickJsStepAbortedError): void {
+        poisoned = true;
+        poisonReason = abort.reason;
     }
 
     /**
@@ -381,15 +409,27 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
      * still reported, as a `step overshoot` host error.
      */
     function asAbort(err: unknown): QuickJsStepAbortedError | null {
-        if (err instanceof QuickJsStepAbortedError) return err;
-        if (interrupted) return new QuickJsStepAbortedError(message(err));
+        const reason = interrupted;
+        if (err instanceof QuickJsStepAbortedError) {
+            return reason === null || err.reason !== undefined
+                ? err
+                : new QuickJsStepAbortedError(abortMessage(err.message, reason), reason);
+        }
+        if (reason !== null) {
+            return new QuickJsStepAbortedError(abortMessage(message(err), reason), reason);
+        }
         return null;
+    }
+
+    function abortMessage(text: string, reason: QuickJsAbortReason): string {
+        return reason === "steps" ? `step budget exceeded (maxSteps ${maxSteps}): ${text}` : text;
     }
 
     function assertUsable(operation: string): void {
         if (poisoned) {
             throw new QuickJsStepAbortedError(
                 `${operation} after an aborted step: this host is unusable, dispose and rebuild it`,
+                poisonReason,
             );
         }
     }
@@ -401,8 +441,9 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             const runtime = module.newRuntime();
             runtime.setMemoryLimit(limits.maxHeapBytes);
             runtime.setInterruptHandler(() => {
-                if (!deadlineExceeded()) return false;
-                interrupted = true;
+                const verdict = interruptVerdict();
+                if (verdict === null) return false;
+                interrupted = verdict;
                 return true;
             });
             const context = runtime.newContext();
@@ -458,7 +499,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
             } catch (err) {
                 const abort = asAbort(err);
                 if (abort === null) throw err;
-                poisoned = true;
+                poison(abort);
                 postHostError(abort.message);
                 throw abort;
             } finally {
@@ -507,7 +548,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                     // The step was cut mid-computation, so `ta` state is
                     // truncated. Continuing would emit silently wrong values on
                     // every later bar; refuse instead.
-                    poisoned = true;
+                    poison(abort);
                     postHostError(abort.message);
                     return;
                 }
@@ -643,6 +684,7 @@ export function createQuickJsHost(opts: CreateQuickJsHostOpts): ScriptHost {
                 state = null;
                 statePromise = null;
                 poisoned = false;
+                poisonReason = undefined;
             }
         },
         limits: hostLimits,
