@@ -10,7 +10,7 @@ import {
 } from "@invinite-org/chartlang-host-quickjs";
 
 import { assertAlertBar, assertAscending, projectBar, toRuntimeBar } from "./bar.js";
-import { alertRunnerCapabilities } from "./capabilities.js";
+import { DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, alertRunnerCapabilities } from "./capabilities.js";
 import { AlertRunnerError } from "./errors.js";
 import { projectEvents } from "./events.js";
 import { snapshotFidelityOf } from "./fidelity.js";
@@ -106,27 +106,17 @@ type JournalEntry = Readonly<{ event: CandleEvent; feeds?: ExternalSeriesFeedMap
 
 /**
  * Entry key → descriptor name of each external-series input the caller
- * feeds. Two fed keys sharing one descriptor name would share one runtime
- * feed, so their values could not differ: refused.
+ * feeds. Runs after `validateAlertInputs`, which refuses a listed key that is
+ * not an external series and two listed keys sharing one descriptor name.
  */
 function externalFeedNames(
     manifest: CreateAlertRunnerOpts["compiled"]["manifest"],
     keys: ReadonlyArray<string>,
 ): ReadonlyMap<string, string> {
     const out = new Map<string, string>();
-    const owners = new Map<string, string>();
     const fed = new Set(keys);
     for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-        if (descriptor.kind !== "external-series" || !fed.has(key)) continue;
-        const owner = owners.get(descriptor.name);
-        if (owner !== undefined) {
-            throw new AlertRunnerError(
-                "invalid-argument",
-                `external series "${owner}" and "${key}" share the feed name ${JSON.stringify(descriptor.name)}`,
-            );
-        }
-        owners.set(descriptor.name, key);
-        out.set(key, descriptor.name);
+        if (descriptor.kind === "external-series" && fed.has(key)) out.set(key, descriptor.name);
     }
     return out;
 }
@@ -478,6 +468,19 @@ export async function openRunner(opts: CreateAlertRunnerOpts): Promise<RunnerCor
             return drained;
         } catch (err) {
             if (err instanceof AlertRunnerError) throw fail(err);
+            // An unexpected host error leaves it unknown whether the event
+            // folded. A runner without external series survives (1.0); one
+            // that feeds them cannot: `nextBarIndex` would lag the runtime's
+            // bar index and every later window would read `NaN`, silently.
+            if (feedNames.size > 0) {
+                fail(
+                    new AlertRunnerError(
+                        "runner-failed",
+                        `external-series alignment lost: ${errorMessage(err)}`,
+                        { cause: err },
+                    ),
+                );
+            }
             throw err;
         }
     }
@@ -531,7 +534,10 @@ export async function openRunner(opts: CreateAlertRunnerOpts): Promise<RunnerCor
             );
         }
         assertFedKeys(given, "warmUp");
-        const cap = capabilities.maxLookback;
+        // A chain warms every runner on the SAME bars, sized to the longest
+        // `requiredHistory()` of the chain, so a consumer's own (smaller)
+        // lookback must not refuse them: the cap is the default ring floor.
+        const cap = Math.max(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, capabilities.maxLookback);
         const feeds: Record<string, ExternalSeriesFeedMap[string]> = {};
         for (const [key, name] of feedNames) {
             const values = given[key] ?? [];

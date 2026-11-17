@@ -93,8 +93,9 @@ export type ValidateAlertInputsOpts = Readonly<{
  * `opts.externalSeries` (@since 1.1) lists the external-series inputs the
  * caller feeds, by manifest input ENTRY key: those are accepted, every other
  * one is still refused. A listed key that is not an external-series input of
- * the script, and a value under an external-series key in `inputs` (its
- * values arrive per bar, not as an input), are problems.
+ * the script, two listed keys whose descriptors share one `name` (they would
+ * share one runtime feed), and a value under an external-series key in
+ * `inputs` (its values arrive per bar, not as an input), are problems.
  *
  * The runtime itself would silently fall back to the default on a bad value;
  * a hosted alert should refuse instead, which is why `createAlertRunner`
@@ -115,11 +116,23 @@ export function validateAlertInputs(
 ): ReadonlyArray<string> {
     const problems: string[] = [];
     const fed = new Set(opts.externalSeries ?? []);
+    // Fed key per descriptor name: two fed keys sharing a name would share one
+    // runtime feed, so their values could not differ.
+    const owners = new Map<string, string>();
     for (const key of fed) {
         const descriptor = Object.hasOwn(manifest.inputs, key) ? manifest.inputs[key] : undefined;
         if (descriptor?.kind !== "external-series") {
             problems.push(`external series "${key}" is not an external-series input of the script`);
+            continue;
         }
+        const owner = owners.get(descriptor.name);
+        if (owner !== undefined) {
+            problems.push(
+                `external series "${owner}" and "${key}" share the feed name ${JSON.stringify(descriptor.name)}`,
+            );
+            continue;
+        }
+        owners.set(descriptor.name, key);
     }
     for (const [key, descriptor] of Object.entries(manifest.inputs)) {
         const given = Object.hasOwn(inputs, key) && inputs[key] !== undefined;

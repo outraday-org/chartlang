@@ -153,14 +153,20 @@ for (const bar of closedBars) {
 Alignment is by bar: the runtime reads the value at the bar's absolute index.
 
 - `warmUp`: one array per key, index `i` = warm-up bar `i`. A shorter array
-  leaves a `NaN` tail; an array longer than the bars or than the runner's
-  lookback (`capabilities.maxLookback`, default 5,000) throws
-  `"invalid-argument"`.
+  leaves a `NaN` tail; an array longer than the bars, or than
+  `max(5,000, capabilities.maxLookback)`, throws `"invalid-argument"`. The
+  cap is never a consumer's smaller own lookback, so a chain can warm every
+  runner on the bars of its longest `requiredHistory()`.
 - `onBarClose`: exactly one value per listed key for that bar; a missing key
   or a non-finite value is `NaN`. A bar the watermark skips (at or before
   `lastBarTime`) appends nothing, so a replayed bar never shifts the series.
 - `onPreClose`: the forming bar's values, fed to the throwaway copy only.
 - An unknown key throws `"invalid-argument"`.
+- An unexpected host error (anything but an abort or out-of-memory, which
+  fail every runner) fails a runner that feeds external series
+  (`"runner-failed"` afterwards): whether the bar folded is unknown, and a
+  lagging bar index would read every later value as `NaN`. Rebuild it by
+  warm-up.
 
 The runner never re-sends history: after the warm-up array it sends one value
 per bar as a window `{ values: [v], offset: barIndex }` (the runtime's

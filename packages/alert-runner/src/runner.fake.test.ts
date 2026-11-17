@@ -7,8 +7,9 @@ import type { CreateQuickJsHostOpts, ScriptHost } from "@invinite-org/chartlang-
 import { QuickJsStepAbortedError } from "@invinite-org/chartlang-host-quickjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CONSUMER, CROSS, UP_BAR_ALERT, compiled, walk } from "./__fixtures__/scripts.js";
+import { CONSUMER, CROSS, PRODUCER, UP_BAR_ALERT, compiled, walk } from "./__fixtures__/scripts.js";
 import { createAlertRunner } from "./runner.js";
+import { createSeriesRunner } from "./series.js";
 import type { AlertBar, AlertRunnerDiagnostic, CreateAlertRunnerOpts } from "./types.js";
 
 // Real scripts compile through esbuild and run in QuickJS; a loaded CI box
@@ -332,5 +333,59 @@ describe("createAlertRunner against a scripted host", () => {
         await r.onPreClose(bars[6] as AlertBar, 0, { externalSeries: { signal: 7 } });
         expect(scratch).toEqual([...windows, { "producer-feed": { values: [7], offset: 6 } }]);
         expect(main).toHaveLength(4);
+    });
+    it("fails an external-series runner on an unexpected host error (alignment unknown)", async () => {
+        scripts = [
+            {
+                drain: () => {
+                    throw new TypeError("odd");
+                },
+            },
+        ];
+        const r = await createAlertRunner({
+            compiled: await compiled(CONSUMER),
+            interval: "1h",
+            frequency: "every_time",
+            externalSeries: { names: ["signal"] },
+        });
+        await expect(
+            r.onBarClose(BARS[0] as AlertBar, { externalSeries: { signal: 1 } }),
+        ).rejects.toThrow(TypeError);
+        await expect(r.onBarClose(BARS[1] as AlertBar)).rejects.toMatchObject({
+            code: "runner-failed",
+            message: "the alert runner failed: external-series alignment lost: odd",
+        });
+    });
+
+    it("keeps warm-up plots inside the window and takes the first emission per bar", async () => {
+        const script = await compiled(PRODUCER);
+        const slot = script.manifest.plots?.[0]?.slotId as string;
+        const plot = (bar: number, value: number | null) =>
+            ({ kind: "plot", slotId: slot, bar, value }) as never;
+        scripts = [
+            {
+                drain: () => ({
+                    ...EMPTY,
+                    fromBar: 0,
+                    plots: [
+                        plot(-1, 9),
+                        plot(0, 1),
+                        plot(0, 2),
+                        plot(1, null),
+                        plot(2, 3),
+                        plot(7, 9),
+                    ],
+                }),
+            },
+        ];
+        const producer = await createSeriesRunner({
+            compiled: script,
+            interval: "1h",
+            plotSlots: [slot],
+            warmUpChunkBars: 3,
+        });
+        const warm = await producer.warmUp(BARS.slice(0, 3));
+        expect(warm.plots[slot]).toEqual([1, Number.NaN, 3]);
+        expect(Object.isFrozen(warm.plots[slot])).toBe(true);
     });
 });

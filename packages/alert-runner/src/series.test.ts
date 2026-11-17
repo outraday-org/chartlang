@@ -16,7 +16,7 @@ import {
     walk,
 } from "./__fixtures__/scripts.js";
 import { toRuntimeBar } from "./bar.js";
-import { alertRunnerCapabilities } from "./capabilities.js";
+import { DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, alertRunnerCapabilities } from "./capabilities.js";
 import { AlertRunnerError } from "./errors.js";
 import { DEFAULT_MIN_WARM_UP_BARS, createAlertRunner, requiredHistoryFor } from "./runner.js";
 import { createSeriesRunner } from "./series.js";
@@ -196,6 +196,43 @@ describe("createSeriesRunner", () => {
         expect(alerts).toEqual(consumerRef.alerts.filter(([t]) => t >= (LIVE[0] as AlertBar).time));
         expect(await consumer.exportSnapshot()).toBeNull();
         producer.dispose();
+        consumer.dispose();
+    });
+
+    it("feeds a chunked consumer warm-up (window sent once) equal to the plain host", async () => {
+        const producerScript = await compiled(PRODUCER);
+        const consumerScript = await compiled(CONSUMER);
+        const [fast] = slotsOf(producerScript) as [string];
+        const [seen, lag] = slotsOf(consumerScript) as [string, string];
+        const producerRef = await golden(producerScript, BARS);
+        const consumerRef = await golden(consumerScript, BARS, {
+            "producer-feed": producerRef.plots[fast] as number[],
+        });
+        const consumer = await series(CONSUMER, {
+            externalSeries: { names: ["signal"] },
+            warmUpChunkBars: 7,
+        });
+        const warm = await consumer.warmUp(HISTORY, {
+            externalSeries: { signal: head(producerRef.plots[fast] as number[], 100) },
+        });
+        expect(warm.plots[seen]).toEqual(head(consumerRef.plots[seen] as number[], 100));
+        expect(warm.plots[lag]).toEqual(head(consumerRef.plots[lag] as number[], 100));
+        const live: number[] = [];
+        for (const [i, bar] of LIVE.entries()) {
+            const out = await consumer.onBarClose(bar, {
+                externalSeries: {
+                    signal: (producerRef.plots[fast] as number[])[100 + i] as number,
+                },
+            });
+            live.push(out.plots[lag] as number);
+        }
+        expect(live).toEqual((consumerRef.plots[lag] as number[]).slice(100));
+        // The copy replays the chunked warm-up and every live window: lag = bar 158.
+        const pre = await consumer.onPreClose(
+            { ...(LIVE.at(-1) as AlertBar), time: (LIVE.at(-1) as AlertBar).time + HOUR },
+            0,
+        );
+        expect(pre.plots[lag]).toBe((producerRef.plots[fast] as number[])[158]);
         consumer.dispose();
     });
 
@@ -452,8 +489,8 @@ describe("external series in the alert runner", () => {
                 externalSeries: { names: ["a", "b"] },
             }),
         ).rejects.toMatchObject({
-            code: "invalid-argument",
-            message: 'external series "a" and "b" share the feed name "same"',
+            code: "invalid-inputs",
+            details: ['external series "a" and "b" share the feed name "same"'],
         });
     });
 
@@ -488,7 +525,10 @@ describe("external series in the alert runner", () => {
         ).rejects.toMatchObject({ code: "invalid-argument" });
         r.dispose();
 
-        const capped = await make({
+        // The cap is the default ring floor (5,000) or the runner's own larger
+        // lookback — never a consumer's smaller one: a chain warms every
+        // runner on the bars of its longest `requiredHistory()`.
+        const small = await make({
             capabilities: {
                 ...alertRunnerCapabilities({
                     manifest: script.manifest,
@@ -498,14 +538,16 @@ describe("external series in the alert runner", () => {
                 maxLookback: 3,
             },
         });
+        const long = walk(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK + 1);
         await expect(
-            capped.warmUp(BARS.slice(0, 4), { externalSeries: { signal: [1, 2, 3, 4] } }),
+            small.warmUp(long, { externalSeries: { signal: long.map((b) => b.close) } }),
         ).rejects.toMatchObject({
             code: "invalid-argument",
-            message: 'warmUp: externalSeries "signal" has 4 values for 4 bars (lookback 3)',
+            message:
+                'warmUp: externalSeries "signal" has 5001 values for 5001 bars (lookback 5000)',
         });
-        await capped.warmUp(BARS.slice(0, 4), { externalSeries: { signal: [1, 2, 3] } });
-        capped.dispose();
+        await small.warmUp(BARS.slice(0, 4), { externalSeries: { signal: [1, 2, 3, 4] } });
+        small.dispose();
     });
 
     it("feeds an alert runner and keeps the 1.0 return types", async () => {

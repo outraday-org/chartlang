@@ -113,14 +113,18 @@ export async function createSeriesRunner(opts: CreateSeriesRunnerOpts): Promise<
                 const values = arrays.get(plot.slotId);
                 const position = plot.bar + shift;
                 const id = `${plot.slotId}\u0000${position}`;
-                // A history drain holds only its own chunk's bars, so the
-                // position is always inside the warm-up window.
+                // A history drain holds only its own chunk's bars; the bound
+                // keeps a stray emission from writing outside the window.
                 if (values === undefined || filled.has(id)) continue;
+                if (position < 0 || position >= bars.length) continue;
                 filled.add(id);
                 values[position] = plotValue(plot.value);
             }
         });
-        return Object.freeze({ plots: Object.freeze(Object.fromEntries(arrays)) });
+        const plots = Object.fromEntries(
+            [...arrays].map(([slot, values]) => [slot, Object.freeze(values)]),
+        );
+        return Object.freeze({ plots: Object.freeze(plots) });
     }
 
     async function onBarClose(

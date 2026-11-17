@@ -58,14 +58,21 @@ returns plot slot values, so a host can run script chains itself.
   and always works.
 - **External series are keyed by manifest ENTRY key, fed by descriptor
   NAME, one value per bar.** `externalSeries.names` are `inputs` keys; the
-  runner maps them to `descriptor.name` (two keys sharing one name are
-  refused). After the one warm-up array it sends `{ values: [v], offset:
+  runner maps them to `descriptor.name` (`validateAlertInputs` refuses two
+  fed keys sharing one name, so the Data API's write check and the runner
+  agree). After the one warm-up array it sends `{ values: [v], offset:
   nextBarIndex }` before each main bar — never the history — so the runtime
   reads by absolute index; `nextBarIndex` counts main bars only (secondary
   bars and watermark-skipped bars append nothing). Missing / non-finite =
   `NaN`. Every journal entry carries the window sent before it, and the
   pre-close copy re-sends each one before its event; a re-send of history
-  would make a months-long runner O(history) per bar.
+  would make a months-long runner O(history) per bar. Any unexpected host
+  error on a feeding runner FAILS it (a 1.0 runner without feeds survives
+  one): the event may have folded, so `nextBarIndex` could lag the runtime
+  and every later window would read `NaN` silently. The warm-up array cap is
+  `max(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, capabilities.maxLookback)`, not the
+  runner's own lookback: a chain warms all runners on the same, longest
+  window.
 - **A runner that feeds external series is `"lossy"`, by decision.** The
   external rings are not in the runtime snapshot, so `snapshotFidelityOf(…,
   { externalSeries: true })` is `"lossy"`: no export, every start a warm-up.

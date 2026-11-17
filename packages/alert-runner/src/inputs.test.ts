@@ -144,4 +144,22 @@ describe("validateAlertInputs", () => {
             'input "fed" is an external series; its values are fed per bar, not as an input',
         ]);
     });
+    it("refuses two fed keys whose descriptors share one feed name", () => {
+        const feed = (name: string) => ({
+            kind: "external-series",
+            name,
+            schema: { kind: "external-series-schema" },
+        });
+        const manifest = {
+            ...MANIFEST,
+            inputs: { a: feed("same"), b: feed("same"), c: feed("other") },
+        } as unknown as ScriptManifest;
+        expect(validateAlertInputs(manifest, {}, { externalSeries: ["a", "b", "c"] })).toEqual([
+            'external series "a" and "b" share the feed name "same"',
+        ]);
+        // Feeding only one of them is fine; the other keeps the 1.0 refusal.
+        expect(validateAlertInputs(manifest, {}, { externalSeries: ["a", "c"] })).toEqual([
+            'input "b" is an external series, which the alert runner cannot feed',
+        ]);
+    });
 });

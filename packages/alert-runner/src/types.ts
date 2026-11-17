@@ -394,9 +394,10 @@ export type BarCloseOpts = Readonly<{
  * `externalSeries` (@since 1.1) carries one array per listed external-series
  * input (manifest entry key), aligned to the warm-up bars: index `i` is bar
  * `i`, a shorter array leaves a `NaN` tail, a non-finite value reads `NaN`.
- * An array longer than the bars, or than the runner's lookback
- * (`capabilities.maxLookback`, default `DEFAULT_ALERT_RUNNER_MAX_LOOKBACK`),
- * throws `"invalid-argument"`.
+ * An array longer than the bars, or than
+ * `max(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, capabilities.maxLookback)`, throws
+ * `"invalid-argument"` (never a consumer's smaller own lookback: a chain
+ * warms every runner on the same bars).
  *
  * @since 1.0
  * @stable
