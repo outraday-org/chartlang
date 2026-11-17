@@ -69,11 +69,33 @@ function problemFor(key: string, descriptor: ScalarDescriptor, value: unknown): 
 }
 
 /**
+ * Options of {@link validateAlertInputs}.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { ValidateAlertInputsOpts } from "@invinite-org/chartlang-alert-runner";
+ *     const opts: ValidateAlertInputsOpts = { externalSeries: ["signal"] };
+ *     void opts;
+ */
+export type ValidateAlertInputsOpts = Readonly<{
+    /** External-series inputs the caller feeds, by manifest input entry key. */
+    externalSeries?: ReadonlyArray<string>;
+}>;
+
+/**
  * Check user inputs against a manifest's input schema, strictly: an unknown
  * key, a value of the wrong kind, a number outside `min` / `max`, an enum
- * value outside `options`, and any `external-series` input (the runner has no
- * feed for it) are problems. Omitted keys are fine — they take the script's
+ * value outside `options`, and any `external-series` input the caller does
+ * not feed are problems. Omitted keys are fine — they take the script's
  * default. Returns one human-readable line per problem, `[]` when valid.
+ *
+ * `opts.externalSeries` (@since 1.1) lists the external-series inputs the
+ * caller feeds, by manifest input ENTRY key: those are accepted, every other
+ * one is still refused. A listed key that is not an external-series input of
+ * the script, two listed keys whose descriptors share one `name` (they would
+ * share one runtime feed), and a value under an external-series key in
+ * `inputs` (its values arrive per bar, not as an input), are problems.
  *
  * The runtime itself would silently fall back to the default on a bad value;
  * a hosted alert should refuse instead, which is why `createAlertRunner`
@@ -84,22 +106,49 @@ function problemFor(key: string, descriptor: ScalarDescriptor, value: unknown): 
  * @example
  *     import { validateAlertInputs } from "@invinite-org/chartlang-alert-runner";
  *     declare const manifest: Parameters<typeof validateAlertInputs>[0];
- *     const problems = validateAlertInputs(manifest, { length: 14 });
+ *     const problems = validateAlertInputs(manifest, { length: 14 }, { externalSeries: ["signal"] });
  *     void problems;
  */
 export function validateAlertInputs(
     manifest: ScriptManifest,
     inputs: Readonly<Record<string, unknown>>,
+    opts: ValidateAlertInputsOpts = {},
 ): ReadonlyArray<string> {
     const problems: string[] = [];
-    for (const [key, descriptor] of Object.entries(manifest.inputs)) {
-        if (descriptor.kind === "external-series") {
+    const fed = new Set(opts.externalSeries ?? []);
+    // Fed key per descriptor name: two fed keys sharing a name would share one
+    // runtime feed, so their values could not differ.
+    const owners = new Map<string, string>();
+    for (const key of fed) {
+        const descriptor = Object.hasOwn(manifest.inputs, key) ? manifest.inputs[key] : undefined;
+        if (descriptor?.kind !== "external-series") {
+            problems.push(`external series "${key}" is not an external-series input of the script`);
+            continue;
+        }
+        const owner = owners.get(descriptor.name);
+        if (owner !== undefined) {
             problems.push(
-                `input "${key}" is an external series, which the alert runner cannot feed`,
+                `external series "${owner}" and "${key}" share the feed name ${JSON.stringify(descriptor.name)}`,
             );
             continue;
         }
-        if (!Object.hasOwn(inputs, key) || inputs[key] === undefined) continue;
+        owners.set(descriptor.name, key);
+    }
+    for (const [key, descriptor] of Object.entries(manifest.inputs)) {
+        const given = Object.hasOwn(inputs, key) && inputs[key] !== undefined;
+        if (descriptor.kind === "external-series") {
+            if (!fed.has(key)) {
+                problems.push(
+                    `input "${key}" is an external series, which the alert runner cannot feed`,
+                );
+            } else if (given) {
+                problems.push(
+                    `input "${key}" is an external series; its values are fed per bar, not as an input`,
+                );
+            }
+            continue;
+        }
+        if (!given) continue;
         const problem = problemFor(key, descriptor, inputs[key]);
         if (problem !== null) problems.push(problem);
     }

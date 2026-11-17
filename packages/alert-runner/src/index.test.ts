@@ -16,6 +16,7 @@ describe("public surface", () => {
             "createAlertRunner",
             "createBarAggregator",
             "createFrequencyGate",
+            "createSeriesRunner",
             "intervalMs",
             "requiredHistoryFor",
             "snapshotFidelityOf",

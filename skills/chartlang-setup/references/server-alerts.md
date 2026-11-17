@@ -133,7 +133,10 @@ delivered events, `onPreClose(bar, offsetMs)` for an evaluation before the
 close, `exportSnapshot()` to store. It validates inputs against the manifest,
 keys snapshots on every spec identity field, applies the `once` /
 `once_per_bar` / `once_per_bar_close` / `every_time` frequency, fails closed on
-a budget abort, and runs in `node:worker_threads`. See
+a budget abort, and runs in `node:worker_threads`. For script chains it feeds
+`input.externalSeries` inputs (`externalSeries: { names }`, one value per bar
+by manifest entry key) and `createSeriesRunner({ ..., plotSlots })` returns a
+producer's plot values per bar. See
 [`docs/hosts/alert-runner.md`](https://github.com/outraday-org/chartlang/blob/main/docs/hosts/alert-runner.md).
 
 ## Holidays and half days

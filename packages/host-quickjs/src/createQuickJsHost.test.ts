@@ -824,6 +824,111 @@ describe("createQuickJsHost", () => {
         host.dispose();
     });
 
+    it("settles more than 32,768 replies on one real QuickJS context", async () => {
+        // `resolvePromise` spends two 16-bit host-function ids per reply: on
+        // 0.31 the 32,769th push never settled. The settled state is read
+        // directly now, so a long-lived host keeps going.
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            limits: { maxStepMs: 10_000 },
+        });
+        await host.load(compiled(plotSource()));
+        const pushes = 33_000;
+        for (let i = 1; i <= pushes; i += 1) {
+            await host.push({ kind: "close", bar: bar(i, i) });
+            if (i % 1_000 === 0) await host.drain();
+        }
+        const emissions = await host.drain();
+        expect(emissions.toBar).toBe(pushes - 1);
+        host.dispose();
+    }, 120_000);
+
+    it("reads replies from getPromiseState when the context offers it", async () => {
+        // A promise the fake can inspect synchronously, like QuickJS can.
+        type Settled = {
+            readonly settled: "fulfilled" | "rejected" | "pending";
+            readonly json: string;
+        };
+        class StateContext extends FakeContext {
+            next: Settled["settled"] = "fulfilled";
+            notAPromise = false;
+            disposed = 0;
+            override getProp(handle: QuickJsHandleLike, key: string): QuickJsHandleLike {
+                const inner = super.getProp(handle, key);
+                if (key !== "__chartlang_load" && key !== "__chartlang_push") return inner;
+                return new FakeHandle(
+                    (): Settled => ({
+                        settled: this.next,
+                        json: JSON.stringify({ kind: "loaded" }),
+                    }),
+                );
+            }
+            override async resolvePromise(): Promise<unknown> {
+                throw new Error("resolvePromise must not be called");
+            }
+            override getString(handle: QuickJsHandleLike): string {
+                const value = handle.value as Settled | string;
+                return typeof value === "object" ? value.json : super.getString(handle);
+            }
+            override unwrapResult(result: unknown): QuickJsHandleLike {
+                if (result !== null && typeof result === "object" && "error" in result) {
+                    throw new Error(`guest rejected: ${(result.error as FakeHandle).value}`);
+                }
+                return super.unwrapResult(result);
+            }
+            getPromiseState(handle: QuickJsHandleLike) {
+                const value = handle.value as Settled;
+                if (value.settled === "pending") return { type: "pending" } as const;
+                if (value.settled === "rejected") {
+                    return { type: "rejected", error: new FakeHandle("boom") } as const;
+                }
+                const reply = new FakeHandle(value.json);
+                reply.dispose = () => {
+                    this.disposed += 1;
+                };
+                return this.notAPromise
+                    ? ({ type: "fulfilled", value: handle, notAPromise: true } as const)
+                    : ({ type: "fulfilled", value: reply } as const);
+            }
+        }
+        const context = new StateContext();
+        const quickJsLike: QuickJsLike = () => ({
+            newRuntime: () => ({
+                setMemoryLimit: () => undefined,
+                setInterruptHandler: () => undefined,
+                executePendingJobs: () => 0,
+                newContext: () => context,
+            }),
+        });
+        const errors: string[] = [];
+        const host = createQuickJsHost({
+            capabilities: makeCapabilities(),
+            quickJsLike,
+            onHostError: (m) => {
+                errors.push(m);
+            },
+        });
+        try {
+            await host.load(compiled(plotSource()));
+            expect(context.disposed).toBe(1);
+            await host.push({ kind: "close", bar: bar(1, 1) });
+            expect(context.disposed).toBe(2);
+            context.notAPromise = true;
+            await host.push({ kind: "close", bar: bar(2, 1) });
+            expect(context.disposed).toBe(2);
+            expect(errors).toEqual([]);
+            context.notAPromise = false;
+            context.next = "rejected";
+            await host.push({ kind: "close", bar: bar(3, 1) });
+            expect(errors.at(-1)).toBe("guest rejected: boom");
+            context.next = "pending";
+            await host.push({ kind: "close", bar: bar(4, 1) });
+            expect(errors.at(-1)).toBe("guest reply did not settle");
+        } finally {
+            host.dispose();
+        }
+    });
+
     it("keeps push fire-and-forget; drain is the emission resolution path", async () => {
         const host = createQuickJsHost({ capabilities: makeCapabilities() });
         await host.load(compiled(plotSource()));

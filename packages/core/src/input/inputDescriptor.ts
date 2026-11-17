@@ -58,14 +58,25 @@ export type Schema<T> = Readonly<{ kind: "external-series-schema"; __brand?: T }
  * Values are aligned by index to the primary chart bar stream; missing, short,
  * or non-finite runtime values read as `NaN`.
  *
+ * `offset` (@since 1.15) is the absolute primary bar index of `values[0]`
+ * (default `0`): bar `i` reads `values[i - offset]`, and a bar before the
+ * window reads `NaN`. A host that advances bar by bar sends a one-value
+ * window `{ values: [v], offset: i }` before bar `i` instead of re-sending the
+ * whole history, so a long-lived runner costs O(1) per bar. A history
+ * re-seed replays from bar 0 against the live map, so bars before the window
+ * then read `NaN` — use full arrays (offset 0) on a host that re-seeds.
+ *
  * @since 1.9
  * @stable
  * @example
  *     const feed: ExternalSeriesFeed = { values: [1, 2, 3] };
+ *     const window: ExternalSeriesFeed = { values: [4], offset: 3 };
  *     void feed;
+ *     void window;
  */
 export type ExternalSeriesFeed = Readonly<{
     values: ReadonlyArray<number>;
+    offset?: number;
 }>;
 
 /**

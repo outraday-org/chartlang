@@ -22,6 +22,21 @@ import type { AlertRunnerCompiledScript } from "./types.js";
 export type SnapshotFidelity = "exact" | "lossy";
 
 /**
+ * Options of {@link snapshotFidelityOf}.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SnapshotFidelityOpts } from "@invinite-org/chartlang-alert-runner";
+ *     const opts: SnapshotFidelityOpts = { externalSeries: true };
+ *     void opts;
+ */
+export type SnapshotFidelityOpts = Readonly<{
+    /** The runner feeds `input.externalSeries` inputs. */
+    externalSeries?: boolean;
+}>;
+
+/**
  * Slot-bearing primitives whose state the runtime snapshot captures
  * (`packages/runtime/src/persistentStateStore.runtime.ts` +
  * `ta/persistence.ts`): the three persisted `ta.*` kinds, every `state.*`
@@ -85,6 +100,11 @@ const SLOT_CALL = /([A-Za-z_$][\w$]*)\(\s*"[^"\n]*:\d+:\d+#\d+"/g;
  * false `"lossy"` costs a warm-up, a false `"exact"` would deliver wrong
  * alerts after a restore.
  *
+ * `opts.externalSeries: true` (@since 1.1) — the runner feeds
+ * `input.externalSeries` inputs — always gives `"lossy"`: the external-series
+ * rings are not part of the runtime snapshot, so a restore would read `NaN`
+ * history. The host rebuilds such a runner by warm-up (replay).
+ *
  * @since 1.0
  * @stable
  * @example
@@ -93,7 +113,11 @@ const SLOT_CALL = /([A-Za-z_$][\w$]*)\(\s*"[^"\n]*:\d+:\d+#\d+"/g;
  *     const storable = snapshotFidelityOf(compiled) === "exact";
  *     void storable;
  */
-export function snapshotFidelityOf(compiled: AlertRunnerCompiledScript): SnapshotFidelity {
+export function snapshotFidelityOf(
+    compiled: AlertRunnerCompiledScript,
+    opts: SnapshotFidelityOpts = {},
+): SnapshotFidelity {
+    if (opts.externalSeries === true) return "lossy";
     if ((compiled.manifest.securityExpressions ?? []).length > 0) return "lossy";
     for (const match of compiled.moduleSource.matchAll(SLOT_CALL)) {
         const candidates = BY_CALLEE.get(match[1] as string) ?? [];

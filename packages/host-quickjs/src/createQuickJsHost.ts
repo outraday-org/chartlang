@@ -236,7 +236,10 @@ async function resolveStringPromise(
     runtime: QuickJsRuntimeLike,
     handle: QuickJsHandleLike,
 ): Promise<string> {
-    const pending = context.resolvePromise(handle);
+    // `resolvePromise` costs two host-function ids per call and a context has
+    // 65,536: the 32,769th reply would never settle. Read the settled state
+    // directly when the context can (every real quickjs-emscripten one).
+    const pending = context.getPromiseState === undefined ? context.resolvePromise(handle) : null;
     for (let round = 0; ; round += 1) {
         const jobs = runtime.executePendingJobs();
         if (isJobsErrorResult(jobs)) {
@@ -250,12 +253,30 @@ async function resolveStringPromise(
             throw new QuickJsStepAbortedError("guest job queue did not drain");
         }
     }
-    const result = await pending;
-    const resolved = context.unwrapResult(result);
+    if (pending !== null) {
+        const resolved = context.unwrapResult(await pending);
+        try {
+            return context.getString(resolved);
+        } finally {
+            dispose(resolved);
+        }
+    }
+    // Guest promises settle by guest jobs alone (see the bound above), so an
+    // empty queue means the reply is settled.
+    const state = (context.getPromiseState as NonNullable<QuickJsContextLike["getPromiseState"]>)(
+        handle,
+    );
+    if (state.type === "pending") {
+        throw new QuickJsStepAbortedError("guest reply did not settle");
+    }
+    const resolved = context.unwrapResult(
+        state.type === "rejected" ? { error: state.error } : { value: state.value },
+    );
     try {
         return context.getString(resolved);
     } finally {
-        dispose(resolved);
+        // A non-promise value is the caller's own handle.
+        if (!(state.type === "fulfilled" && state.notAPromise === true)) dispose(resolved);
     }
 }
 

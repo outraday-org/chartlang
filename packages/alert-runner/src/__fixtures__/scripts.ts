@@ -151,3 +151,74 @@ export default defineIndicator({
     },
 });
 `;
+
+/** Producer: a fast EMA (slot 0) and the up-bar gain, NaN on down bars (slot 1). */
+export const PRODUCER = `import { defineIndicator } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Producer",
+    apiVersion: 1,
+    overlay: true,
+    compute({ bar, ta, plot }) {
+        const fast = ta.ema(bar.close, 4);
+        plot(fast.current, { title: "Fast" });
+        plot(bar.close > bar.open ? bar.close - bar.open : Number.NaN, { title: "Gain" });
+    },
+});
+`;
+
+/**
+ * Consumer: reads an external series under the entry key `signal`, whose
+ * descriptor name is `producer-feed`; plots it and its value two bars back,
+ * alerts while the close is above it.
+ */
+export const CONSUMER = `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Consumer",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        signal: input.externalSeries({ name: "producer-feed", schema: { kind: "external-series-schema" } }),
+    },
+    compute({ bar, inputs, alert, plot }) {
+        const signal = inputs.signal;
+        plot(signal.current, { title: "Seen" });
+        plot(signal[2], { title: "Lag" });
+        if (bar.close > signal.current) alert("above " + signal.current);
+    },
+});
+`;
+
+/** Middle of a nested chain: reads a producer, plots its 3-bar SMA. */
+export const RELAY = `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Relay",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        upstream: input.externalSeries({ name: "up", schema: { kind: "external-series-schema" } }),
+    },
+    compute({ inputs, ta, plot }) {
+        plot(ta.sma(inputs.upstream, 3).current, { title: "Smoothed" });
+    },
+});
+`;
+
+/** Two external series under keys whose descriptor names collide. */
+export const TWIN_FEEDS = `import { defineIndicator, input } from "@invinite-org/chartlang-core";
+
+export default defineIndicator({
+    name: "Twins",
+    apiVersion: 1,
+    overlay: true,
+    inputs: {
+        a: input.externalSeries({ name: "same", schema: { kind: "external-series-schema" } }),
+        b: input.externalSeries({ name: "same", schema: { kind: "external-series-schema" } }),
+    },
+    compute({ inputs, plot }) {
+        plot(inputs.a.current + inputs.b.current);
+    },
+});
+`;

@@ -68,6 +68,17 @@ server-side and untrusted-script execution. It mirrors `host-worker`'s public
   silent stall, the worst failure shape this package has. Bound: this holds for
   guest-settled promises only; a host-resolved promise would need its own
   wall-clock deadline.
+- **Read a reply with `getPromiseState`, never `resolvePromise`, on a real
+  context.** quickjs-emscripten's `resolvePromise` allocates two host
+  functions per call and a context's host-function ids are 16-bit (65,536):
+  through 1.8 the 32,769th `push` / `load` reply on one host never settled — a
+  silent stall that capped every long-lived host (an alert runner on 1m bars
+  after ~3 weeks) — and each call leaked its two entries. `resolveStringPromise`
+  pumps the queue empty, then reads the settled state; `resolvePromise` stays
+  only as the fallback for a `QuickJsContextLike` without `getPromiseState`
+  (test doubles). A `pending` state after the pump throws
+  `QuickJsStepAbortedError` (it would have been the stall). Pinned by the
+  33,000-push test in `createQuickJsHost.test.ts`.
 - **`maxSteps` is the deterministic half of the budget, charged per interrupt
   POLL.** QuickJS calls the interrupt handler once per
   `QUICKJS_STEPS_PER_INTERRUPT_POLL` (10,000, the engine's

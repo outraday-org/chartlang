@@ -176,6 +176,8 @@ mid-run without breaking the frozen-input determinism guarantee. The
 QuickJS host relays `setPlotOverrides` as a synchronous host→guest call
 (like `drain`); the Worker host posts it fire-and-forget.
 
+### External series feeds
+
 The optional `externalSeriesFeeds` on the `load` frame is the initial
 `input.externalSeries(...)` feed map resolved from
 `Adapter.feedExternalSeries` / host constructor options. The
@@ -184,6 +186,16 @@ The optional `externalSeriesFeeds` on the `load` frame is the initial
 merging partial keys. Omitted feed names clear previous data and read as
 `NaN` on later computes. QuickJS relays it synchronously through the JSON
 membrane; the Worker host posts it fire-and-forget.
+
+A feed is `{ values, offset? }`. The runtime reads bar `i` from
+`values[i - offset]` (`offset` defaults to `0`; a bar outside the window, a
+missing value or a non-finite one reads `NaN`; a feed whose `offset` is not a
+non-negative integer is dropped). A host that advances bar by bar can send a
+one-value window `{ values: [v], offset: i }` before bar `i` instead of the
+whole history, so a long-lived runner costs O(1) per bar — the
+[alert runner](./alert-runner.md#external-series) does this. A history
+re-seed replays from bar 0 against the live map, so a host that re-seeds
+sends full arrays.
 
 ## Determinism contract
 

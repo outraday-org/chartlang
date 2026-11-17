@@ -7,6 +7,7 @@ export {
     createAlertRunner,
     requiredHistoryFor,
 } from "./runner.js";
+export { createSeriesRunner } from "./series.js";
 export { createBarAggregator } from "./aggregate.js";
 export type {
     AggregatedBarSource,
@@ -15,13 +16,14 @@ export type {
     BarAggregatorResult,
 } from "./aggregate.js";
 export { snapshotFidelityOf } from "./fidelity.js";
-export type { SnapshotFidelity } from "./fidelity.js";
+export type { SnapshotFidelity, SnapshotFidelityOpts } from "./fidelity.js";
 export { createFrequencyGate } from "./frequency.js";
 export type { FrequencyGate, GateCandidate, GateVerdict } from "./frequency.js";
 export { AlertRunnerError } from "./errors.js";
 export type { AlertRunnerErrorCode } from "./errors.js";
 export { alertRunnerCapabilities, DEFAULT_ALERT_RUNNER_MAX_LOOKBACK } from "./capabilities.js";
 export { validateAlertInputs } from "./inputs.js";
+export type { ValidateAlertInputsOpts } from "./inputs.js";
 export { intervalMs } from "./interval.js";
 export type {
     AlertBar,
@@ -35,9 +37,17 @@ export type {
     AlertRunnerSnapshot,
     AlertSuppression,
     AlertSuppressionReason,
+    BarCloseOpts,
     CreateAlertRunnerOpts,
+    CreateSeriesRunnerOpts,
+    ExternalSeriesOpts,
     FrequencyGateState,
     PreCloseResult,
+    SeriesBarCloseResult,
+    SeriesPlotValues,
+    SeriesPreCloseResult,
+    SeriesRunner,
+    SeriesWarmUpResult,
     SnapshotStatus,
     WarmUpOpts,
 } from "./types.js";

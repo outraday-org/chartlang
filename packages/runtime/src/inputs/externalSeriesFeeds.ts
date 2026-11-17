@@ -89,8 +89,14 @@ export function createExternalSeriesSlots(
 }
 
 function valueAt(feeds: ExternalSeriesFeedMap, feedName: string, index: number): number {
-    const value = feeds[feedName]?.values[index];
+    const feed = feeds[feedName];
+    if (feed === undefined) return Number.NaN;
+    const value = feed.values[index - (feed.offset ?? 0)];
     return typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+}
+
+function isValidOffset(offset: unknown): boolean {
+    return offset === undefined || (Number.isSafeInteger(offset) && (offset as number) >= 0);
 }
 
 /**
@@ -131,23 +137,34 @@ export function advanceExternalSeriesFeeds(
  * bar reading `NaN` (nothing renders). A top-level non-object still degrades to
  * an empty map; callers decide whether to emit diagnostics.
  *
+ * A feed's `offset` (@since 1.15), the absolute bar index of `values[0]`,
+ * is kept when it is a non-negative safe integer; any other offset drops that
+ * one feed (its bars read `NaN`), because a wrong offset would misalign every
+ * value rather than one.
+ *
  * @since 1.9
  * @stable
  * @example
- *     const feeds = replaceExternalSeriesFeedMap({ earnings: { values: [1] } });
+ *     const feeds = replaceExternalSeriesFeedMap({ earnings: { values: [1], offset: 4 } });
  *     void feeds;
  */
 export function replaceExternalSeriesFeedMap(value: unknown): ExternalSeriesFeedMap {
     if (value === null || typeof value !== "object" || Array.isArray(value)) {
         return Object.freeze({});
     }
-    const out: Record<string, { readonly values: ReadonlyArray<number> }> = {};
+    const out: Record<string, ExternalSeriesFeedMap[string]> = {};
     for (const [key, feed] of Object.entries(value)) {
         if (!isExternalSeriesFeed(feed)) continue;
+        const offset: unknown = (feed as { offset?: unknown }).offset;
+        if (!isValidOffset(offset)) continue;
         const values = feed.values.map((entry: unknown) =>
             typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN,
         );
-        out[key] = Object.freeze({ values: Object.freeze(values) });
+        out[key] = Object.freeze(
+            offset === undefined
+                ? { values: Object.freeze(values) }
+                : { values: Object.freeze(values), offset: offset as number },
+        );
     }
     return Object.freeze(out);
 }

@@ -5,7 +5,9 @@ QuickJS host: warm-up / snapshot restore, bar close, pre-close, frequency
 gate, bar aggregation. The generic half of what invinite's alert Durable
 Objects ran (`worker/do/chartlang/*`); the invinite-only parts (Convex HTTP,
 DO storage, the tentative-protocol tests, the pre-close persistence guard,
-dependency plans / external-series feeds) stay out.
+dependency-plan storage and ordering) stay out. The runner feeds
+`input.externalSeries` inputs (`externalSeries.names`) and `createSeriesRunner`
+returns plot slot values, so a host can run script chains itself.
 
 ## Invariants
 
@@ -54,3 +56,31 @@ dependency plans / external-series feeds) stay out.
   BUILT `dist/` inside a real `Worker` — run `pnpm build` before the tests.
 - Calls are serialized through one promise chain; `dispose()` is synchronous
   and always works.
+- **External series are keyed by manifest ENTRY key, fed by descriptor
+  NAME, one value per bar.** `externalSeries.names` are `inputs` keys; the
+  runner maps them to `descriptor.name` (`validateAlertInputs` refuses two
+  fed keys sharing one name, so the Data API's write check and the runner
+  agree). After the one warm-up array it sends `{ values: [v], offset:
+  nextBarIndex }` before each main bar — never the history — so the runtime
+  reads by absolute index; `nextBarIndex` counts main bars only (secondary
+  bars and watermark-skipped bars append nothing). Missing / non-finite =
+  `NaN`. Every journal entry carries the window sent before it, and the
+  pre-close copy re-sends each one before its event; a re-send of history
+  would make a months-long runner O(history) per bar. Any unexpected host
+  error on a feeding runner FAILS it (a 1.0 runner without feeds survives
+  one): the event may have folded, so `nextBarIndex` could lag the runtime
+  and every later window would read `NaN` silently. The warm-up array cap is
+  `max(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, capabilities.maxLookback)`, not the
+  runner's own lookback: a chain warms all runners on the same, longest
+  window.
+- **A runner that feeds external series is `"lossy"`, by decision.** The
+  external rings are not in the runtime snapshot, so `snapshotFidelityOf(…,
+  { externalSeries: true })` is `"lossy"`: no export, every start a warm-up.
+  Snapshotting the rings is a later optimisation; until then do not let such
+  a runner export.
+- **`createSeriesRunner` and `createAlertRunner` share one core
+  (`openRunner`).** Only the three evaluation wrappers differ; a slot value
+  is the slot's FIRST plot emission of the bar (invinite's
+  `pickPlotSlotValue`), `NaN` for nothing / `null` / non-finite. Warm-up
+  positions come from `plot.bar - drained.fromBar` per chunk, so any
+  `warmUpChunkBars` aligns.

@@ -2,7 +2,7 @@
 // See the LICENSE file in the repo root for full license text.
 
 import type { CandleEvent, RunnerEmissions } from "@invinite-org/chartlang-adapter-kit";
-import { feedKey, isSnapshotError } from "@invinite-org/chartlang-core";
+import { type ExternalSeriesFeedMap, feedKey, isSnapshotError } from "@invinite-org/chartlang-core";
 import {
     QuickJsStepAbortedError,
     type ScriptHost,
@@ -10,7 +10,7 @@ import {
 } from "@invinite-org/chartlang-host-quickjs";
 
 import { assertAlertBar, assertAscending, projectBar, toRuntimeBar } from "./bar.js";
-import { alertRunnerCapabilities } from "./capabilities.js";
+import { DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, alertRunnerCapabilities } from "./capabilities.js";
 import { AlertRunnerError } from "./errors.js";
 import { projectEvents } from "./events.js";
 import { snapshotFidelityOf } from "./fidelity.js";
@@ -25,6 +25,7 @@ import type {
     AlertRunnerEvent,
     AlertRunnerLimits,
     AlertRunnerSnapshot,
+    BarCloseOpts,
     CreateAlertRunnerOpts,
     PreCloseResult,
     SnapshotStatus,
@@ -92,6 +93,76 @@ function chunks<T>(items: ReadonlyArray<T>, size: number): ReadonlyArray<Readonl
     return out;
 }
 
+function finiteOrNaN(value: unknown): number {
+    return typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** One folded event, plus the feed map sent right before it (lossy replay). */
+type JournalEntry = Readonly<{ event: CandleEvent; feeds?: ExternalSeriesFeedMap }>;
+
+/**
+ * Entry key → descriptor name of each external-series input the caller
+ * feeds. Runs after `validateAlertInputs`, which refuses a listed key that is
+ * not an external series and two listed keys sharing one descriptor name.
+ */
+function externalFeedNames(
+    manifest: CreateAlertRunnerOpts["compiled"]["manifest"],
+    keys: ReadonlyArray<string>,
+): ReadonlyMap<string, string> {
+    const out = new Map<string, string>();
+    const fed = new Set(keys);
+    for (const [key, descriptor] of Object.entries(manifest.inputs)) {
+        if (descriptor.kind === "external-series" && fed.has(key)) out.set(key, descriptor.name);
+    }
+    return out;
+}
+
+/**
+ * The raw result of one evaluation: what the script emitted. Internal; not
+ * exported from the package.
+ *
+ * @since 1.1
+ * @internal
+ * @example
+ *     declare const step: RunnerStepResult;
+ *     void step.drained.plots;
+ */
+export type RunnerStepResult = Readonly<{ drained: RunnerEmissions }>;
+
+/**
+ * The runner minus its public wrappers: the state both `createAlertRunner`
+ * and `createSeriesRunner` expose, and the three evaluations with their raw
+ * drain output. Internal; not exported from the package.
+ *
+ * @since 1.1
+ * @internal
+ * @example
+ *     declare const core: RunnerCore;
+ *     void core.shared.lastBarTime;
+ */
+export type RunnerCore = Readonly<{
+    shared: Omit<AlertRunner, "warmUp" | "onBarClose" | "onPreClose">;
+    warmUp(
+        bars: ReadonlyArray<AlertBar>,
+        opts: WarmUpOpts | undefined,
+        /** Called per main chunk; a plot's warm-up position is `plot.bar + shift`. */
+        onMainChunk?: (shift: number, drained: RunnerEmissions) => void,
+    ): Promise<void>;
+    onBarClose(
+        bar: AlertBar,
+        opts: BarCloseOpts | undefined,
+    ): Promise<(RunnerStepResult & { events: ReadonlyArray<AlertRunnerEvent> }) | null>;
+    onPreClose(
+        bar: AlertBar,
+        offsetMs: number,
+        opts: BarCloseOpts | undefined,
+    ): Promise<RunnerStepResult & { result: PreCloseResult }>;
+}>;
+
 /**
  * Bars of history a script needs before its first live bar: the largest of
  * `maxLookback + 1`, `maxBarsBack`, the dynamic-index fallback capacity
@@ -144,6 +215,35 @@ export function requiredHistoryFor(
  *     runner.dispose();
  */
 export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<AlertRunner> {
+    const core = await openRunner(opts);
+    return Object.freeze<AlertRunner>(
+        Object.defineProperties(
+            {
+                warmUp: (bars: ReadonlyArray<AlertBar>, warmOpts?: WarmUpOpts) =>
+                    core.warmUp(bars, warmOpts),
+                onBarClose: async (bar: AlertBar, closeOpts?: BarCloseOpts) =>
+                    (await core.onBarClose(bar, closeOpts))?.events ?? [],
+                onPreClose: async (bar: AlertBar, offsetMs: number, closeOpts?: BarCloseOpts) =>
+                    (await core.onPreClose(bar, offsetMs, closeOpts)).result,
+            },
+            Object.getOwnPropertyDescriptors(core.shared),
+        ) as AlertRunner,
+    );
+}
+
+/**
+ * Validate the options, load the sandbox, restore a snapshot: everything
+ * `createAlertRunner` and `createSeriesRunner` share. Internal; not exported
+ * from the package.
+ *
+ * @since 1.1
+ * @internal
+ * @example
+ *     declare const opts: CreateAlertRunnerOpts;
+ *     const core = await openRunner(opts);
+ *     void core.shared.requiredHistory();
+ */
+export async function openRunner(opts: CreateAlertRunnerOpts): Promise<RunnerCore> {
     const { compiled, interval, frequency } = opts;
     const manifest = compiled.manifest;
     if (!FREQUENCIES.has(frequency)) {
@@ -157,12 +257,20 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
     assertCount(opts.minWarmUpBars, "minWarmUpBars", 0);
     assertCount(opts.warmUpChunkBars, "warmUpChunkBars", 1);
     const inputs = opts.inputs ?? {};
-    const problems = validateAlertInputs(manifest, inputs);
+    const fedKeys = opts.externalSeries?.names ?? [];
+    if (!Array.isArray(fedKeys) || fedKeys.some((key) => typeof key !== "string")) {
+        throw new AlertRunnerError(
+            "invalid-argument",
+            "externalSeries.names must be an array of input keys",
+        );
+    }
+    const problems = validateAlertInputs(manifest, inputs, { externalSeries: fedKeys });
     if (problems.length > 0) {
         throw new AlertRunnerError("invalid-inputs", `invalid inputs: ${problems.join("; ")}`, {
             details: problems,
         });
     }
+    const feedNames = externalFeedNames(manifest, fedKeys);
 
     const requiredHistory = requiredHistoryFor(
         manifest,
@@ -189,10 +297,14 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         sha256Hex(canonicalJson(inputs)),
     ]);
 
-    const fidelity = snapshotFidelityOf(compiled);
+    const fidelity = snapshotFidelityOf(compiled, { externalSeries: feedNames.size > 0 });
     // A lossy script cannot be rolled back or restored by snapshot, so the
-    // runner keeps every event it folded in and rebuilds by replaying them.
-    const journal: CandleEvent[] | null = fidelity === "lossy" ? [] : null;
+    // runner keeps every event it folded in (with the external-series window
+    // sent before it) and rebuilds by replaying them.
+    const journal: JournalEntry[] | null = fidelity === "lossy" ? [] : null;
+    // Absolute index of the next main-stream bar: the offset of every
+    // external-series window the runner sends.
+    let nextBarIndex = 0;
     let disposed = false;
     let failure: AlertRunnerError | null = null;
     let lastBarTime: number | null = null;
@@ -255,7 +367,11 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
                 snapshotStatus = match.status;
             } else {
                 try {
-                    await main.host.importSnapshot({ key, snapshot: match.snapshot.state });
+                    const ack = await main.host.importSnapshot({
+                        key,
+                        snapshot: match.snapshot.state,
+                    });
+                    nextBarIndex = ack.barIndex + 1;
                     snapshotStatus = "restored";
                     lastBarTime = match.snapshot.lastBarTime;
                     for (const [k, v] of Object.entries(match.snapshot.secondaryLastBarTimes)) {
@@ -337,16 +453,109 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         return drained;
     }
 
-    /** {@link step} on the main sandbox: a budget or memory failure fails the runner. */
-    async function mainStep(event: CandleEvent): Promise<RunnerEmissions> {
+    /**
+     * {@link step} on the main sandbox: a budget or memory failure fails the
+     * runner. `feeds`, when given, replaces the external-series map first.
+     */
+    async function mainStep(
+        event: CandleEvent,
+        feeds?: ExternalSeriesFeedMap,
+    ): Promise<RunnerEmissions> {
         try {
+            if (feeds !== undefined) main.host.setExternalSeries(feeds);
             const drained = await step(main, event);
-            journal?.push(event);
+            journal?.push(feeds === undefined ? { event } : { event, feeds });
             return drained;
         } catch (err) {
             if (err instanceof AlertRunnerError) throw fail(err);
+            // An unexpected host error leaves it unknown whether the event
+            // folded. A runner without external series survives (1.0); one
+            // that feeds them cannot: `nextBarIndex` would lag the runtime's
+            // bar index and every later window would read `NaN`, silently.
+            if (feedNames.size > 0) {
+                fail(
+                    new AlertRunnerError(
+                        "runner-failed",
+                        `external-series alignment lost: ${errorMessage(err)}`,
+                        { cause: err },
+                    ),
+                );
+            }
             throw err;
         }
+    }
+
+    function assertFedKeys(given: Readonly<Record<string, unknown>>, what: string): void {
+        for (const key of Object.keys(given)) {
+            if (!feedNames.has(key)) {
+                throw new AlertRunnerError(
+                    "invalid-argument",
+                    `${what}: ${JSON.stringify(key)} is not one of the runner's externalSeries names`,
+                );
+            }
+        }
+    }
+
+    /**
+     * The one-bar external-series window for the bar at `nextBarIndex`, or
+     * `undefined` when the runner feeds none. O(1) per bar: the runtime reads
+     * by absolute bar index through `offset`, so history is never re-sent.
+     */
+    function barFeeds(
+        closeOpts: BarCloseOpts | undefined,
+        what: string,
+    ): ExternalSeriesFeedMap | undefined {
+        const given = closeOpts?.externalSeries ?? {};
+        if (!isRecord(given)) {
+            throw new AlertRunnerError(
+                "invalid-argument",
+                `${what}: externalSeries must be an object`,
+            );
+        }
+        assertFedKeys(given, what);
+        if (feedNames.size === 0) return undefined;
+        const feeds: Record<string, ExternalSeriesFeedMap[string]> = {};
+        for (const [key, name] of feedNames) {
+            feeds[name] = { values: [finiteOrNaN(given[key])], offset: nextBarIndex };
+        }
+        return feeds;
+    }
+
+    /** The warm-up window: one array per fed input, aligned to `bars`. */
+    function warmUpFeeds(
+        warmOpts: WarmUpOpts | undefined,
+        barCount: number,
+    ): ExternalSeriesFeedMap | undefined {
+        const given = warmOpts?.externalSeries ?? {};
+        if (!isRecord(given)) {
+            throw new AlertRunnerError(
+                "invalid-argument",
+                "warmUp: externalSeries must be an object",
+            );
+        }
+        assertFedKeys(given, "warmUp");
+        // A chain warms every runner on the SAME bars, sized to the longest
+        // `requiredHistory()` of the chain, so a consumer's own (smaller)
+        // lookback must not refuse them: the cap is the default ring floor.
+        const cap = Math.max(DEFAULT_ALERT_RUNNER_MAX_LOOKBACK, capabilities.maxLookback);
+        const feeds: Record<string, ExternalSeriesFeedMap[string]> = {};
+        for (const [key, name] of feedNames) {
+            const values = given[key] ?? [];
+            if (!Array.isArray(values)) {
+                throw new AlertRunnerError(
+                    "invalid-argument",
+                    `warmUp: externalSeries ${JSON.stringify(key)} must be an array`,
+                );
+            }
+            if (values.length > barCount || values.length > cap) {
+                throw new AlertRunnerError(
+                    "invalid-argument",
+                    `warmUp: externalSeries ${JSON.stringify(key)} has ${values.length} values for ${barCount} bars (lookback ${cap})`,
+                );
+            }
+            feeds[name] = { values: values.map(finiteOrNaN), offset: nextBarIndex };
+        }
+        return feedNames.size === 0 ? undefined : feeds;
     }
 
     function assertSecondary(name: string): void {
@@ -368,7 +577,11 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         return result;
     }
 
-    async function warmUp(bars: ReadonlyArray<AlertBar>, warmOpts?: WarmUpOpts): Promise<void> {
+    async function warmUp(
+        bars: ReadonlyArray<AlertBar>,
+        warmOpts: WarmUpOpts | undefined,
+        onMainChunk?: (shift: number, drained: RunnerEmissions) => void,
+    ): Promise<void> {
         assertUsable();
         if (snapshotStatus === "restored" || folded) {
             throw new AlertRunnerError(
@@ -377,6 +590,8 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
             );
         }
         assertAscending(bars, "warmUp");
+        // Sent once, with the first main chunk: the whole warm-up window.
+        let feeds = warmUpFeeds(warmOpts, bars.length);
         const secondary = Object.entries(warmOpts?.secondary ?? {});
         for (const [name, secondaryBars] of secondary) {
             assertSecondary(name);
@@ -396,25 +611,46 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
                 secondaryLastBarTimes.set(name, (chunk[chunk.length - 1] as AlertBar).time);
             }
         }
+        let position = 0;
         for (const chunk of chunks(bars, chunkSize)) {
-            await mainStep({
-                kind: "history",
-                bars: chunk.map((b) => toRuntimeBar(b, symbol, interval)),
-            });
+            const drained = await mainStep(
+                {
+                    kind: "history",
+                    bars: chunk.map((b) => toRuntimeBar(b, symbol, interval)),
+                },
+                feeds,
+            );
+            feeds = undefined;
+            onMainChunk?.(position - drained.fromBar, drained);
+            position += chunk.length;
+            nextBarIndex += chunk.length;
             folded = true;
             lastBarTime = (chunk[chunk.length - 1] as AlertBar).time;
         }
     }
 
-    async function onBarClose(bar: AlertBar): Promise<ReadonlyArray<AlertRunnerEvent>> {
+    async function onBarClose(
+        bar: AlertBar,
+        closeOpts: BarCloseOpts | undefined,
+    ): Promise<(RunnerStepResult & { events: ReadonlyArray<AlertRunnerEvent> }) | null> {
         assertUsable();
         assertAlertBar(bar, "onBarClose");
-        // The watermark makes a replayed gap idempotent.
-        if (lastBarTime !== null && bar.time <= lastBarTime) return [];
-        const drained = await mainStep({ kind: "close", bar: toRuntimeBar(bar, symbol, interval) });
+        const feeds = barFeeds(closeOpts, "onBarClose");
+        // The watermark makes a replayed gap idempotent; a skipped bar
+        // appends no external value either.
+        if (lastBarTime !== null && bar.time <= lastBarTime) return null;
+        const drained = await mainStep(
+            { kind: "close", bar: toRuntimeBar(bar, symbol, interval) },
+            feeds,
+        );
+        nextBarIndex += 1;
         lastBarTime = bar.time;
         folded = true;
-        return gate.evaluate(projectEvents(drained, "close", 0, frequency), "close").delivered;
+        const events = gate.evaluate(
+            projectEvents(drained, "close", 0, frequency),
+            "close",
+        ).delivered;
+        return { drained, events };
     }
 
     async function onSecondaryBarClose(name: string, bar: AlertBar): Promise<void> {
@@ -449,7 +685,10 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         try {
             if (saved !== null) await scratch.host.importSnapshot(saved);
             // Replayed bars were reported when they were folded in.
-            for (const event of journal ?? []) await step(scratch, event, true);
+            for (const entry of journal ?? []) {
+                if (entry.feeds !== undefined) scratch.host.setExternalSeries(entry.feeds);
+                await step(scratch, entry.event, true);
+            }
         } catch (err) {
             scratch.host.dispose();
             throw err instanceof AlertRunnerError
@@ -465,9 +704,14 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         return scratch;
     }
 
-    async function onPreClose(bar: AlertBar, offsetMs: number): Promise<PreCloseResult> {
+    async function onPreClose(
+        bar: AlertBar,
+        offsetMs: number,
+        closeOpts: BarCloseOpts | undefined,
+    ): Promise<RunnerStepResult & { result: PreCloseResult }> {
         assertUsable();
         assertAlertBar(bar, "onPreClose");
+        const feeds = barFeeds(closeOpts, "onPreClose");
         if (!Number.isFinite(offsetMs) || offsetMs < 0) {
             throw new AlertRunnerError(
                 "invalid-argument",
@@ -486,6 +730,7 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         const scratch = await scratchCopy();
         let drained: RunnerEmissions;
         try {
+            if (feeds !== undefined) scratch.host.setExternalSeries(feeds);
             drained = await step(scratch, {
                 kind: "close",
                 bar: toRuntimeBar(bar, symbol, interval),
@@ -496,11 +741,14 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         const candidates = projectEvents(drained, "preClose", offsetMs, frequency);
         const verdict = gate.evaluate(candidates, "preClose");
         return {
-            events: verdict.delivered,
-            suppressed: verdict.suppressed,
-            bar: projectBar(bar),
-            offsetMs,
-            emissionCount: candidates.length,
+            drained,
+            result: {
+                events: verdict.delivered,
+                suppressed: verdict.suppressed,
+                bar: projectBar(bar),
+                offsetMs,
+                emissionCount: candidates.length,
+            },
         };
     }
 
@@ -526,7 +774,7 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         };
     }
 
-    return Object.freeze<AlertRunner>({
+    const shared: RunnerCore["shared"] = {
         get snapshotStatus(): SnapshotStatus {
             return snapshotStatus;
         },
@@ -543,15 +791,20 @@ export async function createAlertRunner(opts: CreateAlertRunnerOpts): Promise<Al
         },
         requiredHistory: () => requiredHistory,
         needsWarmUp: () => snapshotStatus !== "restored" && !folded,
-        warmUp: (bars, warmOpts) => serialized(() => warmUp(bars, warmOpts)),
-        onBarClose: (bar) => serialized(() => onBarClose(bar)),
         onSecondaryBarClose: (name, bar) => serialized(() => onSecondaryBarClose(name, bar)),
-        onPreClose: (bar, offsetMs) => serialized(() => onPreClose(bar, offsetMs)),
         exportSnapshot: () => serialized(() => exportSnapshot()),
         dispose(): void {
             if (disposed) return;
             disposed = true;
             main.host.dispose();
         },
-    });
+    };
+    return {
+        shared,
+        warmUp: (bars, warmOpts, onMainChunk) =>
+            serialized(() => warmUp(bars, warmOpts, onMainChunk)),
+        onBarClose: (bar, closeOpts) => serialized(() => onBarClose(bar, closeOpts)),
+        onPreClose: (bar, offsetMs, closeOpts) =>
+            serialized(() => onPreClose(bar, offsetMs, closeOpts)),
+    };
 }

@@ -58,6 +58,16 @@ describe("snapshotFidelityOf", () => {
     );
 
     it(
+        "is lossy whenever the runner feeds external series",
+        async () => {
+            const exact = await compiled(UP_BAR_ALERT);
+            expect(snapshotFidelityOf(exact, { externalSeries: false })).toBe("exact");
+            expect(snapshotFidelityOf(exact, { externalSeries: true })).toBe("lossy");
+        },
+        COMPILE_TIMEOUT,
+    );
+
+    it(
         "is lossy for any other slot-bearing primitive",
         async () => {
             expect(snapshotFidelityOf(await compiled(CROSS))).toBe("lossy");

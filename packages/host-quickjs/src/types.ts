@@ -103,6 +103,24 @@ export type QuickJsContextLike = {
     unwrapResult(result: unknown): QuickJsHandleLike;
     getString(handle: QuickJsHandleLike): string;
     resolvePromise(handle: QuickJsHandleLike): Promise<unknown>;
+    /**
+     * The synchronous state of a guest promise. OPTIONAL so minimal
+     * implementations stay valid; real `quickjs-emscripten` contexts (0.29+)
+     * provide it, and the host then reads each reply from it after pumping the
+     * job queue instead of calling `resolvePromise`. `resolvePromise` allocates
+     * two host functions per call, and a context's host-function ids are
+     * 16-bit: after 32,768 replies the next one never settles (a silent stall)
+     * and every allocation leaks. A `notAPromise` value is the passed handle
+     * itself, owned by the caller.
+     *
+     * @since 1.9
+     */
+    getPromiseState?(
+        handle: QuickJsHandleLike,
+    ):
+        | Readonly<{ type: "fulfilled"; value: QuickJsHandleLike; notAPromise?: boolean }>
+        | Readonly<{ type: "rejected"; error: QuickJsHandleLike }>
+        | Readonly<{ type: "pending" }>;
     dispose(): void;
 };
 

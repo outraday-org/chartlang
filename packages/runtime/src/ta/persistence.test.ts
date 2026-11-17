@@ -90,6 +90,10 @@ describe("ta persistence", () => {
             { kind: "ta.sma", length: 3, sum: 0, outBuffer: {}, window: {} },
             { kind: "ta.ema", length: 3 },
             { kind: "ta.ema", alpha: 0.5 },
+            // Non-canonical configurations: a fractional length, and a
+            // non-positive one whose alpha is not NaN.
+            { kind: "ta.ema", alpha: 0.5, length: 2.5 },
+            { kind: "ta.ema", alpha: 0.5, length: 0 },
             {
                 kind: "ta.ema",
                 alpha: 0.5,
