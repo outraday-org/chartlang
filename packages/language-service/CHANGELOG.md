@@ -1,5 +1,15 @@
 # @invinite-org/chartlang-language-service
 
+## 1.6.7
+
+### Patch Changes
+
+- 929ce60: Regenerate the hover registry: the `ExternalSeriesFeed` hover shows the new
+  `offset` window example.
+- Updated dependencies [929ce60]
+  - @invinite-org/chartlang-core@1.15.0
+  - @invinite-org/chartlang-compiler@1.16.1
+
 ## 1.6.6
 
 ### Patch Changes
