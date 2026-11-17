@@ -1,5 +1,34 @@
 # @invinite-org/chartlang-host-quickjs
 
+## 1.9.0
+
+### Minor Changes
+
+- 929ce60: External-series feeds can be windows. `ExternalSeriesFeed` gains an optional
+  `offset` — the absolute primary bar index of `values[0]` (default `0`) — and
+  the runtime reads bar `i` from `values[i - offset]`; a bar outside the window
+  reads `NaN`, and a feed whose `offset` is not a non-negative safe integer is
+  dropped. A host that advances bar by bar sends `{ values: [v], offset: i }`
+  through the existing `setExternalSeries` before bar `i` instead of re-sending
+  the whole history, so a long-lived runner costs O(1) per bar. External-series
+  rings are now also sized to the manifest's `maxLookback + 1` /
+  `dynamicFallback`, so a `bound[n]` read stays deep when a window feed carries
+  no length. Feeds without `offset` behave exactly as before. The QuickJS
+  dispatcher bundle inlines the new runtime; no protocol change.
+
+### Patch Changes
+
+- 929ce60: Fix a silent stall: a host read each `load` / `push` reply
+  through quickjs-emscripten's `resolvePromise`, which spends two 16-bit
+  host-function ids per call, so the 32,769th reply on one host never settled
+  (and every call leaked). The host now pumps the job queue and reads the
+  settled state with `getPromiseState` (`QuickJsContextLike.getPromiseState`,
+  optional; `resolvePromise` stays the fallback). A long-lived host — an alert
+  runner past ~32,000 bars — keeps going.
+- Updated dependencies [929ce60]
+  - @invinite-org/chartlang-core@1.15.0
+  - @invinite-org/chartlang-runtime@1.15.0
+
 ## 1.8.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
     "name": "@invinite-org/chartlang-alert-runner",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "type": "module",
     "license": "MIT",
     "description": "Headless alert evaluator for compiled chartlang scripts (QuickJS, snapshots, frequencies)",
