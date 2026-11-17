@@ -109,4 +109,39 @@ describe("validateAlertInputs", () => {
             'input "feed" is an external series, which the alert runner cannot feed',
         ]);
     });
+
+    it("accepts the external-series inputs the caller feeds, by entry key", () => {
+        const manifest = {
+            ...MANIFEST,
+            inputs: {
+                ...MANIFEST.inputs,
+                fed: {
+                    kind: "external-series",
+                    name: "feed-a",
+                    schema: { kind: "external-series-schema" },
+                },
+                other: {
+                    kind: "external-series",
+                    name: "feed-b",
+                    schema: { kind: "external-series-schema" },
+                },
+            },
+        } as unknown as ScriptManifest;
+        expect(
+            validateAlertInputs(manifest, { len: 4 }, { externalSeries: ["fed", "other"] }),
+        ).toEqual([]);
+        // The descriptor name is not the key space; an unlisted one keeps the 1.0 text.
+        expect(
+            validateAlertInputs(manifest, {}, { externalSeries: ["feed-a", "fed", "len"] }),
+        ).toEqual([
+            'external series "feed-a" is not an external-series input of the script',
+            'external series "len" is not an external-series input of the script',
+            'input "other" is an external series, which the alert runner cannot feed',
+        ]);
+        expect(
+            validateAlertInputs(manifest, { fed: [1] }, { externalSeries: ["fed", "other"] }),
+        ).toEqual([
+            'input "fed" is an external series; its values are fed per bar, not as an input',
+        ]);
+    });
 });

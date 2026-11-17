@@ -508,6 +508,117 @@ describe("createScriptRunner", () => {
         expect(seen[29]).toBe(209);
     });
 
+    it("reads offset feed windows by absolute bar index (one value per bar, O(1))", async () => {
+        const seen: ReadonlyArray<number>[] = [];
+        const compiled = withLookback(
+            defineIndicator({
+                name: "demo",
+                apiVersion: 1,
+                inputs: {
+                    entry: input.externalSeries({
+                        name: "feed",
+                        schema: { kind: "external-series-schema" },
+                    }),
+                },
+                compute: ({ inputs }) => {
+                    const s = externalSeriesInput(inputs.entry);
+                    seen.push([s.current, s[1], s[3]]);
+                },
+            }),
+            3,
+        );
+        const runner = createScriptRunner({
+            compiled,
+            capabilities: makeCapabilities(),
+            externalSeriesFeeds: { feed: { values: [10, 11] } },
+        });
+        await runner.onHistory([makeBar(0), makeBar(1)]);
+        // Live bars: a one-value window per bar, never the history again.
+        for (let i = 2; i < 5; i += 1) {
+            runner.setExternalSeries({ feed: { values: [10 + i], offset: i } });
+            await runner.onBarClose(makeBar(i));
+        }
+        // A window that does not cover the bar reads NaN.
+        runner.setExternalSeries({ feed: { values: [99], offset: 9 } });
+        await runner.onBarClose(makeBar(5));
+
+        expect(seen).toEqual([
+            [10, Number.NaN, Number.NaN],
+            [11, 10, Number.NaN],
+            [12, 11, Number.NaN],
+            [13, 12, 10],
+            [14, 13, 11],
+            [Number.NaN, 14, 12],
+        ]);
+        await runner.dispose();
+    });
+
+    it("drops a feed whose offset is not a non-negative safe integer", async () => {
+        const seen: number[] = [];
+        const compiled = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                feed: input.externalSeries({
+                    name: "feed",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.feed).current);
+            },
+        });
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        for (const offset of [-1, 0.5, Number.NaN, "0"]) {
+            runner.setExternalSeries({
+                feed: { values: [1, 1, 1, 1], offset: offset as number },
+            });
+            await runner.onBarClose(makeBar(seen.length));
+        }
+        runner.setExternalSeries({ feed: { values: [7], offset: 4 } });
+        await runner.onBarClose(makeBar(4));
+
+        expect(seen.slice(0, 4).every(Number.isNaN)).toBe(true);
+        expect(seen[4]).toBe(7);
+        await runner.dispose();
+    });
+
+    it("sizes external slots to the manifest lookback when no feed length is known", async () => {
+        const seen: number[] = [];
+        const base = defineIndicator({
+            name: "demo",
+            apiVersion: 1,
+            inputs: {
+                bound: input.externalSeries({
+                    name: "bound",
+                    schema: { kind: "external-series-schema" },
+                }),
+            },
+            compute: ({ inputs }) => {
+                seen.push(externalSeriesInput(inputs.bound)[20]);
+            },
+        });
+        // OHLCV capacity 1, but the compiler folded `bound[20]` into maxLookback.
+        const compiled: CompiledScriptObject = {
+            ...base,
+            manifest: {
+                ...base.manifest,
+                maxLookback: 20,
+                seriesCapacities: Object.freeze({ ohlcv: 1 }),
+            },
+        };
+        const runner = createScriptRunner({ compiled, capabilities: makeCapabilities() });
+        for (let i = 0; i < 30; i += 1) {
+            runner.setExternalSeries({ bound: { values: [100 + i], offset: i } });
+            await runner.onBarClose(makeBar(i));
+        }
+
+        expect(seen[19]).toBeNaN();
+        expect(seen[20]).toBe(100);
+        expect(seen[29]).toBe(109);
+        await runner.dispose();
+    });
+
     it("emits input diagnostics once per mount key and keeps defaults", async () => {
         const seen: ReadonlyArray<unknown>[] = [];
         const compiled = defineIndicator({

@@ -195,11 +195,18 @@
   before compute, tick replaces the head at the same cursor, and missing,
   short, or non-finite values write `NaN`. `setExternalSeries(feeds)` atomically
   replaces the whole feed map for subsequent computes and never merges partial
-  keys. Each external ring is sized to `max(OHLCV-derived capacity, feed
-  length)` — the shared `capacity` is OHLCV-only, so a consumer that touches
-  OHLCV solely through the feed collapses it to 1 and would starve `bound[n]`
-  reads; the reseed rebuild sizes from the LIVE feed so it never reintroduces
-  capacity 1. Feed validation is SHAPE-ONLY and per-entry tolerant on EVERY
+  keys. A feed's optional `offset` (1.15) is the absolute bar index of
+  `values[0]`: bar `i` reads `values[i - offset]`, so a host can send a
+  one-value window per bar (O(1)) — the alert runner does; an offset that is
+  not a non-negative safe integer drops that one feed. Each external ring is
+  sized to `max(OHLCV-derived capacity, maxLookback + 1, dynamicFallback,
+  feed length)` — the shared `capacity` is OHLCV-only, so a consumer that
+  touches OHLCV solely through the feed collapses it to 1 and would starve
+  `bound[n]` reads; the compiler folds `bound[n]` into `maxLookback` /
+  `dynamicFallback`, which is the only sizing source when a window feed
+  carries no length; the reseed rebuild sizes from the LIVE feed so it never
+  reintroduces capacity 1 (a re-seed reads a window feed's earlier bars as
+  `NaN` — window feeds are for hosts that never re-seed). Feed validation is SHAPE-ONLY and per-entry tolerant on EVERY
   entry path: `isExternalSeriesFeed` / `isExternalSeriesFeedMap` accept any
   `{ values: unknown[] }` shape (entries are never type-checked), and
   `replaceExternalSeriesFeedMap` — the single tolerance authority behind

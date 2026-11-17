@@ -2871,7 +2871,7 @@ export const HOVER_REGISTRY: Readonly<Record<string, HoverRegistryEntry>> = Obje
         "title": "ExternalSeriesFeed",
         "summary": "Host-supplied numeric values for one `input.externalSeries(...)` descriptor.\nValues are aligned by index to the primary chart bar stream; missing, short,\nor non-finite runtime values read as `NaN`.",
         "examples": [
-            "const feed: ExternalSeriesFeed = { values: [1, 2, 3] };\nvoid feed;"
+            "const feed: ExternalSeriesFeed = { values: [1, 2, 3] };\nconst window: ExternalSeriesFeed = { values: [4], offset: 3 };\nvoid feed;\nvoid window;"
         ],
         "since": "1.9",
         "stability": "stable"

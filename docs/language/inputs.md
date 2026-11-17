@@ -123,7 +123,9 @@ change should react on the next remount.
 `input.externalSeries` is the exception to the scalar rule. Its resolved
 value is an indexable numeric `Series<number>` whose backing feed can be
 replaced live by the host with `setExternalSeries(feeds)`. The
-replacement is whole-map, not a partial merge.
+replacement is whole-map, not a partial merge. A feed may be a window
+(`{ values, offset }`, `values[0]` = bar `offset`) so a host can send one
+value per bar instead of the whole history.
 
 Inputs tune `compute` and are frozen at mount. For presentation-only
 recolor / show-hide of individual plots from the embedder — without

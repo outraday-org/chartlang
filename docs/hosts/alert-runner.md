@@ -44,15 +44,17 @@ runner.dispose();
 | `createAlertRunner(opts)` | Validates the options and the inputs, mints the snapshot key, loads the script into a fresh QuickJS host and restores `opts.snapshot` when it matches. |
 | `requiredHistory()` | Bars of history to warm up with (see [Warm-up](#warm-up)). |
 | `needsWarmUp()` | `true` when nothing was restored and no bar has been folded in. |
-| `warmUp(bars, { secondary })` | Folds closed history in without delivering. Only before the first bar and never after a restore. |
-| `onBarClose(bar)` | Folds one closed bar in and returns the delivered `AlertRunnerEvent[]`. A bar at or before `lastBarTime` is ignored. |
+| `warmUp(bars, { secondary, externalSeries })` | Folds closed history in without delivering. Only before the first bar and never after a restore. |
+| `onBarClose(bar, { externalSeries })` | Folds one closed bar in and returns the delivered `AlertRunnerEvent[]`. A bar at or before `lastBarTime` is ignored. |
 | `onSecondaryBarClose(interval, bar)` | Folds one closed bar of a `request.security` interval in. Push it before the main bar that follows it. |
-| `onPreClose(bar, offsetMs)` | Evaluates the still-forming bar `offsetMs` before its close and rolls the state back (see [Pre-close](#pre-close)). |
+| `onPreClose(bar, offsetMs, { externalSeries })` | Evaluates the still-forming bar `offsetMs` before its close and rolls the state back (see [Pre-close](#pre-close)). |
 | `exportSnapshot()` | The JSON document to store, or `null` for an unkeyed or lossy runner. |
 | `dispose()` | Frees the QuickJS runtime. Always works, also on a failed runner. |
 | `lastBarTime`, `lastSecondaryBarTime(i)`, `exhausted`, `snapshotStatus`, `snapshotFidelity`, `key` | Read-only state. |
 
-Calls are serialized internally, so concurrent calls run one after another.
+`createSeriesRunner(opts)` builds the same runner in producer mode (see
+[Script chains](#script-chains)). Calls are serialized internally, so
+concurrent calls run one after another.
 Bars are plain `{ time, open, high, low, close, volume, closeTime? }`; the
 runner derives `hl2` / `hlc3` / `ohlc4` / `hlcc4`, `symbol` and `interval`.
 
@@ -125,7 +127,79 @@ bar arrives later as usual; a budget abort on the forming bar throws
 events, the held-back emissions with their reasons, the evaluated bar,
 `offsetMs` and the emission count. A bar at or before `lastBarTime` throws
 `stale-bar`. Each pre-close costs one script load (plus the replay for a lossy
-script).
+script). External-series values for the forming bar go in the third argument
+and reach only the copy; a lossy replay re-sends each folded bar's own
+values with it.
+
+## External series
+
+A script that declares `input.externalSeries(...)` reads a numeric series the
+host supplies: another script's plot, an indicator, a bar field. The runner
+feeds the inputs listed in `externalSeries.names` — manifest input **entry
+keys** (the key space of `inputs`), not the descriptor `name`; the runner
+translates to the descriptor name the runtime feeds by. Every other
+external-series input is still refused (`"invalid-inputs"`), and so is a
+listed key that is not an external-series input, a value for one in `inputs`,
+or two listed keys whose descriptors share one `name`.
+
+```ts no-gate
+const runner = await createAlertRunner({ ...opts, externalSeries: { names: ["signal"] } });
+await runner.warmUp(history, { externalSeries: { signal: signalHistory } });
+for (const bar of closedBars) {
+    await runner.onBarClose(bar, { externalSeries: { signal: valueFor(bar) } });
+}
+```
+
+Alignment is by bar: the runtime reads the value at the bar's absolute index.
+
+- `warmUp`: one array per key, index `i` = warm-up bar `i`. A shorter array
+  leaves a `NaN` tail; an array longer than the bars or than the runner's
+  lookback (`capabilities.maxLookback`, default 5,000) throws
+  `"invalid-argument"`.
+- `onBarClose`: exactly one value per listed key for that bar; a missing key
+  or a non-finite value is `NaN`. A bar the watermark skips (at or before
+  `lastBarTime`) appends nothing, so a replayed bar never shifts the series.
+- `onPreClose`: the forming bar's values, fed to the throwaway copy only.
+- An unknown key throws `"invalid-argument"`.
+
+The runner never re-sends history: after the warm-up array it sends one value
+per bar as a window `{ values: [v], offset: barIndex }` (the runtime's
+[offset feed](./writing-a-host.md#external-series-feeds)), so a bar close
+costs the same on bar 100,000 as on bar 1 (measured: flat µs per bar over
+5,000 warm-up + 100,000 live bars; re-sending the whole array instead costs
+O(history) per bar). A runner that feeds external series is always `"lossy"`
+(see [Snapshot fidelity](#snapshot-fidelity)).
+
+## Script chains
+
+`createSeriesRunner({ ...opts, plotSlots })` is a producer: the same runner
+(sandbox, limits, snapshot and failure rules, `onSecondaryBarClose`, and its
+own `externalSeries` for nested chains) that also returns the values of the
+selected plot slots. `plotSlots` are `manifest.plots[].slotId` values; an
+empty list, a duplicate or an unknown id throws `"invalid-argument"`. A
+producer needs no alert; `frequency` defaults to `"every_time"`.
+
+| Member | Returns |
+| --- | --- |
+| `warmUp(bars, opts)` | `{ plots: { [slotId]: number[] } }`, one value per main warm-up bar. |
+| `onBarClose(bar, opts)` | `{ folded, events, plots: { [slotId]: number } }`; `folded: false` (all `NaN`) for a bar the watermark skipped. |
+| `onPreClose(bar, offsetMs, opts)` | The pre-close result plus `plots` for the forming bar. |
+
+A slot's value for a bar is its first plot emission of that bar; `NaN` when
+it emitted nothing, `null` or a non-finite value. Run a chain on one symbol,
+interval and bar sequence, producers first, in order, every bar:
+
+```ts no-gate
+const { plots } = await producer.warmUp(history);
+await consumer.warmUp(history, { externalSeries: { signal: plots[slotId] } });
+for (const bar of closedBars) {
+    const p = await producer.onBarClose(bar);
+    const events = await consumer.onBarClose(bar, { externalSeries: { signal: p.plots[slotId] } });
+}
+```
+
+This equals the same pair on the plain QuickJS host with the whole feed array
+re-sent before every bar (golden test in `series.test.ts`).
 
 ## Snapshot storage contract
 
@@ -170,6 +244,13 @@ classifies a script from its compiled callsites (conservatively) and
   the runner's journal of folded bars (memory and replay time grow with the
   bars the runner has seen).
 
+A runner that feeds external series is always `"lossy"`
+(`snapshotFidelityOf(compiled, { externalSeries: true })`): the
+external-series rings are not part of the runtime snapshot, so a restore would
+read `NaN` history. Rebuild such a runner by warm-up, feeding the producers'
+warm-up arrays again. A producer without external series keeps its own
+fidelity, so it can restore from a snapshot.
+
 ## Limits
 
 | Field | Default | Meaning |
@@ -193,7 +274,10 @@ one that escapes the runtime fails the runner with `"out-of-memory"`.
 `inputs` are checked against `manifest.inputs` strictly (`validateAlertInputs`):
 unknown keys, wrong kinds, numbers outside `min` / `max` and enum values
 outside `options` throw `"invalid-inputs"` with the list in `details`.
-`external-series` inputs are refused — the runner has no feed for them.
+`external-series` inputs are refused unless listed in `externalSeries.names`
+(see [External series](#external-series));
+`validateAlertInputs(manifest, inputs, { externalSeries: names })` applies the
+same rule without a runner.
 
 The default capability bag (`alertRunnerCapabilities`) declares every alert
 channel, alert conditions, every plot kind and input kind, all `symInfo`

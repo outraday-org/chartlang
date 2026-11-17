@@ -484,9 +484,14 @@ function buildPrimaryState(
     // feeds a re-seed hands in (post-`setExternalSeries`), so a re-seed that
     // rebuilds through here never reintroduces capacity 1 when the live feed is
     // longer than the load-time one. The OHLCV / main-stream capacity is left
-    // untouched.
+    // untouched. A host that sends one-value windows (`offset`, @since 1.15)
+    // gives no length to size from, so the manifest's own lookback — the
+    // compiler folds `bound[n]` reads into `maxLookback` / `dynamicFallback` —
+    // is a sizing source too.
     const externalSeriesCapacity = Math.max(
         capacity,
+        primary.manifest.maxLookback + 1,
+        primary.manifest.seriesCapacities.dynamicFallback ?? 0,
         maxExternalFeedLength(externalSeriesFeeds),
         sizingExternalSeriesFeeds === undefined
             ? 0

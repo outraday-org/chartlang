@@ -346,21 +346,68 @@ export type CreateAlertRunnerOpts = Readonly<{
     capabilities?: Capabilities;
     /** Receives every non-fatal diagnostic. */
     onDiagnostic?: (diagnostic: AlertRunnerDiagnostic) => void;
+    /**
+     * The `input.externalSeries` inputs the caller feeds, by manifest input
+     * entry key (@since 1.1). Every other external-series input is refused.
+     */
+    externalSeries?: ExternalSeriesOpts;
+}>;
+
+/**
+ * Which `input.externalSeries` inputs a runner feeds. `names` are manifest
+ * input ENTRY keys (the key space of `inputs`), not descriptor names; the
+ * runner translates to the descriptor `name` the runtime feeds by. A runner
+ * that feeds external series is `"lossy"` (see `snapshotFidelityOf`).
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { ExternalSeriesOpts } from "@invinite-org/chartlang-alert-runner";
+ *     const externalSeries: ExternalSeriesOpts = { names: ["signal"] };
+ *     void externalSeries;
+ */
+export type ExternalSeriesOpts = Readonly<{
+    names: ReadonlyArray<string>;
+}>;
+
+/**
+ * Per-bar options of `onBarClose` / `onPreClose`: one value per listed
+ * external-series input (manifest entry key) for this bar. A missing key or
+ * a non-finite value reads `NaN`; an unlisted key throws
+ * `"invalid-argument"`.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { BarCloseOpts } from "@invinite-org/chartlang-alert-runner";
+ *     const opts: BarCloseOpts = { externalSeries: { signal: 101.5 } };
+ *     void opts;
+ */
+export type BarCloseOpts = Readonly<{
+    externalSeries?: Readonly<Record<string, number>>;
 }>;
 
 /**
  * Secondary-interval bars for `warmUp`, keyed by interval (`"1D"`). Only the
  * script's `manifest.requestedIntervals` are accepted.
  *
+ * `externalSeries` (@since 1.1) carries one array per listed external-series
+ * input (manifest entry key), aligned to the warm-up bars: index `i` is bar
+ * `i`, a shorter array leaves a `NaN` tail, a non-finite value reads `NaN`.
+ * An array longer than the bars, or than the runner's lookback
+ * (`capabilities.maxLookback`, default `DEFAULT_ALERT_RUNNER_MAX_LOOKBACK`),
+ * throws `"invalid-argument"`.
+ *
  * @since 1.0
  * @stable
  * @example
  *     import type { WarmUpOpts } from "@invinite-org/chartlang-alert-runner";
- *     const opts: WarmUpOpts = { secondary: { "1D": [] } };
+ *     const opts: WarmUpOpts = { secondary: { "1D": [] }, externalSeries: { signal: [1, 2] } };
  *     void opts;
  */
 export type WarmUpOpts = Readonly<{
     secondary?: Readonly<Record<string, ReadonlyArray<AlertBar>>>;
+    externalSeries?: Readonly<Record<string, ReadonlyArray<number>>>;
 }>;
 
 /**
@@ -399,12 +446,126 @@ export type AlertRunner = Readonly<{
     /** Fold closed history bars in without delivering. Only before the first bar. */
     warmUp(bars: ReadonlyArray<AlertBar>, opts?: WarmUpOpts): Promise<void>;
     /** Fold one closed bar in; returns the events the frequency lets through. */
-    onBarClose(bar: AlertBar): Promise<ReadonlyArray<AlertRunnerEvent>>;
+    onBarClose(bar: AlertBar, opts?: BarCloseOpts): Promise<ReadonlyArray<AlertRunnerEvent>>;
     /** Fold one closed bar of a secondary interval in (before the main bar it precedes). */
     onSecondaryBarClose(interval: string, bar: AlertBar): Promise<void>;
     /** Evaluate the still-forming bar `offsetMs` before its close, on a copy of the state. */
-    onPreClose(bar: AlertBar, offsetMs: number): Promise<PreCloseResult>;
+    onPreClose(bar: AlertBar, offsetMs: number, opts?: BarCloseOpts): Promise<PreCloseResult>;
     /** The state to store, or `null` when the runner is unkeyed or lossy. */
     exportSnapshot(): Promise<AlertRunnerSnapshot | null>;
     dispose(): void;
 }>;
+
+/**
+ * Options for `createSeriesRunner`: the alert runner's options plus the plot
+ * slots to hand back. `plotSlots` are `ScriptManifest.plots[].slotId` values;
+ * an unknown, duplicate or empty list throws `"invalid-argument"`.
+ * `frequency` gates the events a producer also returns (default
+ * `"every_time"`).
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { CreateSeriesRunnerOpts } from "@invinite-org/chartlang-alert-runner";
+ *     declare const compiled: CreateSeriesRunnerOpts["compiled"];
+ *     const opts: CreateSeriesRunnerOpts = {
+ *         compiled,
+ *         interval: "1h",
+ *         plotSlots: ["producer.chart.ts:9:9#0"],
+ *     };
+ *     void opts;
+ */
+export type CreateSeriesRunnerOpts = Omit<CreateAlertRunnerOpts, "frequency"> &
+    Readonly<{
+        plotSlots: ReadonlyArray<string>;
+        frequency?: AlertFrequency;
+    }>;
+
+/**
+ * One value per selected plot slot for one bar: the slot's first plot
+ * emission of that bar, `NaN` when it emitted nothing, `null` or a
+ * non-finite value.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SeriesPlotValues } from "@invinite-org/chartlang-alert-runner";
+ *     const values: SeriesPlotValues = { "p.chart.ts:9:9#0": 101.2 };
+ *     void values;
+ */
+export type SeriesPlotValues = Readonly<Record<string, number>>;
+
+/**
+ * Result of a series runner's `warmUp`: per selected slot, one value per
+ * main warm-up bar (index `i` = bar `i`), `NaN` where the slot had no value.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SeriesWarmUpResult } from "@invinite-org/chartlang-alert-runner";
+ *     declare const result: SeriesWarmUpResult;
+ *     void result.plots;
+ */
+export type SeriesWarmUpResult = Readonly<{
+    plots: Readonly<Record<string, ReadonlyArray<number>>>;
+}>;
+
+/**
+ * Result of a series runner's `onBarClose`. `folded: false` means the bar was
+ * at or before `lastBarTime` and was ignored: `events` is empty and every
+ * plot value is `NaN` (a consumer on the same bars skips that bar too).
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SeriesBarCloseResult } from "@invinite-org/chartlang-alert-runner";
+ *     declare const result: SeriesBarCloseResult;
+ *     void result.plots;
+ */
+export type SeriesBarCloseResult = Readonly<{
+    folded: boolean;
+    events: ReadonlyArray<AlertRunnerEvent>;
+    plots: SeriesPlotValues;
+}>;
+
+/**
+ * Result of a series runner's `onPreClose`: the pre-close result plus the
+ * selected plot values of the forming bar.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SeriesPreCloseResult } from "@invinite-org/chartlang-alert-runner";
+ *     declare const result: SeriesPreCloseResult;
+ *     void result.plots;
+ */
+export type SeriesPreCloseResult = PreCloseResult & Readonly<{ plots: SeriesPlotValues }>;
+
+/**
+ * A producer: an alert runner that also hands back the values of selected
+ * plot slots per bar, so a host can feed them to another script's
+ * `input.externalSeries`. Same lifecycle, limits, snapshot and failure rules
+ * as `AlertRunner`; only `warmUp`, `onBarClose` and `onPreClose` return the
+ * plot values too.
+ *
+ * @since 1.1
+ * @stable
+ * @example
+ *     import type { SeriesRunner } from "@invinite-org/chartlang-alert-runner";
+ *     declare const producer: SeriesRunner;
+ *     declare const bar: Parameters<SeriesRunner["onBarClose"]>[0];
+ *     const { plots } = await producer.onBarClose(bar);
+ *     void plots;
+ */
+export type SeriesRunner = Omit<AlertRunner, "warmUp" | "onBarClose" | "onPreClose"> &
+    Readonly<{
+        /** The selected plot slot ids, in the order given. */
+        plotSlots: ReadonlyArray<string>;
+        warmUp(bars: ReadonlyArray<AlertBar>, opts?: WarmUpOpts): Promise<SeriesWarmUpResult>;
+        onBarClose(bar: AlertBar, opts?: BarCloseOpts): Promise<SeriesBarCloseResult>;
+        onPreClose(
+            bar: AlertBar,
+            offsetMs: number,
+            opts?: BarCloseOpts,
+        ): Promise<SeriesPreCloseResult>;
+    }>;

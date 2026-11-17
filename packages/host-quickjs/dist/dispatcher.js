@@ -2947,8 +2947,14 @@ function createExternalSeriesSlots(descriptors, capacity) {
   return slots;
 }
 function valueAt2(feeds, feedName, index) {
-  const value = feeds[feedName]?.values[index];
+  const feed = feeds[feedName];
+  if (feed === void 0)
+    return Number.NaN;
+  const value = feed.values[index - (feed.offset ?? 0)];
   return typeof value === "number" && Number.isFinite(value) ? value : Number.NaN;
+}
+function isValidOffset(offset) {
+  return offset === void 0 || Number.isSafeInteger(offset) && offset >= 0;
 }
 function advanceExternalSeriesFeeds(slots, feeds, barIndex, isTick) {
   for (const slot of slots.values()) {
@@ -2968,8 +2974,11 @@ function replaceExternalSeriesFeedMap(value) {
   for (const [key, feed] of Object.entries(value)) {
     if (!isExternalSeriesFeed(feed))
       continue;
+    const offset = feed.offset;
+    if (!isValidOffset(offset))
+      continue;
     const values = feed.values.map((entry) => typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN);
-    out[key] = Object.freeze({ values: Object.freeze(values) });
+    out[key] = Object.freeze(offset === void 0 ? { values: Object.freeze(values) } : { values: Object.freeze(values), offset });
   }
   return Object.freeze(out);
 }
@@ -18270,7 +18279,7 @@ function buildPrimaryState(args, primary, sizingExternalSeriesFeeds) {
   const now = args.now ?? Date.now;
   const overrides = args.inputOverrides ?? args.resolveInputs?.(primary.manifest.name) ?? Object.freeze({});
   const externalSeriesFeeds = resolveInitialExternalSeriesFeeds(args, primary.manifest, overrides);
-  const externalSeriesCapacity = Math.max(capacity, maxExternalFeedLength(externalSeriesFeeds), sizingExternalSeriesFeeds === void 0 ? 0 : maxExternalFeedLength(sizingExternalSeriesFeeds));
+  const externalSeriesCapacity = Math.max(capacity, primary.manifest.maxLookback + 1, primary.manifest.seriesCapacities.dynamicFallback ?? 0, maxExternalFeedLength(externalSeriesFeeds), sizingExternalSeriesFeeds === void 0 ? 0 : maxExternalFeedLength(sizingExternalSeriesFeeds));
   const externalSeriesSlots = createExternalSeriesSlots(externalSeriesDescriptors2(primary.manifest), externalSeriesCapacity);
   const views = createRuntimeViews({
     syminfo: makeSymInfoView(args.symInfo ?? {}, args.capabilities.symInfoFields)

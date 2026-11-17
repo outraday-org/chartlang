@@ -19,13 +19,16 @@ pnpm add @invinite-org/chartlang-alert-runner @invinite-org/chartlang-compiler
 - `createAlertRunner(opts) → Promise<AlertRunner>` — `requiredHistory()`,
   `needsWarmUp()`, `warmUp(bars, { secondary })`, `onBarClose(bar)`,
   `onSecondaryBarClose(interval, bar)`, `onPreClose(bar, offsetMs)`,
-  `exportSnapshot()`, `dispose()`.
+  `exportSnapshot()`, `dispose()`. `externalSeries: { names }` feeds
+  `input.externalSeries` inputs (one value per bar, O(1)).
+- `createSeriesRunner({ ...opts, plotSlots })` — a producer: the same runner,
+  plus the selected plot slot values per bar (script chains).
 - Frequencies: `"once" | "once_per_bar" | "once_per_bar_close" | "every_time"`,
   plus optional `cooldownBars`; `createFrequencyGate` on its own.
 - `createBarAggregator({ interval })` — ticks or 1m bars to the alert interval.
 - `snapshotFidelityOf(compiled)` — `"exact"` or `"lossy"` (state a snapshot
   cannot carry: no snapshots, pre-close by replay).
-- `validateAlertInputs(manifest, inputs)`, `alertRunnerCapabilities(...)`,
+- `validateAlertInputs(manifest, inputs, { externalSeries })`, `alertRunnerCapabilities(...)`,
   `requiredHistoryFor(manifest, floor)`, `intervalMs(interval)`.
 - `AlertRunnerError` (`code`: `aborted`, `runner-failed`, `invalid-inputs`, …).
 - Defaults: `DEFAULT_ALERT_RUNNER_LIMITS` (32 MiB heap, 250 ms and

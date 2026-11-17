@@ -7,7 +7,7 @@ import type { CreateQuickJsHostOpts, ScriptHost } from "@invinite-org/chartlang-
 import { QuickJsStepAbortedError } from "@invinite-org/chartlang-host-quickjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CROSS, UP_BAR_ALERT, compiled, walk } from "./__fixtures__/scripts.js";
+import { CONSUMER, CROSS, UP_BAR_ALERT, compiled, walk } from "./__fixtures__/scripts.js";
 import { createAlertRunner } from "./runner.js";
 import type { AlertBar, AlertRunnerDiagnostic, CreateAlertRunnerOpts } from "./types.js";
 
@@ -23,6 +23,7 @@ type Script = {
     exportSnapshot?: () => Awaited<ReturnType<ScriptHost["exportSnapshot"]>>;
     importSnapshot?: () => void;
     load?: () => void;
+    setExternalSeries?: (feeds: unknown) => void;
 };
 
 const EMPTY: RunnerEmissions = {
@@ -67,7 +68,7 @@ vi.mock("@invinite-org/chartlang-host-quickjs", async (importOriginal) => {
                     return { barIndex: 0 };
                 },
                 setPlotOverrides: () => undefined,
-                setExternalSeries: () => undefined,
+                setExternalSeries: (feeds) => script.setExternalSeries?.(feeds),
                 dispose: () => undefined,
                 limits: {
                     maxHeapBytes: 0,
@@ -299,5 +300,37 @@ describe("createAlertRunner against a scripted host", () => {
             },
         ];
         expect((await make({ cooldownBars: 2, snapshot: stored })).snapshotStatus).toBe("invalid");
+    });
+
+    it("sends the warm-up window once, then one value per bar (O(1)), and replays both", async () => {
+        const main: unknown[] = [];
+        const scratch: unknown[] = [];
+        scripts = [
+            { setExternalSeries: (f) => main.push(f) },
+            { setExternalSeries: (f) => scratch.push(f) },
+        ];
+        const r = await createAlertRunner({
+            compiled: await compiled(CONSUMER),
+            interval: "1h",
+            frequency: "every_time",
+            externalSeries: { names: ["signal"] },
+            warmUpChunkBars: 2,
+        });
+        const bars = walk(8);
+        await r.warmUp(bars.slice(0, 3), { externalSeries: { signal: [1, 2, 3] } });
+        await r.onBarClose(bars[3] as AlertBar, { externalSeries: { signal: 4 } });
+        await r.onBarClose(bars[4] as AlertBar);
+        await r.onBarClose(bars[4] as AlertBar, { externalSeries: { signal: 9 } });
+        await r.onBarClose(bars[5] as AlertBar, { externalSeries: { signal: 6 } });
+        const windows = [
+            { "producer-feed": { values: [1, 2, 3], offset: 0 } },
+            { "producer-feed": { values: [4], offset: 3 } },
+            { "producer-feed": { values: [Number.NaN], offset: 4 } },
+            { "producer-feed": { values: [6], offset: 5 } },
+        ];
+        expect(main).toEqual(windows);
+        await r.onPreClose(bars[6] as AlertBar, 0, { externalSeries: { signal: 7 } });
+        expect(scratch).toEqual([...windows, { "producer-feed": { values: [7], offset: 6 } }]);
+        expect(main).toHaveLength(4);
     });
 });
